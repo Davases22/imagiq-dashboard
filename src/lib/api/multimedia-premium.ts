@@ -315,8 +315,6 @@ export async function deleteDeviceImageForColor(skus: string[], updatedArray: st
       'Content-Type': 'application/json',
       ...(apiKey && { 'X-API-Key': apiKey }),
     },
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify({ 
       skus,
       clearAll: true // Indicar al backend que elimine imagen_final_premium (null)
