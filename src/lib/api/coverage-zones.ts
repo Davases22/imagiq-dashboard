@@ -3,6 +3,8 @@
 // Basado en la documentación del backend
 // ============================================
 
+import { getApiKey } from "@/lib/api-client";
+
 // ============================================
 // Configuration
 // ============================================
@@ -116,10 +118,12 @@ async function fetchAPI<T>(
   options: RequestInit = {}
 ): Promise<T> {
   try {
+    const apiKey = getApiKey();
     const response = await fetch(url, {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        ...(apiKey && { 'X-API-Key': apiKey }),
         ...options.headers,
       },
     })

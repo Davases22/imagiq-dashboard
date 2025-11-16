@@ -3,6 +3,8 @@
  * Maneja videos, imágenes de carrusel e imágenes de dispositivo
  */
 
+import { getApiKey } from "@/lib/api-client";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 // ==================== VIDEOS DE CARRUSEL ====================
@@ -20,9 +22,13 @@ export async function uploadCarouselVideos(skus: string[], files: File[]) {
   });
   formData.append('skus', JSON.stringify(skus));
 
+  const apiKey = getApiKey();
   const response = await fetch(`${API_BASE_URL}/api/multimedia/producto/carrusel/videos`, {
     method: 'PUT',
     body: formData,
+    headers: {
+      ...(apiKey && { 'X-API-Key': apiKey }),
+    },
   });
 
   const data = await response.json();
@@ -39,10 +45,12 @@ export async function uploadCarouselVideos(skus: string[], files: File[]) {
  * @param videoUrl - URL del video a eliminar
  */
 export async function deleteCarouselVideo(skus: string[], videoUrl: string) {
+  const apiKey = getApiKey();
   const response = await fetch(`${API_BASE_URL}/api/multimedia/producto/carrusel/video`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
+      ...(apiKey && { 'X-API-Key': apiKey }),
     },
     body: JSON.stringify({ skus, videoUrl }),
   });
@@ -77,9 +85,13 @@ export async function uploadCarouselImages(skus: string[], files: File[]) {
   }
   formData.append('skus', JSON.stringify(skus));
 
+  const apiKey = getApiKey();
   const response = await fetch(`${API_BASE_URL}/api/multimedia/producto/carrusel/imagenes`, {
     method: 'PUT',
     body: formData,
+    headers: {
+      ...(apiKey && { 'X-API-Key': apiKey }),
+    },
   });
 
   const data = await response.json();
@@ -104,10 +116,12 @@ export async function uploadCarouselImages(skus: string[], files: File[]) {
  * @param updatedArray - Array COMPLETO actualizado (sin la imagen eliminada)
  */
 export async function deleteCarouselImage(skus: string[], imageUrl: string, updatedArray: string[]) {
+  const apiKey = getApiKey();
   const response = await fetch(`${API_BASE_URL}/api/multimedia/producto/carrusel/imagen`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
+      ...(apiKey && { 'X-API-Key': apiKey }),
     },
     body: JSON.stringify({ 
       skus, 
@@ -138,10 +152,12 @@ export async function deleteCarouselImage(skus: string[], imageUrl: string, upda
  * @param imageArray - Array de URLs de imágenes del carrusel en el orden final
  */
 export async function reorderCarouselImages(skus: string[], imageArray: string[]) {
+  const apiKey = getApiKey();
   const response = await fetch(`${API_BASE_URL}/api/multimedia/producto/carrusel/reordenar`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
+      ...(apiKey && { 'X-API-Key': apiKey }),
     },
     body: JSON.stringify({ 
       skus, 
@@ -170,9 +186,13 @@ export async function uploadDeviceImage(sku: string, file: File) {
   const formData = new FormData();
   formData.append('file', file);
 
+  const apiKey = getApiKey();
   const response = await fetch(`${API_BASE_URL}/api/multimedia/producto/${sku}/imagen-dispositivo`, {
     method: 'PUT',
     body: formData,
+    headers: {
+      ...(apiKey && { 'X-API-Key': apiKey }),
+    },
   });
 
   const data = await response.json();
@@ -189,8 +209,12 @@ export async function uploadDeviceImage(sku: string, file: File) {
  * @param sku - SKU del que se eliminará la imagen de dispositivo
  */
 export async function deleteDeviceImage(sku: string) {
+  const apiKey = getApiKey();
   const response = await fetch(`${API_BASE_URL}/api/multimedia/producto/${sku}/imagen-dispositivo`, {
     method: 'DELETE',
+    headers: {
+      ...(apiKey && { 'X-API-Key': apiKey }),
+    },
   });
 
   const data = await response.json();
@@ -233,9 +257,13 @@ export async function uploadDeviceImageForColor(skus: string[], file: File) {
   formData.append('skus', JSON.stringify(skus));
 
   try {
+    const apiKey = getApiKey();
     const response = await fetch(`${API_BASE_URL}/api/multimedia/producto/imagen-dispositivo-color`, {
       method: 'PUT',
       body: formData,
+      headers: {
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
     });
 
     const data = await response.json();
@@ -280,9 +308,13 @@ export async function uploadDeviceImageForColor(skus: string[], file: File) {
  * @param updatedArray - NO SE USA (mantener para compatibilidad)
  */
 export async function deleteDeviceImageForColor(skus: string[], updatedArray: string[] = []) {
+  const apiKey = getApiKey();
   const response = await fetch(`${API_BASE_URL}/api/multimedia/producto/imagen-dispositivo-color`, {
     method: 'DELETE',
     headers: {
+      'Content-Type': 'application/json',
+      ...(apiKey && { 'X-API-Key': apiKey }),
+    },
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ 

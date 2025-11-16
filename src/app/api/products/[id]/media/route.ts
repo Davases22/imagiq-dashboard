@@ -31,12 +31,16 @@ export async function PUT(
 
     // Aquí se haría la petición al microservicio de productos
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
     const backendUrl = `${API_BASE_URL}/api/products/${codigoMarketBase}/media`;
 
     // Reenviar el FormData completo al backend
     const response = await fetch(backendUrl, {
       method: "PUT",
       body: formData, // Enviar FormData directamente
+      headers: {
+        ...(API_KEY && { 'X-API-Key': API_KEY }),
+      },
     });
 
     const data = await response.json();

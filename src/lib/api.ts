@@ -11,6 +11,7 @@
 import { BackendCategory, BackendMenu, BackendSubmenu, CreateCategoryRequest, UpdateCategoryRequest, CreateMenuRequest, UpdateMenuRequest, CreateSubmenuRequest, UpdateSubmenuRequest, BackendWhatsAppTemplate } from "@/types";
 import { BackendBanner, BannerPaginationData } from "@/types/banner";
 import { ProductColumn, DisplayTypesResponse, FilterOperator, DynamicFilter, FilterOrderConfig } from "@/types/filters";
+import { apiClient as apiClientWithKey, apiClientFormData, getApiKey } from "@/lib/api-client";
 
 
 // API Client configuration
@@ -46,8 +47,12 @@ export class ApiClient {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
+    const apiKey = getApiKey();
     const config: RequestInit = {
-      headers: this.headers,
+      headers: {
+        ...this.headers,
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
       ...options,
     };
 
@@ -146,11 +151,13 @@ export class ApiClient {
 
   async postFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
+    const apiKey = getApiKey();
     const config: RequestInit = {
       method: "POST",
       body: formData,
       headers: {
         // No incluir Content-Type para que el browser lo establezca automáticamente con boundary
+        ...(apiKey && { 'X-API-Key': apiKey }),
       },
     };
 
@@ -189,11 +196,13 @@ export class ApiClient {
 
   async putFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
+    const apiKey = getApiKey();
     const config: RequestInit = {
       method: "PUT",
       body: formData,
       headers: {
         // No incluir Content-Type para que el browser lo establezca automáticamente con boundary
+        ...(apiKey && { 'X-API-Key': apiKey }),
       },
     };
 
@@ -310,9 +319,13 @@ export const productEndpoints = {
     formData.append('file', imageFile);
 
     const safeSku = encodeSkuForPath(sku);
+    const apiKey = getApiKey();
     return fetch(`${API_BASE_URL}/api/multimedia/producto/${safeSku}/imagen/${numero}`, {
       method: "PUT",
       body: formData,
+      headers: {
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
     }).then(async (response) => {
       const data = await response.json();
       return {
@@ -333,9 +346,13 @@ export const productEndpoints = {
     formData.append('file', imageFile);
 
     const safeSku = encodeSkuForPath(sku);
+    const apiKey = getApiKey();
     return fetch(`${API_BASE_URL}/api/multimedia/producto/${safeSku}/imagen/agregar`, {
       method: "POST",
       body: formData,
+      headers: {
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
     }).then(async (response) => {
       const data = await response.json();
       return {
@@ -358,9 +375,13 @@ export const productEndpoints = {
     });
 
     const safeSku = encodeSkuForPath(sku);
+    const apiKey = getApiKey();
     return fetch(`${API_BASE_URL}/api/multimedia/producto/${safeSku}/imagenes/agregar-multiples`, {
       method: "POST",
       body: formData,
+      headers: {
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
     }).then(async (response) => {
       const data = await response.json();
       return {
@@ -396,9 +417,13 @@ export const productEndpoints = {
       formData.append('file', file);
     });
 
+    const apiKey = getApiKey();
     return fetch(`${API_BASE_URL}/api/multimedia/producto/multiple_data`, {
       method: "POST",
       body: formData,
+      headers: {
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
     }).then(async (response) => {
       const data = await response.json();
       return {
@@ -436,10 +461,12 @@ export const productEndpoints = {
   // Eliminar una o varias imágenes de detalle
   deleteDetailImages: (sku: string, numeros: number[]) => {
     const safeSku = encodeSkuForPath(sku);
+    const apiKey = getApiKey();
     return fetch(`${API_BASE_URL}/api/multimedia/producto/${safeSku}/imagenes-detalle`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
+        ...(apiKey && { 'X-API-Key': apiKey }),
       },
       body: JSON.stringify({ numeros }),
     }).then(async (response) => {
@@ -459,8 +486,12 @@ export const productEndpoints = {
   // Eliminar imagen preview
   deletePreviewImage: (sku: string) => {
     const safeSku = encodeSkuForPath(sku);
+    const apiKey = getApiKey();
     return fetch(`${API_BASE_URL}/api/multimedia/producto/${safeSku}/preview`, {
       method: "DELETE",
+      headers: {
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
     }).then(async (response) => {
       const data = await response.json();
       return {
@@ -674,9 +705,13 @@ export const multimediaEndpoints = {
     formData.append('file', imageFile);
 
     const url = `${API_BASE_URL}/api/multimedia/menus`;
+    const apiKey = getApiKey();
     return fetch(url, {
       method: "POST",
       body: formData,
+      headers: {
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
     }).then(async (response) => {
       // Si la respuesta es exitosa (201 Created), considerar como éxito
       if (response.ok) {
@@ -726,9 +761,13 @@ export const multimediaEndpoints = {
     formData.append('file', imageFile);
 
     const url = `${API_BASE_URL}/api/multimedia/menus`;
+    const apiKey = getApiKey();
     return fetch(url, {
       method: "PUT",
       body: formData,
+      headers: {
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
     }).then(async (response) => {
       // Si la respuesta es exitosa (200 OK o 201 Created), considerar como éxito
       if (response.ok) {
@@ -778,9 +817,13 @@ export const multimediaEndpoints = {
     formData.append('file', imageFile);
 
     const url = `${API_BASE_URL}/api/multimedia/categorias`;
+    const apiKey = getApiKey();
     return fetch(url, {
       method: "POST",
       body: formData,
+      headers: {
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
     }).then(async (response) => {
       // Si la respuesta es exitosa (201 Created), considerar como éxito
       if (response.ok) {
@@ -830,9 +873,13 @@ export const multimediaEndpoints = {
     formData.append('file', imageFile);
 
     const url = `${API_BASE_URL}/api/multimedia/categorias`;
+    const apiKey = getApiKey();
     return fetch(url, {
       method: "PUT",
       body: formData,
+      headers: {
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
     }).then(async (response) => {
       // Si la respuesta es exitosa (200 OK o 201 Created), considerar como éxito
       if (response.ok) {
@@ -896,9 +943,13 @@ export const multimediaEndpoints = {
     formData.append('file', imageFile);
 
     const url = `${API_BASE_URL}/api/multimedia/submenus`;
+    const apiKey = getApiKey();
     return fetch(url, {
       method: "POST",
       body: formData,
+      headers: {
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
     }).then(async (response) => {
       // Si la respuesta es exitosa (201 Created), considerar como éxito
       if (response.ok) {
@@ -948,9 +999,13 @@ export const multimediaEndpoints = {
     formData.append('file', imageFile);
 
     const url = `${API_BASE_URL}/api/multimedia/submenus`;
+    const apiKey = getApiKey();
     return fetch(url, {
       method: "PUT",
       body: formData,
+      headers: {
+        ...(apiKey && { 'X-API-Key': apiKey }),
+      },
     }).then(async (response) => {
       // Si la respuesta es exitosa (200 OK o 201 Created), considerar como éxito
       if (response.ok) {
