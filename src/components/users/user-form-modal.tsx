@@ -50,14 +50,6 @@ const userFormSchema = z.object({
   tipo_documento: z.string().optional(),
   telefono: z.string().optional(),
   rol: z.string().min(1, "El rol es requerido"),
-  role: z.enum(["super_admin", "admin", "manager", "editor", "viewer"]),
-  status: z.enum(["active", "inactive", "pending", "suspended"]),
-  department: z.string().optional(),
-  phoneNumber: z.string().optional(),
-  location: z.string().optional(),
-  timezone: z.string().optional(),
-  twoFactorEnabled: z.boolean(),
-  customPermissions: z.array(z.string()).optional(),
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
@@ -88,19 +80,12 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
       tipo_documento: "CC",
       telefono: "",
       rol: "4",
-      //role: user?.role || "viewer",
-      status: user?.status || "pending",
-      department: user?.department || "",
-      phoneNumber: user?.phoneNumber || "",
-      location: user?.location || "",
-      timezone: user?.timezone || "Europe/Madrid",
-      twoFactorEnabled: user?.twoFactorEnabled || false,
-      customPermissions: user?.permissions || [],
     },
   });
 
   const onSubmit = (values: UserFormValues) => {
     onSave(values);
+    form.reset();
     onClose();
   };
 

@@ -126,46 +126,22 @@ export default function UsuariosPage() {
 
       const response = await userEndpoints.create(requestData);
 
-      if (response.success && response.data.user) {
-        const newUser: User = {
-          id: response.data.user.id,
-          email: response.data.user.email,
-          name: `${response.data.user.nombre} ${response.data.user.apellido}`,
-          rol: typeof response.data.user.rol === 'number' ? response.data.user.rol : parseInt(response.data.user.rol) || userData.rol || 4,
-          permissions: userData.customPermissions || [],
-          status: userData.status || 'active',
-          department: userData.department || '',
-          phoneNumber: userData.phoneNumber || '',
-          location: userData.location || '',
-          timezone: userData.timezone || 'America/Bogota',
-          twoFactorEnabled: userData.twoFactorEnabled || false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          createdBy: 'current-user',
-          loginAttempts: 0,
-        };
-
-        setUsers([...users, newUser]);
+      if (response.success) {
         toast.success(response.message || "Usuario creado exitosamente");
 
-        // Recargar la lista de usuarios desde la API
+        // Recargar la lista completa de usuarios desde la API
         const updatedResponse = await userEndpoints.getAll();
         if (updatedResponse.success && updatedResponse.data) {
           const backendUsers = Array.isArray(updatedResponse.data) ? updatedResponse.data : [];
           const convertedUsers = backendUsers.map(convertBackendUserToUser);
           setUsers(convertedUsers);
-        }
 
-        // Update stats
-        setStats(prev => ({
-          ...prev,
-          totalUsers: prev.totalUsers + 1,
-          newUsersThisMonth: prev.newUsersThisMonth + 1,
-          usersByRole: {
-            ...prev.usersByRole,
-            [userData.rol]: ((prev.usersByRole as Record<number, number>)[userData.rol] || 0) + 1
-          }
-        }));
+          // Actualizar stats con los datos reales
+          setStats(prev => ({
+            ...prev,
+            totalUsers: convertedUsers.length,
+          }));
+        }
       } else {
         toast.error(response.message || "Error al crear usuario");
       }
