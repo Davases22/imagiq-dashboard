@@ -39,7 +39,11 @@ const permissionResources: PermissionResource[] = [
   'envios',
   'atencion_cliente',
   'pagina_web',
-  'metricas'
+  'metricas',
+  'punto_fisico',
+  'bodega',
+  'zonas_de_cobertura',
+  'facturacion'
 ];
 
 const permissionActions: PermissionAction[] = ['create', 'read', 'update', 'delete'];
@@ -52,7 +56,11 @@ const resourceLabels: Record<PermissionResource, string> = {
   'envios': 'Envíos',
   'atencion_cliente': 'Atención al Cliente',
   'pagina_web': 'Página Web',
-  'metricas': 'Métricas'
+  'metricas': 'Métricas',
+  'punto_fisico': 'Punto Físico',
+  'bodega': 'Bodega',
+  'zonas_de_cobertura': 'Zonas de Cobertura',
+  'facturacion': 'Facturación'
 };
 
 const actionLabels: Record<PermissionAction, string> = {
