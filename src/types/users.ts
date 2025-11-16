@@ -1,4 +1,4 @@
-export type UserRole = 'super_admin' | 'admin' | 'manager' | 'editor' | 'viewer';
+export type UserRole = 'super_admin' | 'admin' | 'manager' | 'editor' | 'viewer' | 1 | 2 | 3 | 4;
 
 export type Permission =
   | 'users.create'
@@ -21,17 +21,14 @@ export type Permission =
   | 'customers.read'
   | 'customers.update';
 
-export interface UserPermissions {
-  role: UserRole;
-  permissions: Permission[];
-}
+
 
 export interface User {
   id: string;
   email: string;
   name: string;
   avatar?: string;
-  role: UserRole;
+  rol: number;
   permissions: Permission[];
   status: 'active' | 'inactive' | 'pending' | 'suspended';
   lastLogin?: Date;
@@ -61,7 +58,7 @@ export interface UserActivity {
 
 export interface UserFilters {
   search?: string;
-  role?: UserRole | 'all';
+  rol?: number | 'all';
   status?: User['status'] | 'all';
   department?: string | 'all';
   dateRange?: {
@@ -76,7 +73,7 @@ export interface UserStats {
   pendingUsers: number;
   suspendedUsers: number;
   newUsersThisMonth: number;
-  usersByRole: Record<UserRole, number>;
+  usersByRole: Record<number, number>;
 }
 
 // Tipos para la API de permisos

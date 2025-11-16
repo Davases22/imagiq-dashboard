@@ -88,7 +88,7 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
       tipo_documento: "CC",
       telefono: "",
       rol: "4",
-      role: user?.role || "viewer",
+      //role: user?.role || "viewer",
       status: user?.status || "pending",
       department: user?.department || "",
       phoneNumber: user?.phoneNumber || "",

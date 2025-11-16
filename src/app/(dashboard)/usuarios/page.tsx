@@ -56,7 +56,7 @@ export default function UsuariosPage() {
       id: backendUser.id || backendUser.uuid || '',
       email: backendUser.email,
       name: `${backendUser.nombre} ${backendUser.apellido}`,
-      role: 'viewer', // Por defecto, puedes mapear según el rol del backend
+      rol: typeof backendUser.rol === 'number' ? backendUser.rol : parseInt(backendUser.rol) || 4,
       permissions: [],
       status: 'active',
       department: '',
@@ -131,14 +131,14 @@ export default function UsuariosPage() {
           id: response.data.user.id,
           email: response.data.user.email,
           name: `${response.data.user.nombre} ${response.data.user.apellido}`,
-          role: userData.role,
-          permissions: userData.customPermissions || (rolePermissions as Record<UserRole, Permission[]>)[userData.role as UserRole],
-          status: userData.status,
-          department: userData.department,
-          phoneNumber: userData.phoneNumber,
-          location: userData.location,
-          timezone: userData.timezone || 'Europe/Madrid',
-          twoFactorEnabled: userData.twoFactorEnabled,
+          rol: typeof response.data.user.rol === 'number' ? response.data.user.rol : parseInt(response.data.user.rol) || userData.rol || 4,
+          permissions: userData.customPermissions || [],
+          status: userData.status || 'active',
+          department: userData.department || '',
+          phoneNumber: userData.phoneNumber || '',
+          location: userData.location || '',
+          timezone: userData.timezone || 'America/Bogota',
+          twoFactorEnabled: userData.twoFactorEnabled || false,
           createdAt: new Date(),
           updatedAt: new Date(),
           createdBy: 'current-user',
@@ -163,7 +163,7 @@ export default function UsuariosPage() {
           newUsersThisMonth: prev.newUsersThisMonth + 1,
           usersByRole: {
             ...prev.usersByRole,
-            [userData.role as UserRole]: (prev.usersByRole as Record<UserRole, number>)[userData.role as UserRole] + 1
+            [userData.rol]: ((prev.usersByRole as Record<number, number>)[userData.rol] || 0) + 1
           }
         }));
       } else {
@@ -181,14 +181,14 @@ export default function UsuariosPage() {
     const updatedUser: User = {
       ...editingUser,
       name: userData.name,
-      role: userData.role,
-      permissions: userData.customPermissions || (rolePermissions as Record<UserRole, Permission[]>)[userData.role as UserRole],
+      rol: userData.rol || editingUser.rol,
+      permissions: userData.customPermissions || [],
       status: userData.status,
-      department: userData.department,
-      phoneNumber: userData.phoneNumber,
-      location: userData.location,
-      timezone: userData.timezone,
-      twoFactorEnabled: userData.twoFactorEnabled,
+      department: userData.department || '',
+      phoneNumber: userData.phoneNumber || '',
+      location: userData.location || '',
+      timezone: userData.timezone || 'America/Bogota',
+      twoFactorEnabled: userData.twoFactorEnabled || false,
       updatedAt: new Date(),
     };
 
@@ -202,29 +202,29 @@ export default function UsuariosPage() {
     setIsDeleteAlertOpen(true);
   };
 
-  const confirmDeleteUsers = () => {
-    const deletedUsers = users.filter(user => usersToDelete.includes(user.id));
-    setUsers(users.filter(user => !usersToDelete.includes(user.id)));
+  // const confirmDeleteUsers = () => {
+  //   const deletedUsers = users.filter(user => usersToDelete.includes(user.id));
+  //   setUsers(users.filter(user => !usersToDelete.includes(user.id)));
 
-    toast.success(`${usersToDelete.length} usuario(s) eliminado(s)`);
+  //   toast.success(`${usersToDelete.length} usuario(s) eliminado(s)`);
 
-    // Update stats
-    setStats(prev => {
-      const newUsersByRole = { ...prev.usersByRole };
-      deletedUsers.forEach(user => {
-        newUsersByRole[user.role] = Math.max(0, newUsersByRole[user.role] - 1);
-      });
+  //   // Update stats
+  //   setStats(prev => {
+  //     const newUsersByRole = { ...prev.usersByRole };
+  //     deletedUsers.forEach(user => {
+  //       newUsersByRole[user.role] = Math.max(0, newUsersByRole[user.role] - 1);
+  //     });
 
-      return {
-        ...prev,
-        totalUsers: prev.totalUsers - usersToDelete.length,
-        usersByRole: newUsersByRole
-      };
-    });
+  //     return {
+  //       ...prev,
+  //       totalUsers: prev.totalUsers - usersToDelete.length,
+  //       usersByRole: newUsersByRole
+  //     };
+  //   });
 
-    setUsersToDelete([]);
-    setIsDeleteAlertOpen(false);
-  };
+  //   setUsersToDelete([]);
+  //   setIsDeleteAlertOpen(false);
+  // };
 
   const handleOpenPermissionsModal = (user: User) => {
     setSelectedUserForPermissions(user);
@@ -256,7 +256,7 @@ export default function UsuariosPage() {
     const csvContent = "data:text/csv;charset=utf-8," +
       "Nombre,Email,Rol,Estado,Departamento,Ubicación,Último acceso\n" +
       users.map(user =>
-        `"${user.name}","${user.email}","${user.role}","${user.status}","${user.department || ''}","${user.location || ''}","${user.lastLogin ? user.lastLogin.toISOString() : 'Nunca'}"`
+        `"${user.name}","${user.email}","${user.rol}","${user.status}","${user.department || ''}","${user.location || ''}","${user.lastLogin ? user.lastLogin.toISOString() : 'Nunca'}"`
       ).join("\n");
 
     const encodedUri = encodeURI(csvContent);
@@ -491,7 +491,7 @@ export default function UsuariosPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDeleteUsers}
+              //onClick={confirmDeleteUsers}
               className="bg-red-600 hover:bg-red-700"
             >
               <Trash2 className="mr-2 h-4 w-4" />
