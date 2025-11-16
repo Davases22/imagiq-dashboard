@@ -264,7 +264,7 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
                         <FormControl>
                           <div className="relative">
                             <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="+57 300 123 4567" className="pl-9" {...field} />
+                            <Input placeholder="3001234567" className="pl-9" {...field} />
                           </div>
                         </FormControl>
                         <FormMessage />
