@@ -272,10 +272,10 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent className="z-[10000]">
-                            <SelectItem value="1">Super Admin</SelectItem>
-                            <SelectItem value="2">Invitado</SelectItem>
+                            <SelectItem value="1">Admin</SelectItem>
+                            <SelectItem value="2">Usuario</SelectItem>
                             <SelectItem value="3">Invitado</SelectItem>
-                            <SelectItem value="4">Admin</SelectItem>
+                            <SelectItem value="4">Super Admin</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

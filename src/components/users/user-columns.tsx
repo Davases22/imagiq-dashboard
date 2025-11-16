@@ -59,10 +59,10 @@ const getRoleLabel = (rol: User['rol'] | number) => {
   if (typeof rol === 'number') {
    
     const roleMap: Record<number, string> = {
-      1: 'Super Admin',
-      2: 'Administrador',
-      3: 'Visualizador',
-      4: 'Usuario'
+      1: 'Admin',
+      2: 'Usuario',
+      3: 'Invitado',
+      4: 'Super admin'
     };
     return roleMap[rol] || 'Usuario';
   }
@@ -76,16 +76,6 @@ const getRoleLabel = (rol: User['rol'] | number) => {
     viewer: 'Visualizador'
   };
   return labels[rol];
-};
-
-const getStatusLabel = (status: User['status']) => {
-  const labels = {
-    active: 'Activo',
-    inactive: 'Inactivo',
-    pending: 'Pendiente',
-    suspended: 'Suspendido'
-  };
-  return labels[status];
 };
 
 const getInitials = (name: string) => {
