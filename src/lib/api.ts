@@ -36,6 +36,7 @@ export class ApiClient {
     this.baseURL = baseURL;
     this.headers = {
       "Content-Type": "application/json",
+      "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || '',
     };
   }
 
@@ -50,6 +51,7 @@ export class ApiClient {
   // Helper para agregar el token de autorización a los headers
   private getAuthHeaders(): Record<string, string> {
     const token = this.getAuthToken();
+
     if (token) {
       return {
         ...this.headers,

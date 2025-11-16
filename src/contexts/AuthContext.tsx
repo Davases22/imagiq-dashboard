@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-API-Key': process.env.NEXT_PUBLIC_API_KEY || '',
         },
         body: JSON.stringify({ email, contrasena: password }),
       });
