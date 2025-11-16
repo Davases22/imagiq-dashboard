@@ -101,7 +101,7 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
       numero_documento: "",
       tipo_documento: "CC",
       telefono: "",
-      rol: "admin",
+      rol: "4",
       role: user?.role || "viewer",
       status: user?.status || "pending",
       department: user?.department || "",
@@ -212,13 +212,6 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
                         {form.watch("name") ? getInitials(form.watch("name")) : "??"}
                       </AvatarFallback>
                     </Avatar>
-                    <Badge variant="outline" className={getRoleColor(selectedRole)}>
-                      <Shield className="mr-1 h-3 w-3" />
-                      {selectedRole === 'super_admin' ? 'Super Admin' :
-                       selectedRole === 'admin' ? 'Administrador' :
-                       selectedRole === 'manager' ? 'Manager' :
-                       selectedRole === 'editor' ? 'Editor' : 'Visualizador'}
-                    </Badge>
                   </div>
 
                   <FormField
@@ -301,97 +294,6 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
                     />
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="role"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Rol</FormLabel>
-                          <Select
-                            onValueChange={(value: UserRole) => {
-                              handleRoleChange(value);
-                              field.onChange(value);
-                            }}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Seleccionar rol" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="super_admin">Super Admin</SelectItem>
-                              <SelectItem value="admin">Administrador</SelectItem>
-                              <SelectItem value="manager">Manager</SelectItem>
-                              <SelectItem value="editor">Editor</SelectItem>
-                              <SelectItem value="viewer">Visualizador</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Estado</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Seleccionar estado" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="active">Activo</SelectItem>
-                              <SelectItem value="inactive">Inactivo</SelectItem>
-                              <SelectItem value="pending">Pendiente</SelectItem>
-                              <SelectItem value="suspended">Suspendido</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="department"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Departamento</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Building className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Ej: Marketing, Ventas..." className="pl-9" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="telefono"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Teléfono</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="+57 300 123 4567" className="pl-9" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   <FormField
                     control={form.control}
                     name="fecha_nacimiento"
@@ -406,6 +308,7 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
                     )}
                   />
 
+                  
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -415,14 +318,14 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
                           <FormLabel>Tipo Documento</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value || "CC"}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Seleccionar tipo" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
+                            <SelectContent className="z-[10000]">
                               <SelectItem value="CC">CC</SelectItem>
                               <SelectItem value="TI">TI</SelectItem>
                               <SelectItem value="Pasaporte">Pasaporte</SelectItem>
@@ -447,78 +350,50 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
                       )}
                     />
                   </div>
-
+                   <FormField
+                    control={form.control}
+                    name="telefono"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Teléfono</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="+57 300 123 4567" className="pl-9" {...field} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="rol"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Rol API</FormLabel>
-                        <FormControl>
-                          <Input placeholder="admin, user, etc." {...field} />
-                        </FormControl>
+                        <FormLabel>Rol</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccionar rol" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="z-[10000]">
+                            <SelectItem value="1">Super Admin</SelectItem>
+                            <SelectItem value="2">Invitado</SelectItem>
+                            <SelectItem value="3">Invitado</SelectItem>
+                            <SelectItem value="4">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="phoneNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Teléfono (Adicional)</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="+34 600 123 456" className="pl-9" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
 
-                  <FormField
-                    control={form.control}
-                    name="location"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ubicación</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Madrid, España" className="pl-9" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="twoFactorEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel className="flex items-center gap-2">
-                            <Key className="h-4 w-4" />
-                            Autenticación de dos factores (2FA)
-                          </FormLabel>
-                          <FormDescription>
-                            Habilitar 2FA para mayor seguridad
-                          </FormDescription>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
                 </div>
 
                 {/* Right Column - Permissions */}
