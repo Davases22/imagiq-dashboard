@@ -73,7 +73,7 @@ export class ApiClient {
     const apiKey = getApiKey();
     const headers = useAuth ? this.getAuthHeaders() : this.headers;
     const config: RequestInit = {
-      headers: this.headers,
+      headers: headers,
       ...options,
     };
 
