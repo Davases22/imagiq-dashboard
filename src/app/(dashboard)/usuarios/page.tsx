@@ -19,9 +19,10 @@ import { toast } from "sonner";
 import { UserStatsCards } from "@/components/users/user-stats-cards";
 import { UsersDataTable } from "@/components/users/users-data-table";
 import { UserFormModal } from "@/components/users/user-form-modal";
-import { userColumns } from "@/components/users/user-columns";
+import { UserPermissionsModal } from "@/components/users/user-permissions-modal";
+import { createUserColumns } from "@/components/users/user-columns";
 import { mockUsers, mockUserActivity, mockUserStats, rolePermissions } from "@/lib/mock-data/users";
-import { User, UserActivity, UserRole, Permission } from "@/types/users";
+import { User, UserActivity, UserRole, Permission, UpdatePermissionsPayload } from "@/types/users";
 import { userEndpoints, CreateUserRequest, BackendUser } from "@/lib/api";
 import {
   Users,
@@ -46,6 +47,8 @@ export default function UsuariosPage() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [usersToDelete, setUsersToDelete] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+  const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<User | undefined>();
 
   // Función para convertir BackendUser a User
   const convertBackendUserToUser = (backendUser: BackendUser): User => {
@@ -223,6 +226,32 @@ export default function UsuariosPage() {
     setIsDeleteAlertOpen(false);
   };
 
+  const handleOpenPermissionsModal = (user: User) => {
+    setSelectedUserForPermissions(user);
+    setIsPermissionsModalOpen(true);
+  };
+
+  const handleSavePermissions = async (payload: UpdatePermissionsPayload) => {
+    try {
+      const response = await userEndpoints.updatePermissions(payload);
+
+      if (response.success) {
+        toast.success("Permisos actualizados exitosamente");
+        // Opcional: Actualizar el usuario en el estado local
+        setUsers(users.map(u =>
+          u.id === payload.userId
+            ? { ...u, permissions: [] } // Aquí podrías mapear los permisos si es necesario
+            : u
+        ));
+      } else {
+        toast.error(response.message || "Error al actualizar permisos");
+      }
+    } catch (error) {
+      console.error("Error al actualizar permisos:", error);
+      toast.error("Error al actualizar permisos");
+    }
+  };
+
   const handleExportUsers = () => {
     const csvContent = "data:text/csv;charset=utf-8," +
       "Nombre,Email,Rol,Estado,Departamento,Ubicación,Último acceso\n" +
@@ -318,7 +347,7 @@ export default function UsuariosPage() {
             </CardHeader>
             <CardContent>
               <UsersDataTable
-                columns={userColumns}
+                columns={createUserColumns(handleOpenPermissionsModal)}
                 data={users}
                 onCreateUser={() => setIsCreateModalOpen(true)}
                 onDeleteUsers={handleDeleteUsers}
@@ -430,6 +459,21 @@ export default function UsuariosPage() {
         user={editingUser}
         onSave={editingUser ? handleEditUser : handleCreateUser}
       />
+
+      {/* User Permissions Modal */}
+      {selectedUserForPermissions && (
+        <UserPermissionsModal
+          open={isPermissionsModalOpen}
+          onClose={() => {
+            setIsPermissionsModalOpen(false);
+            setSelectedUserForPermissions(undefined);
+          }}
+          userId={selectedUserForPermissions.id}
+          userName={selectedUserForPermissions.name}
+          currentPermissions={[]}
+          onSave={handleSavePermissions}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>

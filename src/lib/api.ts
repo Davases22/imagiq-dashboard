@@ -1228,4 +1228,6 @@ export const userEndpoints = {
     apiClient.get<BackendUser[]>("/api/admin/users", true),
   create: (data: CreateUserRequest) =>
     apiClient.post<CreateUserResponse>("/api/admin/users/add", data, true),
+  updatePermissions: (payload: { userId: string; permisos: Array<{ recurso: string; action: string; permitido: boolean }> }) =>
+    apiClient.post<{ success: boolean; message?: string }>("/api/admin/users/permisos", payload, true),
 };

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +19,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -28,12 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, UserRole, Permission } from "@/types/users";
-import { rolePermissions } from "@/lib/mock-data/users";
+import { User } from "@/types/users";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -41,9 +35,6 @@ import {
   User as UserIcon,
   Mail,
   Phone,
-  MapPin,
-  Building,
-  Shield,
   Key,
   Save,
   X
@@ -79,11 +70,6 @@ interface UserFormModalProps {
 }
 
 export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProps) {
-  const [selectedRole, setSelectedRole] = useState<UserRole>(user?.role || 'viewer');
-  const [customPermissions, setCustomPermissions] = useState<Permission[]>(
-    user?.permissions || rolePermissions[selectedRole]
-  );
-
   const isEditing = !!user;
   const title = isEditing ? "Editar Usuario" : "Crear Nuevo Usuario";
   const description = isEditing
@@ -113,85 +99,14 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
     },
   });
 
-  const handleRoleChange = (newRole: UserRole) => {
-    setSelectedRole(newRole);
-    const rolePerms = rolePermissions[newRole];
-    setCustomPermissions(rolePerms);
-    form.setValue('role', newRole);
-    form.setValue('customPermissions', rolePerms);
-  };
-
-  const handlePermissionToggle = (permission: Permission) => {
-    const newPermissions = customPermissions.includes(permission)
-      ? customPermissions.filter(p => p !== permission)
-      : [...customPermissions, permission];
-
-    setCustomPermissions(newPermissions);
-    form.setValue('customPermissions', newPermissions);
-  };
-
   const onSubmit = (values: UserFormValues) => {
-    onSave({
-      ...values,
-      customPermissions: customPermissions,
-    });
+    onSave(values);
     onClose();
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const getRoleColor = (role: UserRole) => {
-    const colors = {
-      super_admin: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
-      admin: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
-      manager: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
-      editor: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
-      viewer: 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300'
-    };
-    return colors[role];
-  };
-
-  const permissionCategories = {
-    "Usuarios": ["users.create", "users.read", "users.update", "users.delete"],
-    "Campañas": ["campaigns.create", "campaigns.read", "campaigns.update", "campaigns.delete"],
-    "Productos": ["products.create", "products.read", "products.update", "products.delete"],
-    "Órdenes": ["orders.read", "orders.update"],
-    "Clientes": ["customers.read", "customers.update"],
-    "Sistema": ["analytics.read", "settings.read", "settings.update"],
-  };
-
-  const permissionLabels: Record<Permission, string> = {
-    "users.create": "Crear usuarios",
-    "users.read": "Ver usuarios",
-    "users.update": "Editar usuarios",
-    "users.delete": "Eliminar usuarios",
-    "campaigns.create": "Crear campañas",
-    "campaigns.read": "Ver campañas",
-    "campaigns.update": "Editar campañas",
-    "campaigns.delete": "Eliminar campañas",
-    "products.create": "Crear productos",
-    "products.read": "Ver productos",
-    "products.update": "Editar productos",
-    "products.delete": "Eliminar productos",
-    "orders.read": "Ver órdenes",
-    "orders.update": "Editar órdenes",
-    "customers.read": "Ver clientes",
-    "customers.update": "Editar clientes",
-    "analytics.read": "Ver analytics",
-    "settings.read": "Ver configuración",
-    "settings.update": "Editar configuración",
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-2xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserIcon className="h-5 w-5" />
@@ -203,17 +118,7 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
         <ScrollArea className="max-h-[60vh] pr-4">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left Column - Basic Info */}
-                <div className="space-y-4">
-                  <div className="flex flex-col items-center space-y-2">
-                    <Avatar className="h-16 w-16">
-                      <AvatarFallback className="text-lg">
-                        {form.watch("name") ? getInitials(form.watch("name")) : "??"}
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-
+              <div className="space-y-4">
                   <FormField
                     control={form.control}
                     name="name"
@@ -395,51 +300,6 @@ export function UserFormModal({ open, onClose, user, onSave }: UserFormModalProp
 
 
                 </div>
-
-                {/* Right Column - Permissions */}
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-medium mb-4 flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      Permisos del Usuario
-                    </h3>
-
-                    <div className="space-y-4">
-                      {Object.entries(permissionCategories).map(([category, perms]) => (
-                        <div key={category} className="space-y-2">
-                          <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                            {category}
-                          </h4>
-                          <div className="grid grid-cols-1 gap-2">
-                            {perms.map((permission) => (
-                              <div key={permission} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={permission}
-                                  checked={customPermissions.includes(permission as Permission)}
-                                  onCheckedChange={() => handlePermissionToggle(permission as Permission)}
-                                />
-                                <label
-                                  htmlFor={permission}
-                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                  {permissionLabels[permission as Permission]}
-                                </label>
-                              </div>
-                            ))}
-                          </div>
-                          {category !== "Sistema" && <Separator className="mt-3" />}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-4 p-3 bg-muted rounded-lg">
-                      <p className="text-xs text-muted-foreground">
-                        <strong>Total de permisos:</strong> {customPermissions.length} seleccionados
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </form>
           </Form>
         </ScrollArea>

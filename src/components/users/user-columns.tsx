@@ -80,7 +80,7 @@ const getInitials = (name: string) => {
     .slice(0, 2);
 };
 
-export const userColumns: ColumnDef<User>[] = [
+export const createUserColumns = (onEditPermissions?: (user: User) => void): ColumnDef<User>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -290,7 +290,7 @@ export const userColumns: ColumnDef<User>[] = [
               <Eye className="mr-2 h-4 w-4" />
               Ver perfil
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEditPermissions?.(user)}>
               <Edit className="mr-2 h-4 w-4" />
               Editar usuario
             </DropdownMenuItem>
@@ -316,3 +316,6 @@ export const userColumns: ColumnDef<User>[] = [
     },
   },
 ];
+
+// Exportación por defecto para compatibilidad
+export const userColumns = createUserColumns();
