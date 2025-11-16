@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { MapPin, Search, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react"
 import type { ResultadoCobertura } from "@/lib/api/coverage-zones"
+import { getApiKey } from "@/lib/api-client"
 import { toast } from "sonner"
 
 interface CoverageCheckerProps {
@@ -59,7 +60,12 @@ export function CoverageChecker({ ciudad, onCheckCoverage }: CoverageCheckerProp
         types: "address",
       })
 
-      const response = await fetch(`${baseUrl}/places/autocomplete?${params}`)
+      const apiKey = getApiKey();
+      const response = await fetch(`${baseUrl}/places/autocomplete?${params}`, {
+        headers: {
+          ...(apiKey && { 'X-API-Key': apiKey }),
+        },
+      })
 
       if (!response.ok) {
         // Intentar obtener el mensaje de error del servidor
@@ -146,7 +152,12 @@ export function CoverageChecker({ ciudad, onCheckCoverage }: CoverageCheckerProp
         language: "es",
       })
 
-      const response = await fetch(`${baseUrl}/places/details?${params}`)
+      const apiKey = getApiKey();
+      const response = await fetch(`${baseUrl}/places/details?${params}`, {
+        headers: {
+          ...(apiKey && { 'X-API-Key': apiKey }),
+        },
+      })
 
       if (!response.ok) {
         // Intentar obtener el mensaje de error del servidor

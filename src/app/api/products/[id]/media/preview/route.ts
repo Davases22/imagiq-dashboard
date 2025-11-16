@@ -29,6 +29,7 @@ export async function DELETE(
 
     // Aquí se haría la petición al microservicio de productos
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
     const backendUrl = `${API_BASE_URL}/api/multimedia/producto/${sku}/imagen-preview`;
 
     // Reenviar la petición DELETE al backend
@@ -36,6 +37,7 @@ export async function DELETE(
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
+        ...(API_KEY && { 'X-API-Key': API_KEY }),
       },
     });
 
