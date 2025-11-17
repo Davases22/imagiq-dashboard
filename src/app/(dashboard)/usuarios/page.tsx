@@ -76,7 +76,7 @@ export default function UsuariosPage() {
     const loadUsers = async () => {
       try {
         const response = await userEndpoints.getAll();
-        console.log("Respuesta de usuarios:", response);
+    
 
         if (response.success && response.data) {
           // La API devuelve directamente un array
@@ -90,13 +90,13 @@ export default function UsuariosPage() {
             totalUsers: convertedUsers.length,
           }));
         } else {
-          console.error("Error al cargar usuarios:", response.message);
+          
           toast.error("Error al cargar usuarios");
           // Usar datos mock si falla
           setUsers(mockUsers);
         }
       } catch (error) {
-        console.error("Error al cargar usuarios:", error);
+       
         toast.error("Error al cargar usuarios");
         // Usar datos mock si falla
         setUsers(mockUsers);
@@ -122,7 +122,7 @@ export default function UsuariosPage() {
         rol: userData.rol,
       };
 
-      console.log("Datos enviados a la API:", requestData);
+ 
 
       const response = await userEndpoints.create(requestData);
 
@@ -152,7 +152,7 @@ export default function UsuariosPage() {
         return { success: false };
       }
     } catch (error) {
-      console.error("Error creating user:", error);
+      
       toast.error("Error al crear usuario");
       return { success: false };
     }
@@ -195,7 +195,7 @@ export default function UsuariosPage() {
         return { success: false };
       }
     } catch (error) {
-      console.error("Error updating user:", error);
+      
       toast.error("Error al actualizar usuario");
       return { success: false };
     }
@@ -255,7 +255,7 @@ export default function UsuariosPage() {
         toast.error(response.message || "Error al actualizar permisos");
       }
     } catch (error) {
-      console.error("Error al actualizar permisos:", error);
+     
       toast.error("Error al actualizar permisos");
     }
   };

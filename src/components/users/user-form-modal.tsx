@@ -105,31 +105,43 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
   useEffect(() => {
     const loadUserData = async () => {
       if (open && isEditing && user?.id) {
-        console.log('Cargando datos del usuario:', user.id);
+      
         setIsLoadingUserData(true);
         setStep(1); // Asegurarnos de empezar en el paso 1
         try {
           const response = await userEndpoints.getById(user.id);
-          console.log('Respuesta de getById:', response);
+          
           if (response.success && response.data) {
             const userData = response.data;
+
+            // Formatear fecha de nacimiento de ISO a YYYY-MM-DD
+            let formattedDate = "";
+            if (userData.fecha_nacimiento) {
+              try {
+                const date = new Date(userData.fecha_nacimiento);
+                formattedDate = date.toISOString().split('T')[0];
+              } catch (error) {
+                
+              }
+            }
+
             // Actualizar el formulario con los datos del usuario
             form.reset({
               name: userData.nombre || "",
               apellido: userData.apellido || "",
               email: userData.email || "",
               contrasena: "",
-              fecha_nacimiento: userData.fecha_nacimiento || "",
+              fecha_nacimiento: formattedDate,
               numero_documento: userData.numero_documento || "",
               tipo_documento: userData.tipo_documento || "CC",
               telefono: userData.telefono || "",
               rol: String(userData.rol) || "4",
             });
             // Guardar permisos actuales
-            setCurrentPermissions(userData.permisos || []);
+            setCurrentPermissions((userData.permisos || []) as PermissionItem[]);
           }
         } catch (error) {
-          console.error("Error loading user data:", error);
+          
         } finally {
           setIsLoadingUserData(false);
         }
@@ -165,7 +177,7 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
   }, [open, form]);
 
   const onSubmit = async (values: UserFormValues) => {
-    console.log('Formulario enviado con valores:', values, isEditing);
+    
     if (isEditing) {
       // Si estamos editando en el paso 1, guardamos y pasamos al paso 2
       const result = await onSave(values);
