@@ -78,7 +78,7 @@ export interface UserStats {
 
 // Tipos para la API de permisos
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
-export type PermissionResource = 'usuarios' | 'ordenes' | 'productos' | 'marketing' | 'envios' | 'atencion_cliente' | 'pagina_web' | 'metricas' |'punto_fisico' |'bodega'| 'zonas_de_cobertura' | 'facturacion';
+export type PermissionResource = 'usuarios' | 'ordenes' | 'productos' | 'marketing' | 'envios' | 'atencion_cliente' | 'pagina_web' | 'metricas' ; // |'punto_fisico' |'bodega'| 'zonas_de_cobertura' | 'facturacion'
 
 export interface PermissionItem {
   recurso: PermissionResource;

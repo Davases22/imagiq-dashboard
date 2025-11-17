@@ -108,7 +108,7 @@ export default function UsuariosPage() {
     loadUsers();
   }, []);
 
-  const handleCreateUser = async (userData: any) => {
+  const handleCreateUser = async (userData: any): Promise<{ success: boolean; userId?: string }> => {
     try {
       const requestData: CreateUserRequest = {
         nombre: userData.name,
@@ -129,6 +129,9 @@ export default function UsuariosPage() {
       if (response.success) {
         toast.success(response.message || "Usuario creado exitosamente");
 
+        // Extraer el ID del usuario creado
+        const userId = response.data?.user?.id || response.data?.id;
+
         // Recargar la lista completa de usuarios desde la API
         const updatedResponse = await userEndpoints.getAll();
         if (updatedResponse.success && updatedResponse.data) {
@@ -142,17 +145,21 @@ export default function UsuariosPage() {
             totalUsers: convertedUsers.length,
           }));
         }
+
+        return { success: true, userId };
       } else {
         toast.error(response.message || "Error al crear usuario");
+        return { success: false };
       }
     } catch (error) {
       console.error("Error creating user:", error);
       toast.error("Error al crear usuario");
+      return { success: false };
     }
   };
 
-  const handleEditUser = (userData: any) => {
-    if (!editingUser) return;
+  const handleEditUser = async (userData: any): Promise<{ success: boolean; userId?: string }> => {
+    if (!editingUser) return { success: false };
 
     const updatedUser: User = {
       ...editingUser,
@@ -171,6 +178,7 @@ export default function UsuariosPage() {
     setUsers(users.map(user => user.id === editingUser.id ? updatedUser : user));
     toast.success("Usuario actualizado exitosamente");
     setEditingUser(undefined);
+    return { success: true };
   };
 
   const handleDeleteUsers = (userIds: string[]) => {
@@ -207,7 +215,7 @@ export default function UsuariosPage() {
     setIsPermissionsModalOpen(true);
   };
 
-  const handleSavePermissions = async (payload: UpdatePermissionsPayload) => {
+  const handleSavePermissions = async (payload: UpdatePermissionsPayload): Promise<void> => {
     try {
       const response = await userEndpoints.updatePermissions(payload);
 
@@ -434,6 +442,7 @@ export default function UsuariosPage() {
         }}
         user={editingUser}
         onSave={editingUser ? handleEditUser : handleCreateUser}
+        onSavePermissions={handleSavePermissions}
       />
 
       {/* User Permissions Modal */}
