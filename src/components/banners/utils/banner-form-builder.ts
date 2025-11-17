@@ -3,7 +3,7 @@
  * Centraliza la lógica de construcción de formularios para crear y editar banners
  */
 
-import type { BannerPosition } from "@/types/banner";
+import type { BannerPosition, BannerTextStyles } from "@/types/banner";
 
 export interface BannerFormFields {
   name: string;
@@ -20,6 +20,8 @@ export interface BannerFormFields {
   // NUEVO: Posiciones basadas en porcentajes
   position_desktop?: BannerPosition;
   position_mobile?: BannerPosition;
+  // NUEVO: Estilos de texto
+  text_styles?: BannerTextStyles;
 }
 
 export interface BannerMediaFiles {
@@ -70,6 +72,11 @@ function appendTextFields(
   }
   if (fields.position_mobile) {
     formData.append("position_mobile", JSON.stringify(fields.position_mobile));
+  }
+
+  // Estilos de texto como JSON
+  if (fields.text_styles) {
+    formData.append('text_styles', JSON.stringify(fields.text_styles));
   }
 
   // Solo enviar category_id y subcategory_id si tienen valor

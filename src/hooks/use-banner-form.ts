@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { bannerEndpoints } from "@/lib/api";
-import type { BannerPosition } from "@/types/banner";
+import type { BannerPosition, BannerTextStyles } from "@/types/banner";
 import { gridToPercentage, getDefaultPosition } from "@/components/banners/utils/position-utils";
 import {
   buildCreateBannerFormData,
@@ -79,6 +79,10 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
   // NUEVO: Estado para posiciones basadas en porcentajes
   const [positionDesktop, setPositionDesktop] = useState<BannerPosition>(getDefaultPosition());
   const [positionMobile, setPositionMobile] = useState<BannerPosition>(getDefaultPosition());
+
+  // NUEVO: Estado para estilos de texto
+  // NUEVO: Estilos de texto
+  const [textStyles, setTextStyles] = useState<BannerTextStyles | undefined>();
 
   // Cargar banner existente si estamos en modo edición
   useEffect(() => {
@@ -164,6 +168,21 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
 
             setPositionDesktop(desktopPos);
             setPositionMobile(mobilePos);
+
+            // NUEVO: Cargar estilos de texto si existen
+            const parseTextStyles = (styles: any): BannerTextStyles | undefined => {
+              if (!styles) return undefined;
+              if (typeof styles === 'string') {
+                try {
+                  return JSON.parse(styles) as BannerTextStyles;
+                } catch {
+                  return undefined;
+                }
+              }
+              return styles as BannerTextStyles;
+            };
+
+            setTextStyles(parseTextStyles(banner.text_styles));
           } else {
             alert("No se pudo cargar el banner");
             router.push("/marketing/banners");
@@ -205,6 +224,11 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
 
   const handlePositionMobileChange = (position: BannerPosition) => {
     setPositionMobile(position);
+  };
+
+  // NUEVO: Handlers para estilos de texto
+  const handleTextStylesChange = (styles: BannerTextStyles) => {
+    setTextStyles(styles);
   };
 
   // Validación - retorna un objeto con success y error message
@@ -250,6 +274,8 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
       // NUEVO: Posiciones basadas en porcentajes
       position_desktop: positionDesktop,
       position_mobile: positionMobile,
+      // NUEVO: Estilos de texto
+      text_styles: textStyles,
     };
 
     const files: BannerMediaFiles = {
@@ -309,5 +335,8 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
     positionMobile,
     handlePositionDesktopChange,
     handlePositionMobileChange,
+    // NUEVO: Estilos de texto
+    textStyles,
+    handleTextStylesChange,
   };
 }

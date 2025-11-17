@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Send, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { useBannerForm } from "@/hooks/use-banner-form";
 import { BannerFormFields } from "./banner-form-fields";
 import { BannerMediaUpload } from "./banner-media-upload";
 import { BannerCategoryFields } from "./banner-category-fields";
+import { BannerTextStylesFields } from "./banner-text-styles-fields";
 import { BannerPreview } from "../preview/banner-preview";
 import { BannerSizeGuide } from "./banner-size-guide";
 
@@ -30,6 +31,9 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
   // Ref para guardar el nombre de categoría y evitar race conditions con useState
   const categoryNameRef = useRef("");
 
+  // Estado para controlar qué dispositivo está activo
+  const [activeDevice, setActiveDevice] = useState<"desktop" | "mobile">("desktop");
+
   const {
     formData,
     existingUrls,
@@ -45,6 +49,9 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
     positionMobile,
     handlePositionDesktopChange,
     handlePositionMobileChange,
+    // NUEVO: Estilos de texto
+    textStyles,
+    handleTextStylesChange,
   } = useBannerForm({ mode, bannerId, initialPlacement });
 
   // Definir textos según el modo
@@ -137,6 +144,44 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
           {/* Guía de dimensiones */}
           <BannerSizeGuide placement={formData.placement} />
 
+          {/* Estilos de Texto - Solo para Hero, Home, y banners de categoría */}
+          {(formData.placement === "hero" || 
+            formData.placement === "home" || 
+            formData.placement.startsWith("home-") ||
+            formData.placement.startsWith("banner-")) && (
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg sm:text-xl">Estilos de Texto</CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={activeDevice === "desktop" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setActiveDevice("desktop")}
+                    >
+                      Desktop
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={activeDevice === "mobile" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setActiveDevice("mobile")}
+                    >
+                      Mobile
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                <BannerTextStylesFields
+                  textStyles={textStyles}
+                  onTextStylesChange={handleTextStylesChange}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {/* Upload de archivos */}
           <Card>
             <CardHeader className="p-4 sm:p-6">
@@ -197,36 +242,39 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
         </div>
 
         {/* Preview */}
-        <Card className="lg:sticky lg:top-4">
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
-              Vista Previa
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            <BannerPreview
-              desktop_image={formData.desktop_image || existingUrls.desktop_image_url}
-              desktop_video={formData.desktop_video || existingUrls.desktop_video_url}
-              mobile_image={formData.mobile_image || existingUrls.mobile_image_url}
-              mobile_video={formData.mobile_video || existingUrls.mobile_video_url}
-              title={formData.title}
-              description={formData.description}
-              cta={formData.cta}
-              color_font={formData.color_font}
-              link_url={formData.link_url}
-              placement={formData.placement}
-              position_desktop={positionDesktop}
-              position_mobile={positionMobile}
-              onPositionDesktopChange={handlePositionDesktopChange}
-              onPositionMobileChange={handlePositionMobileChange}
-              coordinates={formData.coordinates}
-              coordinatesMobile={formData.coordinates_mobile}
-              onCoordinatesChange={handleCoordinatesChange}
-              onCoordinatesMobileChange={handleCoordinatesMobileChange}
-            />
-          </CardContent>
-        </Card>
+        <div className="lg:sticky lg:top-4 lg:self-start">
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
+                Vista Previa
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6">
+              <BannerPreview
+                desktop_image={formData.desktop_image || existingUrls.desktop_image_url}
+                desktop_video={formData.desktop_video || existingUrls.desktop_video_url}
+                mobile_image={formData.mobile_image || existingUrls.mobile_image_url}
+                mobile_video={formData.mobile_video || existingUrls.mobile_video_url}
+                title={formData.title}
+                description={formData.description}
+                cta={formData.cta}
+                color_font={formData.color_font}
+                link_url={formData.link_url}
+                placement={formData.placement}
+                position_desktop={positionDesktop}
+                position_mobile={positionMobile}
+                onPositionDesktopChange={handlePositionDesktopChange}
+                onPositionMobileChange={handlePositionMobileChange}
+                coordinates={formData.coordinates}
+                coordinatesMobile={formData.coordinates_mobile}
+                onCoordinatesChange={handleCoordinatesChange}
+                onCoordinatesMobileChange={handleCoordinatesMobileChange}
+                text_styles={textStyles}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
