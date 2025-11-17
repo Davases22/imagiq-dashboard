@@ -7,7 +7,6 @@ import { Monitor, Smartphone, RotateCcw } from "lucide-react";
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { DraggableBannerOverlay } from "./draggable-banner-overlay";
 import { BannerContentOverlay } from "./banner-content-overlay";
-import { BannerPositionControls } from "./banner-position-controls";
 import type { BannerPosition } from "@/types/banner";
 import { gridToPercentage, getDefaultPosition } from "../utils/position-utils";
 
@@ -62,13 +61,35 @@ const getStyles = (placement: string | undefined, device: DeviceType) => {
   if (isFlexible) {
     return {
       aspectRatio: "",
-      maxWidth: "max-w-md", // Reducido a ~448px
+      maxWidth: "max-w-md", // ~448px para banners de categoría (verticales)
       mediaClass: "w-full h-auto pointer-events-none",
       minHeight: "min-h-[150px]",
     };
   }
 
   const isDesktop = device === "desktop";
+  
+  // Hero banner - más grande
+  if (placement === "hero") {
+    return {
+      aspectRatio: isDesktop ? "aspect-[16/9]" : "aspect-[9/16]",
+      maxWidth: isDesktop ? "max-w-2xl" : "max-w-sm", // ~672px desktop
+      mediaClass: "absolute inset-0 w-full h-full object-cover pointer-events-none",
+      minHeight: "",
+    };
+  }
+  
+  // Home banners - tamaño intermedio
+  if (placement?.startsWith("home-")) {
+    return {
+      aspectRatio: isDesktop ? "aspect-[16/9]" : "aspect-[9/16]",
+      maxWidth: isDesktop ? "max-w-xl" : "max-w-sm", // ~576px desktop
+      mediaClass: "absolute inset-0 w-full h-full object-cover pointer-events-none",
+      minHeight: "",
+    };
+  }
+  
+  // Otros banners (por defecto)
   return {
     aspectRatio: isDesktop ? "aspect-[16/9]" : "aspect-[9/16]",
     maxWidth: isDesktop ? "max-w-2xl" : "max-w-sm",
@@ -149,7 +170,7 @@ function BannerContent({ image, video, title, description, cta, colorFont, linkU
                 {Array.from({ length: 81 }, (_, i) => <div key={`g-${Math.floor(i/9)}-${i%9}`} className="border border-dashed border-white/10" />)}
               </div>
             </div>
-            {hasContent && <Overlay id={`overlay-${device}`} title={title} description={description} cta={cta} colorFont={colorFont} linkUrl={linkUrl} position={currentPos} device={device} textStyles={textStyles} />}
+            {hasContent && <Overlay id={`overlay-${device}`} title={title} description={description} cta={cta} colorFont={colorFont} linkUrl={linkUrl} position={currentPos} device={device} textStyles={textStyles} placement={placement} />}
           </>
         )}
         <div className="absolute top-4 left-4 pointer-events-none">
@@ -190,28 +211,23 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
     const isFlexible = placement === "category-top" || placement === "product-detail" || placement?.startsWith("banner-");
     
     return (
-      <>
-        <div className={`flex justify-center ${isFlexible ? 'max-w-md mx-auto' : ''}`}>
-          <BannerContent
-            key={key}
-            image={mode === "desktop" ? desktop_image : mobile_image}
-            video={mode === "desktop" ? desktop_video : mobile_video}
-            title={title}
-            description={description}
-            cta={cta}
-            colorFont={color_font}
-            linkUrl={link_url}
-            position={pos}
-            onPositionChange={handler}
-            device={mode}
-            placement={placement}
-            textStyles={text_styles}
-          />
-        </div>
-        <div className="flex justify-center">
-          <BannerPositionControls position={pos} onPositionChange={handler} device={mode} />
-        </div>
-      </>
+      <div className={`flex justify-center ${isFlexible ? 'max-w-md mx-auto' : ''}`}>
+        <BannerContent
+          key={key}
+          image={mode === "desktop" ? desktop_image : mobile_image}
+          video={mode === "desktop" ? desktop_video : mobile_video}
+          title={title}
+          description={description}
+          cta={cta}
+          colorFont={color_font}
+          linkUrl={link_url}
+          position={pos}
+          onPositionChange={handler}
+          device={mode}
+          placement={placement}
+          textStyles={text_styles}
+        />
+      </div>
     );
   };
 
@@ -224,7 +240,7 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
             <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
-        <div className="space-y-4">{renderContent("desktop", `g-${reloadKey}`)}</div>
+        {renderContent("desktop", `g-${reloadKey}`)}
       </div>
     );
   }
@@ -244,11 +260,7 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
           <RotateCcw className="h-4 w-4" />
         </Button>
       </div>
-      {viewMode === "desktop" ? (
-        <div className="space-y-4">{renderContent("desktop", `d-${reloadKey}`)}</div>
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-[1fr_auto] items-start">{renderContent("mobile", `m-${reloadKey}`)}</div>
-      )}
+      {viewMode === "desktop" ? renderContent("desktop", `d-${reloadKey}`) : renderContent("mobile", `m-${reloadKey}`)}
     </div>
   );
 }
