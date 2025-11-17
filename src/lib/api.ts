@@ -107,6 +107,23 @@ export class ApiClient {
         };
       }
 
+      // Detectar error 401 con token inválido o expirado y cerrar sesión automáticamente
+      if (response.status === 401 && useAuth) {
+        const errorMessage = data?.message || '';
+        if (errorMessage.includes('Invalid or expired token') || errorMessage.includes('token')) {
+          console.warn('[Auth] Token inválido o expirado detectado. Cerrando sesión...');
+
+          // Limpiar localStorage
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('imagiq_token');
+            localStorage.removeItem('imagiq_user');
+
+            // Redirigir al login
+            window.location.href = '/login';
+          }
+        }
+      }
+
       // Log errores 500 con más detalle
       if (!response.ok && response.status >= 500) {
         console.error(`[Backend Error] ${response.status}`, {
