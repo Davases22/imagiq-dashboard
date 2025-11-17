@@ -47,7 +47,7 @@ import {
   Users,
   Settings2
 } from "lucide-react";
-import { User, UserRole } from "@/types/users";
+import { User } from "@/types/users";
 
 interface UsersDataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];

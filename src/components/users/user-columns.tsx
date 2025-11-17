@@ -29,52 +29,27 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
-const getRoleColor = (rol: User['rol'] | number) => {
-  // Mapeo de números a colores
-  if (typeof rol === 'number') {
-    const colorMap: Record<number, string> = {
-      1: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300', // Super Admin
-      2: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300', // Admin
-      3: 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300', // Visualizador
-      4: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' // Usuario
-    };
-    return colorMap[rol] || 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300';
-  }
-
-  // Mapeo de strings a colores
-  const colors = {
-    super_admin: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
-    admin: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
-    manager: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
-    editor: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
-    viewer: 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300'
+const getRoleColor = (rol: User['rol']) => {
+  // Mapeo de roles a colores: 1 = Admin, 2 = Usuario, 3 = Invitado, 4 = Super Admin
+  const colorMap: Record<number, string> = {
+    1: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300', // Admin
+    2: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300', // Usuario
+    3: 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300', // Invitado
+    4: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' // Super Admin
   };
-  return colors[rol] || colors.viewer;
+  return colorMap[rol] || 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300';
 };
 
 
-const getRoleLabel = (rol: User['rol'] | number) => {
-  // Mapeo de números a roles
-  if (typeof rol === 'number') {
-   
-    const roleMap: Record<number, string> = {
-      1: 'Admin',
-      2: 'Usuario',
-      3: 'Invitado',
-      4: 'Super admin'
-    };
-    return roleMap[rol] || 'Usuario';
-  }
-
-  // Mapeo de strings a roles
-  const labels = {
-    super_admin: 'Super Admin',
-    admin: 'Administrador',
-    manager: 'Manager',
-    editor: 'Editor',
-    viewer: 'Visualizador'
+const getRoleLabel = (rol: User['rol']) => {
+  // Mapeo de roles: 1 = Admin, 2 = Usuario, 3 = Invitado, 4 = Super Admin
+  const roleMap: Record<number, string> = {
+    1: 'Admin',
+    2: 'Usuario',
+    3: 'Invitado',
+    4: 'Super Admin'
   };
-  return labels[rol];
+  return roleMap[rol] || 'Usuario';
 };
 
 const getInitials = (name: string) => {

@@ -19,10 +19,9 @@ import { toast } from "sonner";
 import { UserStatsCards } from "@/components/users/user-stats-cards";
 import { UsersDataTable } from "@/components/users/users-data-table";
 import { UserFormModal } from "@/components/users/user-form-modal";
-import { UserPermissionsModal } from "@/components/users/user-permissions-modal";
 import { createUserColumns } from "@/components/users/user-columns";
 import { mockUsers, mockUserActivity, mockUserStats, rolePermissions } from "@/lib/mock-data/users";
-import { User, UserActivity, UserRole, Permission, UpdatePermissionsPayload } from "@/types/users";
+import { User, UserActivity, UpdatePermissionsPayload } from "@/types/users";
 import { userEndpoints, CreateUserRequest, BackendUser } from "@/lib/api";
 import {
   Users,
@@ -48,7 +47,7 @@ export default function UsuariosPage() {
   const [usersToDelete, setUsersToDelete] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
-  const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<User | undefined>();
+ 
 
   // Función para convertir BackendUser a User
   const convertBackendUserToUser = (backendUser: BackendUser): User => {
@@ -234,10 +233,7 @@ export default function UsuariosPage() {
     setEditingUser(user);
   };
 
-  const handleOpenPermissionsModal = (user: User) => {
-    setSelectedUserForPermissions(user);
-    setIsPermissionsModalOpen(true);
-  };
+
 
   const handleSavePermissions = async (payload: UpdatePermissionsPayload): Promise<void> => {
     try {
@@ -429,28 +425,34 @@ export default function UsuariosPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {Object.entries(rolePermissions).map(([role, permissions]) => (
-                  <div key={role} className="space-y-2">
-                    <h3 className="font-medium flex items-center gap-2">
-                      <Badge variant="outline" className="capitalize">
-                        {role === 'super_admin' ? 'Super Admin' :
-                         role === 'admin' ? 'Administrador' :
-                         role === 'manager' ? 'Manager' :
-                         role === 'editor' ? 'Editor' : 'Visualizador'}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        ({permissions.length} permisos)
-                      </span>
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                      {permissions.map((permission) => (
-                        <Badge key={permission} variant="secondary" className="text-xs">
-                          {permission}
+                {Object.entries(rolePermissions).map(([roleId, permissions]) => {
+                  const roleNames: Record<string, string> = {
+                    '1': 'Admin',
+                    '2': 'Usuario',
+                    '3': 'Invitado',
+                    '4': 'Super Admin'
+                  };
+
+                  return (
+                    <div key={roleId} className="space-y-2">
+                      <h3 className="font-medium flex items-center gap-2">
+                        <Badge variant="outline" className="capitalize">
+                          {roleNames[roleId] || `Rol ${roleId}`}
                         </Badge>
-                      ))}
+                        <span className="text-sm text-muted-foreground">
+                          ({permissions.length} permisos)
+                        </span>
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                        {permissions.map((permission) => (
+                          <Badge key={permission} variant="secondary" className="text-xs">
+                            {permission}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -469,20 +471,7 @@ export default function UsuariosPage() {
         onSavePermissions={handleSavePermissions}
       />
 
-      {/* User Permissions Modal */}
-      {selectedUserForPermissions && (
-        <UserPermissionsModal
-          open={isPermissionsModalOpen}
-          onClose={() => {
-            setIsPermissionsModalOpen(false);
-            setSelectedUserForPermissions(undefined);
-          }}
-          userId={selectedUserForPermissions.id}
-          userName={selectedUserForPermissions.name}
-          currentPermissions={[]}
-          onSave={handleSavePermissions}
-        />
-      )}
+  
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>

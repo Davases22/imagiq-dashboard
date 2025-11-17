@@ -138,7 +138,7 @@ export function UserStatsCards({ stats }: UserStatsCardsProps) {
         <CardHeader>
           <CardTitle className="text-sm font-medium">Distribución por Roles</CardTitle>
         </CardHeader>
-        <CardContent>
+        {/* <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {Object.entries(stats.usersByRole).map(([role, count]) => (
               <div key={role} className="flex flex-col items-center space-y-2">
@@ -153,7 +153,7 @@ export function UserStatsCards({ stats }: UserStatsCardsProps) {
               </div>
             ))}
           </div>
-        </CardContent>
+        </CardContent> */}
       </Card>
     </div>
   );

@@ -1,46 +1,39 @@
-import { User, UserActivity, UserStats, UserRole, Permission } from '@/types/users';
+import { User, UserActivity, UserStats, Permission } from '@/types/users';
 
-// Role permissions mapping
-export const rolePermissions: Record<UserRole, Permission[]> = {
-  super_admin: [
-    'users.create', 'users.read', 'users.update', 'users.delete',
-    'campaigns.create', 'campaigns.read', 'campaigns.update', 'campaigns.delete',
-    'analytics.read', 'settings.read', 'settings.update',
-    'products.create', 'products.read', 'products.update', 'products.delete',
-    'orders.read', 'orders.update', 'customers.read', 'customers.update'
-  ],
-  admin: [
+// Role permissions mapping (1 = Admin, 2 = Usuario, 3 = Invitado, 4 = Super Admin)
+export const rolePermissions: Record<number, Permission[]> = {
+  1: [ // Admin
     'users.read', 'users.update',
     'campaigns.create', 'campaigns.read', 'campaigns.update', 'campaigns.delete',
     'analytics.read', 'settings.read',
     'products.create', 'products.read', 'products.update', 'products.delete',
     'orders.read', 'orders.update', 'customers.read', 'customers.update'
   ],
-  manager: [
-    'users.read',
-    'campaigns.create', 'campaigns.read', 'campaigns.update',
-    'analytics.read',
-    'products.read', 'products.update',
-    'orders.read', 'orders.update', 'customers.read', 'customers.update'
-  ],
-  editor: [
+  2: [ // Usuario
     'campaigns.create', 'campaigns.read', 'campaigns.update',
     'products.create', 'products.read', 'products.update',
-    'customers.read'
+    'customers.read', 'orders.read'
   ],
-  viewer: [
+  3: [ // Invitado
     'campaigns.read', 'analytics.read', 'products.read', 'orders.read', 'customers.read'
+  ],
+  4: [ // Super Admin
+    'users.create', 'users.read', 'users.update', 'users.delete',
+    'campaigns.create', 'campaigns.read', 'campaigns.update', 'campaigns.delete',
+    'analytics.read', 'settings.read', 'settings.update',
+    'products.create', 'products.read', 'products.update', 'products.delete',
+    'orders.read', 'orders.update', 'customers.read', 'customers.update'
   ]
 };
 
 export const mockUsers: User[] = [
   {
     id: '1',
-    email: 'admin@imagiq.com',
+    email: 'superadmin@imagiq.com',
     name: 'David García',
     avatar: undefined,
-    role: 'super_admin',
-    permissions: rolePermissions.super_admin,
+    rol: 4, // Super Admin
+    permissions: rolePermissions[4],
     status: 'active',
     lastLogin: new Date('2024-01-15T10:30:00'),
     createdAt: new Date('2023-01-15T09:00:00'),
@@ -56,11 +49,11 @@ export const mockUsers: User[] = [
   },
   {
     id: '2',
-    email: 'marketing@imagiq.com',
+    email: 'admin@imagiq.com',
     name: 'Ana Martínez',
     avatar: undefined,
-    role: 'admin',
-    permissions: rolePermissions.admin,
+    rol: 1, // Admin
+    permissions: rolePermissions[1],
     status: 'active',
     lastLogin: new Date('2024-01-15T09:15:00'),
     createdAt: new Date('2023-02-20T10:00:00'),
@@ -76,11 +69,11 @@ export const mockUsers: User[] = [
   },
   {
     id: '3',
-    email: 'sales@imagiq.com',
+    email: 'usuario@imagiq.com',
     name: 'Carlos López',
     avatar: undefined,
-    role: 'manager',
-    permissions: rolePermissions.manager,
+    rol: 2, // Usuario
+    permissions: rolePermissions[2],
     status: 'active',
     lastLogin: new Date('2024-01-14T16:45:00'),
     createdAt: new Date('2023-03-10T11:30:00'),
@@ -99,8 +92,8 @@ export const mockUsers: User[] = [
     email: 'content@imagiq.com',
     name: 'Laura Fernández',
     avatar: undefined,
-    role: 'editor',
-    permissions: rolePermissions.editor,
+    rol: 2, // Usuario
+    permissions: rolePermissions[2],
     status: 'active',
     lastLogin: new Date('2024-01-15T08:30:00'),
     createdAt: new Date('2023-04-05T14:00:00'),
@@ -116,11 +109,11 @@ export const mockUsers: User[] = [
   },
   {
     id: '5',
-    email: 'intern@imagiq.com',
+    email: 'invitado@imagiq.com',
     name: 'Miguel Rodríguez',
     avatar: undefined,
-    role: 'viewer',
-    permissions: rolePermissions.viewer,
+    rol: 3, // Invitado
+    permissions: rolePermissions[3],
     status: 'active',
     lastLogin: new Date('2024-01-15T07:45:00'),
     createdAt: new Date('2023-10-01T09:00:00'),
@@ -139,8 +132,8 @@ export const mockUsers: User[] = [
     email: 'designer@imagiq.com',
     name: 'Sofia Morales',
     avatar: undefined,
-    role: 'editor',
-    permissions: rolePermissions.editor,
+    rol: 2, // Usuario
+    permissions: rolePermissions[2],
     status: 'inactive',
     lastLogin: new Date('2024-01-10T15:20:00'),
     createdAt: new Date('2023-06-15T10:30:00'),
@@ -159,8 +152,8 @@ export const mockUsers: User[] = [
     email: 'support@imagiq.com',
     name: 'Roberto Santos',
     avatar: undefined,
-    role: 'viewer',
-    permissions: rolePermissions.viewer,
+    rol: 3, // Invitado
+    permissions: rolePermissions[3],
     status: 'pending',
     lastLogin: undefined,
     createdAt: new Date('2024-01-14T16:00:00'),
@@ -179,8 +172,8 @@ export const mockUsers: User[] = [
     email: 'freelancer@imagiq.com',
     name: 'Elena Jiménez',
     avatar: undefined,
-    role: 'editor',
-    permissions: rolePermissions.editor,
+    rol: 1, // Admin
+    permissions: rolePermissions[1],
     status: 'suspended',
     lastLogin: new Date('2024-01-05T12:15:00'),
     createdAt: new Date('2023-08-20T11:00:00'),
@@ -262,13 +255,12 @@ export const mockUserStats: UserStats = {
   newUsersThisMonth: mockUsers.filter(u => {
     const thisMonth = new Date();
     thisMonth.setDate(1);
-    return u.createdAt >= thisMonth;
+    return u.createdAt && u.createdAt >= thisMonth;
   }).length,
-  usersByRole: {
-    super_admin: mockUsers.filter(u => u.role === 'super_admin').length,
-    admin: mockUsers.filter(u => u.role === 'admin').length,
-    manager: mockUsers.filter(u => u.role === 'manager').length,
-    editor: mockUsers.filter(u => u.role === 'editor').length,
-    viewer: mockUsers.filter(u => u.role === 'viewer').length,
-  }
+  // usersByRole: {
+  //   1: mockUsers.filter(u => u.rol === 1).length, // Admin
+  //   2: mockUsers.filter(u => u.rol === 2).length, // Usuario
+  //   3: mockUsers.filter(u => u.rol === 3).length, // Invitado
+  //   4: mockUsers.filter(u => u.rol === 4).length, // Super Admin
+  // }
 };
