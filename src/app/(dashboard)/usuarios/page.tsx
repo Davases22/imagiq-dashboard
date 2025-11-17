@@ -130,7 +130,7 @@ export default function UsuariosPage() {
         toast.success(response.message || "Usuario creado exitosamente");
 
         // Extraer el ID del usuario creado
-        const userId = response.data?.user?.id || response.data?.id;
+        const userId = response.data?.user?.id;
 
         // Recargar la lista completa de usuarios desde la API
         const updatedResponse = await userEndpoints.getAll();
@@ -161,24 +161,44 @@ export default function UsuariosPage() {
   const handleEditUser = async (userData: any): Promise<{ success: boolean; userId?: string }> => {
     if (!editingUser) return { success: false };
 
-    const updatedUser: User = {
-      ...editingUser,
-      name: userData.name,
-      rol: userData.rol || editingUser.rol,
-      permissions: userData.customPermissions || [],
-      status: userData.status,
-      department: userData.department || '',
-      phoneNumber: userData.phoneNumber || '',
-      location: userData.location || '',
-      timezone: userData.timezone || 'America/Bogota',
-      twoFactorEnabled: userData.twoFactorEnabled || false,
-      updatedAt: new Date(),
-    };
+    try {
+      const requestData = {
+        nombre: userData.name,
+        apellido: userData.apellido,
+        fecha_nacimiento: userData.fecha_nacimiento || undefined,
+        numero_documento: userData.numero_documento || undefined,
+        tipo_documento: userData.tipo_documento || "CC",
+        telefono: userData.telefono || undefined,
+        rol: userData.rol,
+      };
 
-    setUsers(users.map(user => user.id === editingUser.id ? updatedUser : user));
-    toast.success("Usuario actualizado exitosamente");
-    setEditingUser(undefined);
-    return { success: true };
+      const response = await userEndpoints.update(editingUser.id, requestData);
+
+      if (response.success) {
+        toast.success(response.message || "Información básica actualizada exitosamente");
+
+        // Actualizar el estado local
+        const updatedUser: User = {
+          ...editingUser,
+          name: `${userData.name} ${userData.apellido}`,
+          rol: typeof userData.rol === 'number' ? userData.rol : parseInt(userData.rol) || editingUser.rol,
+          phoneNumber: userData.telefono || '',
+          updatedAt: new Date(),
+        };
+
+        setUsers(users.map(user => user.id === editingUser.id ? updatedUser : user));
+
+        // Retornar success para continuar al paso 2
+        return { success: true, userId: editingUser.id };
+      } else {
+        toast.error(response.message || "Error al actualizar usuario");
+        return { success: false };
+      }
+    } catch (error) {
+      console.error("Error updating user:", error);
+      toast.error("Error al actualizar usuario");
+      return { success: false };
+    }
   };
 
   const handleDeleteUsers = (userIds: string[]) => {
@@ -209,6 +229,10 @@ export default function UsuariosPage() {
   //   setUsersToDelete([]);
   //   setIsDeleteAlertOpen(false);
   // };
+
+  const handleOpenEditModal = (user: User) => {
+    setEditingUser(user);
+  };
 
   const handleOpenPermissionsModal = (user: User) => {
     setSelectedUserForPermissions(user);
@@ -331,7 +355,7 @@ export default function UsuariosPage() {
             </CardHeader>
             <CardContent>
               <UsersDataTable
-                columns={createUserColumns(handleOpenPermissionsModal)}
+                columns={createUserColumns(handleOpenEditModal)}
                 data={users}
                 onCreateUser={() => setIsCreateModalOpen(true)}
                 onDeleteUsers={handleDeleteUsers}

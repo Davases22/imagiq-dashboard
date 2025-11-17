@@ -1275,11 +1275,33 @@ export interface BackendUser {
   updated_at?: string;
 }
 
+export interface UserWithPermissions extends BackendUser {
+  permisos: Array<{
+    recurso: string;
+    accion: string;
+    permitido: boolean;
+  }>;
+}
+
+export interface UpdateUserRequest {
+  nombre?: string;
+  apellido?: string;
+  fecha_nacimiento?: string;
+  numero_documento?: string;
+  tipo_documento?: string;
+  telefono?: string;
+  rol?: string;
+}
+
 export const userEndpoints = {
   getAll: () =>
     apiClient.get<BackendUser[]>("/api/admin/users", true),
+  getById: (userId: string) =>
+    apiClient.get<UserWithPermissions>(`/api/admin/users/permisos/${userId}`, true),
   create: (data: CreateUserRequest) =>
     apiClient.post<CreateUserResponse>("/api/admin/users/add", data, true),
+  update: (userId: string, data: UpdateUserRequest) =>
+    apiClient.put<{ success: boolean; message?: string }>("/api/admin/users/update", { id: userId, updateData: data }, true),
   updatePermissions: (payload: { userId: string; permisos: Array<{ recurso: string; accion: string; permitido: boolean }> }) =>
     apiClient.post<{ success: boolean; message?: string }>("/api/admin/users/permisos", payload, true),
 };

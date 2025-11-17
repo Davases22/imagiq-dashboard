@@ -54,7 +54,6 @@ const getRoleColor = (rol: User['rol'] | number) => {
 
 
 const getRoleLabel = (rol: User['rol'] | number) => {
-   console.log(rol)
   // Mapeo de números a roles
   if (typeof rol === 'number') {
    
@@ -87,7 +86,7 @@ const getInitials = (name: string) => {
     .slice(0, 2);
 };
 
-export const createUserColumns = (onEditPermissions?: (user: User) => void): ColumnDef<User>[] => [
+export const createUserColumns = (onEditUser?: (user: User) => void): ColumnDef<User>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -192,7 +191,7 @@ export const createUserColumns = (onEditPermissions?: (user: User) => void): Col
               <Eye className="mr-2 h-4 w-4" />
               Ver perfil
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEditPermissions?.(user)}>
+            <DropdownMenuItem onClick={() => onEditUser?.(user)}>
               <Edit className="mr-2 h-4 w-4" />
               Editar usuario
             </DropdownMenuItem>

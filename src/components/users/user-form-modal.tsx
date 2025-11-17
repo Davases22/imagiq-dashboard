@@ -28,8 +28,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, UpdatePermissionsPayload } from "@/types/users";
+import { User, UpdatePermissionsPayload, PermissionItem } from "@/types/users";
 import { UserPermissionsModal } from "./user-permissions-modal";
+import { userEndpoints } from "@/lib/api";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -38,16 +39,17 @@ import {
   Mail,
   Phone,
   Key,
-  Save,
   X,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from "lucide-react";
+import { is } from "date-fns/locale";
 
 const userFormSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   apellido: z.string().min(2, "El apellido debe tener al menos 2 caracteres"),
   email: z.string().email("Email inválido"),
-  contrasena: z.string().min(6, "La contraseña debe tener al menos 6 caracteres").optional(),
+  contrasena: z.string().optional(),
   fecha_nacimiento: z.string().optional(),
   numero_documento: z.string().optional(),
   tipo_documento: z.string().optional(),
@@ -70,13 +72,19 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
   const [step, setStep] = useState<1 | 2>(1);
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [createdUserName, setCreatedUserName] = useState<string>("");
+  const [currentPermissions, setCurrentPermissions] = useState<PermissionItem[]>([]);
+  const [isLoadingUserData, setIsLoadingUserData] = useState(false);
 
-  const title = isEditing ? "Editar Usuario" : step === 1 ? "Crear Nuevo Usuario - Paso 1" : "Crear Nuevo Usuario - Paso 2";
+  const title = isEditing
+    ? (step === 1 ? "Editar Usuario - Paso 1" : "Editar Usuario - Paso 2")
+    : (step === 1 ? "Crear Nuevo Usuario - Paso 1" : "Crear Nuevo Usuario - Paso 2");
   const description = isEditing
-    ? "Modifica la información y permisos del usuario."
-    : step === 1
-      ? "Completa la información básica para crear un nuevo usuario."
-      : "Asigna permisos al usuario creado.";
+    ? (step === 1
+        ? "Modifica la información básica del usuario."
+        : "Modifica los permisos del usuario.")
+    : (step === 1
+        ? "Completa la información básica para crear un nuevo usuario."
+        : "Asigna permisos al usuario creado.");
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -93,22 +101,79 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
     },
   });
 
+  // Cargar datos del usuario cuando se abre el modal en modo edición
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (open && isEditing && user?.id) {
+        console.log('Cargando datos del usuario:', user.id);
+        setIsLoadingUserData(true);
+        setStep(1); // Asegurarnos de empezar en el paso 1
+        try {
+          const response = await userEndpoints.getById(user.id);
+          console.log('Respuesta de getById:', response);
+          if (response.success && response.data) {
+            const userData = response.data;
+            // Actualizar el formulario con los datos del usuario
+            form.reset({
+              name: userData.nombre || "",
+              apellido: userData.apellido || "",
+              email: userData.email || "",
+              contrasena: "",
+              fecha_nacimiento: userData.fecha_nacimiento || "",
+              numero_documento: userData.numero_documento || "",
+              tipo_documento: userData.tipo_documento || "CC",
+              telefono: userData.telefono || "",
+              rol: String(userData.rol) || "4",
+            });
+            // Guardar permisos actuales
+            setCurrentPermissions(userData.permisos || []);
+          }
+        } catch (error) {
+          console.error("Error loading user data:", error);
+        } finally {
+          setIsLoadingUserData(false);
+        }
+      } else if (open && !isEditing) {
+        // Si estamos creando, asegurarnos de empezar en el paso 1
+        setStep(1);
+        form.reset({
+          name: "",
+          apellido: "",
+          email: "",
+          contrasena: "",
+          fecha_nacimiento: "",
+          numero_documento: "",
+          tipo_documento: "CC",
+          telefono: "",
+          rol: "4",
+        });
+      }
+    };
+
+    loadUserData();
+  }, [open, isEditing, user?.id, form]);
+
   // Resetear el estado cuando se cierra el modal
   useEffect(() => {
     if (!open) {
       setStep(1);
       setCreatedUserId(null);
       setCreatedUserName("");
+      setCurrentPermissions([]);
       form.reset();
     }
   }, [open, form]);
 
   const onSubmit = async (values: UserFormValues) => {
+    console.log('Formulario enviado con valores:', values, isEditing);
     if (isEditing) {
-      // Si estamos editando, comportamiento original
-      await onSave(values);
-      form.reset();
-      onClose();
+      // Si estamos editando en el paso 1, guardamos y pasamos al paso 2
+      const result = await onSave(values);
+      if (result.success && user?.id) {
+        setCreatedUserId(user.id);
+        setCreatedUserName(`${values.name} ${values.apellido}`);
+        setStep(2);
+      }
     } else {
       // Si estamos creando, guardamos el usuario y pasamos al paso 2
       const result = await onSave(values);
@@ -141,8 +206,8 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
     onClose();
   };
 
-  // Renderizar paso 1 o edición
-  if (isEditing || step === 1) {
+  // Renderizar paso 1 (info básica)
+  if (step === 1) {
     return (
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl max-h-[90vh]">
@@ -154,10 +219,16 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
             <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[60vh] pr-4">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="space-y-4">
+          {isLoadingUserData ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              <ScrollArea className="max-h-[60vh] pr-4">
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <div className="space-y-4">
                     <FormField
                       control={form.control}
                       name="name"
@@ -214,7 +285,7 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
                       )}
                     />
 
-                    {!isEditing && (
+                     
                       <FormField
                         control={form.control}
                         name="contrasena"
@@ -236,7 +307,7 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
                           </FormItem>
                         )}
                       />
-                    )}
+                    
 
                     <FormField
                       control={form.control}
@@ -338,30 +409,32 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
                     />
 
 
-                  </div>
-              </form>
-            </Form>
-          </ScrollArea>
+                    </div>
+                  </form>
+                </Form>
+              </ScrollArea>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={onClose}>
-              <X className="mr-2 h-4 w-4" />
-              Cancelar
-            </Button>
-            <Button onClick={form.handleSubmit(onSubmit)}>
-              {isEditing ? (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Guardar Cambios
-                </>
-              ) : (
-                <>
-                  <ArrowRight className="mr-2 h-4 w-4" />
-                  Crear y Continuar
-                </>
-              )}
-            </Button>
-          </DialogFooter>
+              <DialogFooter>
+                <Button variant="outline" onClick={onClose}>
+                  <X className="mr-2 h-4 w-4" />
+                  Cancelar
+                </Button>
+                <Button onClick={form.handleSubmit(onSubmit)} disabled={isLoadingUserData}>
+                  {isEditing ? (
+                    <>
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                      Guardar y Continuar
+                    </>
+                  ) : (
+                    <>
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                      Crear y Continuar
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     );
@@ -374,7 +447,7 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
       onClose={handlePermissionsClose}
       userId={createdUserId || ""}
       userName={createdUserName}
-      currentPermissions={[]}
+      currentPermissions={isEditing ? currentPermissions : []}
       onSave={handlePermissionsSave}
     />
   );
