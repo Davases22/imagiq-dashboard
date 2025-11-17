@@ -21,10 +21,10 @@ import {
   X,
   ArrowRight,
   ArrowLeft,
-  Loader2,
   Shield,
   Save,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { UserFormStep1 } from "./user-form-step1";
 import { UserFormStep2 } from "./user-form-step2";
 import { useUserFormData } from "./hooks/useUserFormData";
@@ -165,8 +165,29 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
           </DialogHeader>
 
           {isLoadingUserData ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              </div>
             </div>
           ) : (
             <>
