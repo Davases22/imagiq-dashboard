@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
 interface User {
   id: string;
   email: string;
@@ -23,33 +25,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mock users for demo
-  const mockUsers = [
-    {
-      id: '1',
-      email: 'admin@imagiq.com',
-      password: 'admin123',
-      name: 'Administrador',
-      role: 'Admin'
-    },
-    {
-      id: '2',
-      email: 'demo@imagiq.com',
-      password: 'demo123',
-      name: 'Usuario Demo',
-      role: 'User'
-    }
-  ];
-
   useEffect(() => {
     // Check if user is logged in from localStorage
     const storedUser = localStorage.getItem('imagiq_user');
-    if (storedUser) {
+    const storedToken = localStorage.getItem('imagiq_token');
+
+    if (storedUser && storedToken) {
       try {
         setUser(JSON.parse(storedUser));
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('imagiq_user');
+        localStorage.removeItem('imagiq_token');
       }
     }
     setIsLoading(false);
@@ -58,35 +45,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': process.env.NEXT_PUBLIC_API_KEY || '',
+        },
+        body: JSON.stringify({ email, contrasena: password }),
+      });
 
-    // Find user in mock data
-    const foundUser = mockUsers.find(
-      u => u.email === email && u.password === password
-    );
+      if (!response.ok) {
+        setIsLoading(false);
+        return false;
+      }
 
-    if (foundUser) {
-      const userData = {
-        id: foundUser.id,
-        email: foundUser.email,
-        name: foundUser.name,
-        role: foundUser.role
-      };
+      const data = await response.json();
+      console.log(data)
 
-      setUser(userData);
-      localStorage.setItem('imagiq_user', JSON.stringify(userData));
+      if (data.access_token && data.user) {
+        const userData: User = {
+          id: data.user.id || data.user.uuid || '1',
+          email: data.user.email,
+          name: data.user.name || data.user.username || 'Usuario',
+          role: data.user.role || 'Admin'
+        };
+
+        setUser(userData);
+        localStorage.setItem('imagiq_user', JSON.stringify(userData));
+        localStorage.setItem('imagiq_token', data.access_token);
+        setIsLoading(false);
+        return true;
+      }
+
       setIsLoading(false);
-      return true;
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      setIsLoading(false);
+      return false;
     }
-
-    setIsLoading(false);
-    return false;
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('imagiq_user');
+    localStorage.removeItem('imagiq_token');
   };
 
   const value = {

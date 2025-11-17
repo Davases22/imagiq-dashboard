@@ -1,4 +1,4 @@
-export type UserRole = 'super_admin' | 'admin' | 'manager' | 'editor' | 'viewer';
+
 
 export type Permission =
   | 'users.create'
@@ -21,29 +21,25 @@ export type Permission =
   | 'customers.read'
   | 'customers.update';
 
-export interface UserPermissions {
-  role: UserRole;
-  permissions: Permission[];
-}
-
+// Estructura que realmente envía el backend
 export interface User {
   id: string;
   email: string;
   name: string;
   avatar?: string;
-  role: UserRole;
-  permissions: Permission[];
-  status: 'active' | 'inactive' | 'pending' | 'suspended';
+  rol: number; // 1-4 según el backend (1=Admin, 2=Usuario, 3=Invitado, 4=Super Admin)
+  permissions?: Permission[]; // Opcional, se mapea desde rol
+  status?: 'active' | 'inactive' | 'pending' | 'suspended'; // Datos mock/frontend
   lastLogin?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  createdBy?: string;
   department?: string;
   phoneNumber?: string;
   location?: string;
   timezone?: string;
-  twoFactorEnabled: boolean;
-  loginAttempts: number;
+  twoFactorEnabled?: boolean;
+  loginAttempts?: number;
   lastActivity?: Date;
 }
 
@@ -61,7 +57,7 @@ export interface UserActivity {
 
 export interface UserFilters {
   search?: string;
-  role?: UserRole | 'all';
+  rol?: number;
   status?: User['status'] | 'all';
   department?: string | 'all';
   dateRange?: {
@@ -76,5 +72,20 @@ export interface UserStats {
   pendingUsers: number;
   suspendedUsers: number;
   newUsersThisMonth: number;
-  usersByRole: Record<UserRole, number>;
+  // usersByRole: number;
+}
+
+// Tipos para la API de permisos
+export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
+export type PermissionResource = 'usuarios' | 'ordenes' | 'productos' | 'marketing' | 'envios' | 'atencion_cliente' | 'pagina_web' | 'metricas'  |'punto_fisico' |'bodega'| 'zonas_de_cobertura' | 'facturacion';
+
+export interface PermissionItem {
+  recurso: PermissionResource;
+  accion: PermissionAction;
+  permitido: boolean;
+}
+
+export interface UpdatePermissionsPayload {
+  userId: string;
+  permisos: PermissionItem[];
 }

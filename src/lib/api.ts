@@ -37,22 +37,43 @@ export class ApiClient {
     this.baseURL = baseURL;
     this.headers = {
       "Content-Type": "application/json",
+      "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || '',
     };
+  }
+
+  // Helper para obtener el token de localStorage
+  private getAuthToken(): string | null {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('imagiq_token');
+    }
+    return null;
+  }
+
+  // Helper para agregar el token de autorización a los headers
+  private getAuthHeaders(): Record<string, string> {
+    const token = this.getAuthToken();
+
+    if (token) {
+      return {
+        ...this.headers,
+        'Authorization': `Bearer ${token}`,
+      };
+    }
+    return this.headers;
   }
 
 
   // Generic request method
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    useAuth: boolean = false
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
     const apiKey = getApiKey();
+    const headers = useAuth ? this.getAuthHeaders() : this.headers;
     const config: RequestInit = {
-      headers: {
-        ...this.headers,
-        ...(apiKey && { 'X-API-Key': apiKey }),
-      },
+      headers: headers,
       ...options,
     };
 
@@ -86,6 +107,23 @@ export class ApiClient {
         };
       }
 
+      // Detectar error 401 con token inválido o expirado y cerrar sesión automáticamente
+      if (response.status === 401 && useAuth) {
+        const errorMessage = data?.message || '';
+        if (errorMessage.includes('Invalid or expired token') || errorMessage.includes('token')) {
+          console.warn('[Auth] Token inválido o expirado detectado. Cerrando sesión...');
+
+          // Limpiar localStorage
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('imagiq_token');
+            localStorage.removeItem('imagiq_user');
+
+            // Redirigir al login
+            window.location.href = '/login';
+          }
+        }
+      }
+
       // Log errores 500 con más detalle
       if (!response.ok && response.status >= 500) {
         console.error(`[Backend Error] ${response.status}`, {
@@ -117,36 +155,36 @@ export class ApiClient {
   }
 
   // HTTP methods
-  async get<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: "GET" });
+  async get<T>(endpoint: string, useAuth: boolean = false): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { method: "GET" }, useAuth);
   }
 
-  async post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, data?: unknown, useAuth: boolean = false): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: "POST",
       body: JSON.stringify(data),
-    });
+    }, useAuth);
   }
 
-  async put<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
+  async put<T>(endpoint: string, data?: unknown, useAuth: boolean = false): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: "PUT",
       body: JSON.stringify(data),
-    });
+    }, useAuth);
   }
 
-  async delete<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
+  async delete<T>(endpoint: string, data?: unknown, useAuth: boolean = false): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: "DELETE",
       body: data ? JSON.stringify(data) : undefined,
-    });
+    }, useAuth);
   }
 
-  async patch<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
+  async patch<T>(endpoint: string, data?: unknown, useAuth: boolean = false): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: "PATCH",
       body: JSON.stringify(data),
-    });
+    }, useAuth);
   }
 
   async postFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
@@ -1211,4 +1249,76 @@ export const filterEndpoints = {
   deleteBulk: (data: DeleteBulkRequest) => apiClient.delete<{ success: boolean; message?: string; data?: { deletedCount: number } }>("/api/filters/bulk", data),
   updateOrder: (data: UpdateOrderRequest) => apiClient.put<{ success: boolean; message?: string; data?: { updatedFilters: Array<{ filterId: string; order: FilterOrderConfig }> } }>("/api/filters/order", data),
   updateFilterOrder: (id: string, order: FilterOrderConfig) => apiClient.patch<DynamicFilter>(`/api/filters/${id}/order`, { order }),
+};
+
+// User API endpoints
+export interface CreateUserRequest {
+  nombre: string;
+  apellido: string;
+  email: string;
+  contrasena: string;
+  fecha_nacimiento?: string;
+  numero_documento?: string;
+  tipo_documento?: string;
+  telefono?: string;
+  rol: string;
+}
+
+export interface CreateUserResponse {
+  success: boolean;
+  message?: string;
+  user?: {
+    id: string;
+    nombre: string;
+    apellido: string;
+    email: string;
+    rol: string;
+  };
+}
+
+export interface BackendUser {
+  id: string;
+  uuid?: string;
+  nombre: string;
+  apellido: string;
+  email: string;
+  rol: number | string;
+  fecha_nacimiento?: string | null;
+  numero_documento?: string;
+  tipo_documento?: string;
+  telefono?: string;
+  codigo_pais?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UserWithPermissions extends BackendUser {
+  permisos: Array<{
+    recurso: string;
+    accion: string;
+    permitido: boolean;
+  }>;
+}
+
+export interface UpdateUserRequest {
+  nombre?: string;
+  apellido?: string;
+  fecha_nacimiento?: string;
+  numero_documento?: string;
+  tipo_documento?: string;
+  telefono?: string;
+  rol?: string;
+}
+
+export const userEndpoints = {
+  getAll: () =>
+    apiClient.get<BackendUser[]>("/api/admin/users", true),
+  getById: (userId: string) =>
+    apiClient.get<UserWithPermissions>(`/api/admin/users/permisos/${userId}`, true),
+  create: (data: CreateUserRequest) =>
+    apiClient.post<CreateUserResponse>("/api/admin/users/add", data, true),
+  update: (userId: string, data: UpdateUserRequest) =>
+    apiClient.put<{ success: boolean; message?: string }>("/api/admin/users/update", { id: userId, updateData: data }, true),
+  updatePermissions: (payload: { userId: string; permisos: Array<{ recurso: string; accion: string; permitido: boolean }> }) =>
+    apiClient.post<{ success: boolean; message?: string }>("/api/admin/users/permisos", payload, true),
 };

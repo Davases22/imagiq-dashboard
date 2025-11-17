@@ -133,28 +133,7 @@ export function UserStatsCards({ stats }: UserStatsCardsProps) {
         </CardContent>
       </Card>
 
-      {/* Roles Distribution */}
-      <Card className="md:col-span-2 lg:col-span-4">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">Distribución por Roles</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {Object.entries(stats.usersByRole).map(([role, count]) => (
-              <div key={role} className="flex flex-col items-center space-y-2">
-                <div className={`flex items-center gap-2 ${getRoleColor(role)}`}>
-                  {getRoleIcon(role)}
-                  <span className="text-sm font-medium">{getRoleLabel(role)}</span>
-                </div>
-                <div className="text-2xl font-bold">{count}</div>
-                <div className="text-xs text-muted-foreground">
-                  {((count / stats.totalUsers) * 100).toFixed(1)}%
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      
     </div>
   );
 }

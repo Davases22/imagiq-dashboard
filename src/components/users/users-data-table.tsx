@@ -47,7 +47,7 @@ import {
   Users,
   Settings2
 } from "lucide-react";
-import { User, UserRole } from "@/types/users";
+import { User } from "@/types/users";
 
 interface UsersDataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -101,20 +101,12 @@ export function UsersDataTable<TData extends User, TValue>({
   // Apply role filter
   React.useEffect(() => {
     if (roleFilter === "all") {
-      table.getColumn("role")?.setFilterValue(undefined);
+      table.getColumn("rol")?.setFilterValue(undefined);
     } else {
-      table.getColumn("role")?.setFilterValue(roleFilter);
+      table.getColumn("rol")?.setFilterValue(roleFilter);
     }
   }, [roleFilter, table]);
 
-  // Apply status filter
-  React.useEffect(() => {
-    if (statusFilter === "all") {
-      table.getColumn("status")?.setFilterValue(undefined);
-    } else {
-      table.getColumn("status")?.setFilterValue(statusFilter);
-    }
-  }, [statusFilter, table]);
 
   const selectedUsers = table.getFilteredSelectedRowModel().rows.map(row => row.original);
   const selectedUserIds = selectedUsers.map(user => user.id);

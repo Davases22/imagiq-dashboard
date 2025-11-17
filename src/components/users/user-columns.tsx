@@ -29,46 +29,27 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
-const getRoleColor = (role: User['role']) => {
-  const colors = {
-    super_admin: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
-    admin: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
-    manager: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
-    editor: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
-    viewer: 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300'
+const getRoleColor = (rol: User['rol']) => {
+  // Mapeo de roles a colores: 1 = Admin, 2 = Usuario, 3 = Invitado, 4 = Super Admin
+  const colorMap: Record<number, string> = {
+    1: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300', // Admin
+    2: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300', // Usuario
+    3: 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300', // Invitado
+    4: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' // Super Admin
   };
-  return colors[role] || colors.viewer;
+  return colorMap[rol] || 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300';
 };
 
-const getStatusColor = (status: User['status']) => {
-  const colors = {
-    active: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
-    inactive: 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300',
-    pending: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
-    suspended: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
-  };
-  return colors[status];
-};
 
-const getRoleLabel = (role: User['role']) => {
-  const labels = {
-    super_admin: 'Super Admin',
-    admin: 'Administrador',
-    manager: 'Manager',
-    editor: 'Editor',
-    viewer: 'Visualizador'
+const getRoleLabel = (rol: User['rol']) => {
+  // Mapeo de roles: 1 = Admin, 2 = Usuario, 3 = Invitado, 4 = Super Admin
+  const roleMap: Record<number, string> = {
+    1: 'Admin',
+    2: 'Usuario',
+    3: 'Invitado',
+    4: 'Super Admin'
   };
-  return labels[role];
-};
-
-const getStatusLabel = (status: User['status']) => {
-  const labels = {
-    active: 'Activo',
-    inactive: 'Inactivo',
-    pending: 'Pendiente',
-    suspended: 'Suspendido'
-  };
-  return labels[status];
+  return roleMap[rol] || 'Usuario';
 };
 
 const getInitials = (name: string) => {
@@ -80,7 +61,7 @@ const getInitials = (name: string) => {
     .slice(0, 2);
 };
 
-export const userColumns: ColumnDef<User>[] = [
+export const createUserColumns = (onEditUser?: (user: User) => void): ColumnDef<User>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -135,7 +116,7 @@ export const userColumns: ColumnDef<User>[] = [
     },
   },
   {
-    accessorKey: "role",
+    accessorKey: "rol",
     header: ({ column }) => {
       return (
         <Button
@@ -149,121 +130,16 @@ export const userColumns: ColumnDef<User>[] = [
       );
     },
     cell: ({ row }) => {
-      const role = row.getValue("role") as User['role'];
+      const rol = row.getValue("rol") as User['rol'];
       return (
-        <Badge variant="outline" className={getRoleColor(role)}>
+        <Badge variant="outline" className={getRoleColor(rol)}>
           <Shield className="mr-1 h-3 w-3" />
-          {getRoleLabel(role)}
+          {getRoleLabel(rol)}
         </Badge>
       );
     },
   },
-  {
-    accessorKey: "status",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-8 px-2"
-        >
-          Estado
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => {
-      const status = row.getValue("status") as User['status'];
-      return (
-        <Badge variant="outline" className={getStatusColor(status)}>
-          {getStatusLabel(status)}
-        </Badge>
-      );
-    },
-  },
-  {
-    accessorKey: "department",
-    header: "Departamento",
-    cell: ({ row }) => {
-      const department = row.getValue("department") as string;
-      return department ? (
-        <span className="text-sm">{department}</span>
-      ) : (
-        <span className="text-xs text-muted-foreground">-</span>
-      );
-    },
-  },
-  {
-    accessorKey: "location",
-    header: "Ubicación",
-    cell: ({ row }) => {
-      const location = row.getValue("location") as string;
-      return location ? (
-        <div className="flex items-center gap-1">
-          <MapPin className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm">{location}</span>
-        </div>
-      ) : (
-        <span className="text-xs text-muted-foreground">-</span>
-      );
-    },
-  },
-  {
-    accessorKey: "lastLogin",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-8 px-2"
-        >
-          Último acceso
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => {
-      const lastLogin = row.getValue("lastLogin") as Date | undefined;
-      return lastLogin ? (
-        <div className="flex items-center gap-1">
-          <Clock className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm">
-            {formatDistanceToNow(lastLogin, { addSuffix: true, locale: es })}
-          </span>
-        </div>
-      ) : (
-        <span className="text-xs text-muted-foreground">Nunca</span>
-      );
-    },
-  },
-  {
-    accessorKey: "twoFactorEnabled",
-    header: "2FA",
-    cell: ({ row }) => {
-      const twoFactorEnabled = row.getValue("twoFactorEnabled") as boolean;
-      return (
-        <Badge
-          variant="outline"
-          className={twoFactorEnabled
-            ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300"
-            : "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300"
-          }
-        >
-          {twoFactorEnabled ? (
-            <>
-              <UserCheck className="mr-1 h-3 w-3" />
-              Activo
-            </>
-          ) : (
-            <>
-              <UserX className="mr-1 h-3 w-3" />
-              Inactivo
-            </>
-          )}
-        </Badge>
-      );
-    },
-  },
+
   {
     id: "actions",
     enableHiding: false,
@@ -290,7 +166,7 @@ export const userColumns: ColumnDef<User>[] = [
               <Eye className="mr-2 h-4 w-4" />
               Ver perfil
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEditUser?.(user)}>
               <Edit className="mr-2 h-4 w-4" />
               Editar usuario
             </DropdownMenuItem>
@@ -316,3 +192,6 @@ export const userColumns: ColumnDef<User>[] = [
     },
   },
 ];
+
+// Exportación por defecto para compatibilidad
+export const userColumns = createUserColumns();
