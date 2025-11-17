@@ -20,6 +20,9 @@ interface BannerFormFieldsProps {
 }
 
 export function BannerFormFields({ formData, onFieldChange }: Readonly<BannerFormFieldsProps>) {
+  // Ocultar color de fuente para navbar mobile
+  const showColorFont = formData.placement !== "notification";
+
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
@@ -54,23 +57,25 @@ export function BannerFormFields({ formData, onFieldChange }: Readonly<BannerFor
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="color_font">Color de Fuente</Label>
-          <div className="flex gap-2">
-            <Input
-              id="color_font"
-              type="color"
-              value={formData.color_font}
-              onChange={(e) => onFieldChange("color_font", e.target.value)}
-              className="w-20"
-            />
-            <Input
-              value={formData.color_font}
-              onChange={(e) => onFieldChange("color_font", e.target.value)}
-              placeholder="#000000"
-            />
+        {showColorFont && (
+          <div className="space-y-2">
+            <Label htmlFor="color_font">Color de Fuente</Label>
+            <div className="flex gap-2">
+              <Input
+                id="color_font"
+                type="color"
+                value={formData.color_font}
+                onChange={(e) => onFieldChange("color_font", e.target.value)}
+                className="w-20"
+              />
+              <Input
+                value={formData.color_font}
+                onChange={(e) => onFieldChange("color_font", e.target.value)}
+                placeholder="#000000"
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="space-y-2">

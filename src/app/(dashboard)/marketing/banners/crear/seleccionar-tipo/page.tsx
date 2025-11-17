@@ -97,14 +97,6 @@ const bannerTypes: BannerType[] = [
     placement: "Navbar mobile - Superior",
     bestFor: ["Anuncios urgentes", "Promociones flash", "Avisos importantes"],
   },
-  {
-    id: "sticky-bottom",
-    title: "Banner de Ofertas",
-    description: "Banner fijo en la parte inferior. Perfecto para destacar ofertas y promociones persistentes.",
-    icon: Megaphone,
-    placement: "Inferior fijo - Todas las páginas",
-    bestFor: ["Ofertas especiales", "Descuentos", "Promociones del día"],
-  },
 ]
 
 export default function SeleccionarTipoBannerPage() {

@@ -141,11 +141,11 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
             </Card>
           )}
 
-          {/* Guía de dimensiones */}
-          <BannerSizeGuide placement={formData.placement} />
+          {/* Guía de dimensiones - No mostrar para navbar mobile */}
+          {formData.placement !== "notification" && <BannerSizeGuide placement={formData.placement} />}
 
-          {/* Estilos de Texto - Solo para Hero, Home, y banners de categoría */}
-          {(formData.placement === "hero" || 
+          {/* Estilos de Texto - Solo para Hero, Home, y banners de categoría (no navbar mobile) */}
+          {formData.placement !== "notification" && (formData.placement === "hero" || 
             formData.placement === "home" || 
             formData.placement.startsWith("home-") ||
             formData.placement === "category-top" ||
@@ -183,20 +183,22 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
             </Card>
           )}
 
-          {/* Upload de archivos */}
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">Archivos Multimedia</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6">
-              <BannerMediaUpload
-                files={formData}
-                existingUrls={existingUrls}
-                placement={formData.placement}
-                onFileChange={handleFileChange}
-              />
-            </CardContent>
-          </Card>
+          {/* Upload de archivos - No mostrar para navbar mobile */}
+          {formData.placement !== "notification" && (
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg sm:text-xl">Archivos Multimedia</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                <BannerMediaUpload
+                  files={formData}
+                  existingUrls={existingUrls}
+                  placement={formData.placement}
+                  onFileChange={handleFileChange}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Botones de acción */}
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
