@@ -57,10 +57,10 @@ const resourceLabels: Record<PermissionResource, string> = {
   'atencion_cliente': 'Atención al Cliente',
   'pagina_web': 'Página Web',
   'metricas': 'Métricas',
-  //'punto_fisico': 'Punto Físico',
-  // 'bodega': 'Bodega',
-  // 'zonas_de_cobertura': 'Zonas de Cobertura',
-  // 'facturacion': 'Facturación'
+  'punto_fisico': 'Punto Físico',
+  'bodega': 'Bodega',
+  'zonas_de_cobertura': 'Zonas de Cobertura',
+  'facturacion': 'Facturación'
 };
 
 const actionLabels: Record<PermissionAction, string> = {
