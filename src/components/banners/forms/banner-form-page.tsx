@@ -148,6 +148,7 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
           {(formData.placement === "hero" || 
             formData.placement === "home" || 
             formData.placement.startsWith("home-") ||
+            formData.placement === "category-top" ||
             formData.placement.startsWith("banner-")) && (
             <Card>
               <CardHeader className="p-4 sm:p-6">

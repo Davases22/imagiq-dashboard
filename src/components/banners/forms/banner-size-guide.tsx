@@ -153,8 +153,8 @@ export function BannerSizeGuide({ placement }: BannerSizeGuideProps) {
   // Determinar el tipo de banner basado en el placement
   let specKey = placement;
 
-  // Para banners de categoría (que empiezan con "banner-")
-  if (placement.startsWith("banner-")) {
+  // Para banners de categoría (que empiezan con "banner-" o son "category-top")
+  if (placement.startsWith("banner-") || placement === "category-top") {
     specKey = "category-banner";
   }
 

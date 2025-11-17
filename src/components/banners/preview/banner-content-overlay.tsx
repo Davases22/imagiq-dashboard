@@ -11,6 +11,7 @@ interface BannerContentOverlayProps {
   colorFont: string;
   linkUrl?: string;
   device?: "desktop" | "mobile";
+  placement?: string;
 
   // NUEVO: Sistema basado en porcentajes de imagen
   position?: BannerPosition;
@@ -61,15 +62,58 @@ const DEFAULT_TEXT_STYLES_MOBILE: BannerTextStyles = {
 };
 
 /**
+ * Obtiene el ancho real del banner en píxeles según el placement
+ */
+function getRealBannerWidth(placement?: string): number {
+  // Banners de categoría (verticales)
+  if (placement === "category-top" || placement?.startsWith("banner-")) {
+    return 318;
+  }
+  // Hero banner (pantalla completa)
+  if (placement === "hero") {
+    return 1920;
+  }
+  // Banners Home (intermedios)
+  if (placement?.startsWith("home-")) {
+    return 1440;
+  }
+  // Otros banners (por defecto)
+  return 1440;
+}
+
+/**
+ * Obtiene el ancho del contenedor del preview según el placement
+ */
+function getPreviewContainerWidth(placement?: string): number {
+  // Banners de categoría (max-w-md)
+  if (placement === "category-top" || placement?.startsWith("banner-")) {
+    return 448;
+  }
+  // Hero banner (max-w-2xl)
+  if (placement === "hero") {
+    return 672;
+  }
+  // Banners Home (max-w-xl)
+  if (placement?.startsWith("home-")) {
+    return 576;
+  }
+  // Otros banners (por defecto max-w-2xl)
+  return 672;
+}
+
+/**
  * Escala los text_styles configurados para el preview basándose en el ancho del contenedor
  * Calcula dinámicamente el factor de escala comparando el ancho del preview vs el ancho real esperado
  */
 function scaleTextStylesForPreview(
   styles: BannerTextStyles | undefined, 
-  containerWidth: number = 448, // ancho del preview en px (max-w-md)
-  realBannerWidth: number = 318 // ancho real del banner en px (por defecto categoría)
+  placement?: string // placement del banner para determinar anchos
 ): BannerTextStyles | undefined {
   if (!styles) return undefined;
+  
+  // Obtener anchos según el placement
+  const containerWidth = getPreviewContainerWidth(placement);
+  const realBannerWidth = getRealBannerWidth(placement);
   
   // Calcular factor de escala dinámico
   const scaleFactor = containerWidth / realBannerWidth;
@@ -133,11 +177,12 @@ export function BannerContentOverlay({
   position,
   textStyles,
   coordinates, // fallback
+  placement
 }: Readonly<BannerContentOverlayProps>) {
   if (!title && !description && !cta) return null;
 
   // Escalar los estilos personalizados para el preview, o usar defaults
-  const scaledStyles = scaleTextStylesForPreview(textStyles);
+  const scaledStyles = scaleTextStylesForPreview(textStyles, placement);
   const styles = scaledStyles || (device === "mobile" ? DEFAULT_TEXT_STYLES_MOBILE : DEFAULT_TEXT_STYLES_DESKTOP);
 
   // Calcular posición: priorizar nuevo sistema (position) sobre antiguo (coordinates)
