@@ -28,8 +28,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, UpdatePermissionsPayload, PermissionItem } from "@/types/users";
-import { UserPermissionsModal } from "./user-permissions-modal";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import { User, UpdatePermissionsPayload, PermissionItem, PermissionAction, PermissionResource } from "@/types/users";
 import { userEndpoints } from "@/lib/api";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,9 +43,13 @@ import {
   Key,
   X,
   ArrowRight,
-  Loader2
+  ArrowLeft,
+  Loader2,
+  Shield,
+  Save,
+  CheckCircle2,
+  XCircle
 } from "lucide-react";
-import { is } from "date-fns/locale";
 
 const userFormSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -59,6 +65,38 @@ const userFormSchema = z.object({
 
 type UserFormValues = z.infer<typeof userFormSchema>;
 
+// Constantes de permisos
+const permissionResources: PermissionResource[] = [
+  'usuarios',
+  'ordenes',
+  'productos',
+  'marketing',
+  'envios',
+  'atencion_cliente',
+  'pagina_web',
+  'metricas',
+];
+
+const permissionActions: PermissionAction[] = ['create', 'read', 'update', 'delete'];
+
+const resourceLabels: Record<PermissionResource, string> = {
+  'usuarios': 'Usuarios',
+  'ordenes': 'Órdenes',
+  'productos': 'Productos',
+  'marketing': 'Marketing',
+  'envios': 'Envíos',
+  'atencion_cliente': 'Atención al Cliente',
+  'pagina_web': 'Página Web',
+  'metricas': 'Métricas',
+};
+
+const actionLabels: Record<PermissionAction, string> = {
+  'create': 'Crear',
+  'read': 'Leer',
+  'update': 'Actualizar',
+  'delete': 'Eliminar'
+};
+
 interface UserFormModalProps {
   open: boolean;
   onClose: () => void;
@@ -72,7 +110,7 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
   const [step, setStep] = useState<1 | 2>(1);
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [createdUserName, setCreatedUserName] = useState<string>("");
-  const [currentPermissions, setCurrentPermissions] = useState<PermissionItem[]>([]);
+  const [permissions, setPermissions] = useState<PermissionItem[]>([]);
   const [isLoadingUserData, setIsLoadingUserData] = useState(false);
 
   const title = isEditing
@@ -100,6 +138,57 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
       rol: "4",
     },
   });
+
+  // Funciones de manejo de permisos
+  const initializePermissions = (currentPermissions: PermissionItem[]) => {
+    const allPermissions: PermissionItem[] = [];
+
+    permissionResources.forEach(recurso => {
+      permissionActions.forEach(accion => {
+        const existingPermission = currentPermissions.find(
+          p => p.recurso === recurso && p.accion === accion
+        );
+
+        allPermissions.push({
+          recurso,
+          accion,
+          permitido: existingPermission?.permitido || false
+        });
+      });
+    });
+
+    setPermissions(allPermissions);
+  };
+
+  const handlePermissionToggle = (recurso: PermissionResource, accion: PermissionAction) => {
+    setPermissions(prev =>
+      prev.map(p =>
+        p.recurso === recurso && p.accion === accion
+          ? { ...p, permitido: !p.permitido }
+          : p
+      )
+    );
+  };
+
+  const handleSelectAllForResource = (recurso: PermissionResource, permitido: boolean) => {
+    setPermissions(prev =>
+      prev.map(p =>
+        p.recurso === recurso
+          ? { ...p, permitido }
+          : p
+      )
+    );
+  };
+
+  const getPermissionStatus = (recurso: PermissionResource) => {
+    const resourcePermissions = permissions.filter(p => p.recurso === recurso);
+    const allowedCount = resourcePermissions.filter(p => p.permitido).length;
+    const totalCount = resourcePermissions.length;
+
+    if (allowedCount === 0) return { color: 'text-red-500', icon: XCircle, text: 'Sin acceso' };
+    if (allowedCount === totalCount) return { color: 'text-green-500', icon: CheckCircle2, text: 'Acceso completo' };
+    return { color: 'text-yellow-500', icon: Shield, text: `${allowedCount}/${totalCount} permisos` };
+  };
 
   // Cargar datos del usuario cuando se abre el modal en modo edición
   useEffect(() => {
@@ -137,8 +226,8 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
               telefono: userData.telefono || "",
               rol: String(userData.rol) || "4",
             });
-            // Guardar permisos actuales
-            setCurrentPermissions((userData.permisos || []) as PermissionItem[]);
+            // Inicializar permisos
+            initializePermissions((userData.permisos || []) as PermissionItem[]);
           }
         } catch (error) {
           
@@ -159,6 +248,8 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
           telefono: "",
           rol: "4",
         });
+        // Inicializar permisos vacíos para creación
+        initializePermissions([]);
       }
     };
 
@@ -171,7 +262,7 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
       setStep(1);
       setCreatedUserId(null);
       setCreatedUserName("");
-      setCurrentPermissions([]);
+      setPermissions([]);
       form.reset();
     }
   }, [open, form]);
@@ -197,8 +288,12 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
     }
   };
 
-  const handlePermissionsSave = async (payload: UpdatePermissionsPayload) => {
-    if (onSavePermissions) {
+  const handlePermissionsSave = async () => {
+    if (onSavePermissions && createdUserId) {
+      const payload: UpdatePermissionsPayload = {
+        userId: createdUserId,
+        permisos: permissions
+      };
       await onSavePermissions(payload);
     }
     // Cerrar el modal completo después de guardar permisos
@@ -206,16 +301,12 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
     setStep(1);
     setCreatedUserId(null);
     setCreatedUserName("");
+    setPermissions([]);
     onClose();
   };
 
-  const handlePermissionsClose = () => {
-    // Cerrar sin guardar permisos
-    form.reset();
+  const handleBack = () => {
     setStep(1);
-    setCreatedUserId(null);
-    setCreatedUserName("");
-    onClose();
   };
 
   // Renderizar paso 1 (info básica)
@@ -452,15 +543,114 @@ export function UserFormModal({ open, onClose, user, onSave, onSavePermissions }
     );
   }
 
-  // Renderizar paso 2 - Modal de permisos
+  // Renderizar paso 2 - Permisos
+  const totalPermissionsAllowed = permissions.filter(p => p.permitido).length;
+
   return (
-    <UserPermissionsModal
-      open={open && step === 2}
-      onClose={handlePermissionsClose}
-      userId={createdUserId || ""}
-      userName={createdUserName}
-      currentPermissions={isEditing ? currentPermissions : []}
-      onSave={handlePermissionsSave}
-    />
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            {title}
+          </DialogTitle>
+          <DialogDescription>
+            {description}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="mb-4 p-3 bg-muted rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              Total de permisos activos:
+            </span>
+          </div>
+          <Badge variant="outline" className="text-sm">
+            {totalPermissionsAllowed} / {permissions.length}
+          </Badge>
+        </div>
+
+        <ScrollArea className="max-h-[50vh] pr-4">
+          <div className="space-y-6">
+            {permissionResources.map((recurso) => {
+              const status = getPermissionStatus(recurso);
+              const StatusIcon = status.icon;
+
+              return (
+                <div key={recurso} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-semibold uppercase tracking-wide">
+                        {resourceLabels[recurso]}
+                      </h4>
+                      <StatusIcon className={`h-4 w-4 ${status.color}`} />
+                      <span className={`text-xs ${status.color}`}>{status.text}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSelectAllForResource(recurso, true)}
+                        className="h-7 text-xs"
+                      >
+                        Permitir todos
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSelectAllForResource(recurso, false)}
+                        className="h-7 text-xs"
+                      >
+                        Denegar todos
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pl-4">
+                    {permissionActions.map((accion) => {
+                      const permission = permissions.find(
+                        p => p.recurso === recurso && p.accion === accion
+                      );
+
+                      return (
+                        <div key={`${recurso}-${accion}`} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`${recurso}-${accion}`}
+                            checked={permission?.permitido || false}
+                            onCheckedChange={() => handlePermissionToggle(recurso, accion)}
+                          />
+                          <label
+                            htmlFor={`${recurso}-${accion}`}
+                            className="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            {actionLabels[accion]}
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <Separator />
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Volver
+          </Button>
+          <Button onClick={handlePermissionsSave}>
+            <Save className="mr-2 h-4 w-4" />
+            Guardar Permisos
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
