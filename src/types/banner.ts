@@ -46,8 +46,8 @@ export interface BackendBanner {
   position_desktop?: BannerPosition;
   position_mobile?: BannerPosition;
 
-  // NUEVO: Estilos de texto personalizables
-  text_styles?: BannerTextStyles;
+  // NUEVO: Estilos de texto personalizables (se escala automáticamente)
+  text_styles?: BannerTextStyles | string; // Puede venir como JSON string del backend
 
   // DEPRECADO: Mantener para compatibilidad hacia atrás con banners existentes
   coordinates?: string;

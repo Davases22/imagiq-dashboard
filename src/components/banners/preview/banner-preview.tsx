@@ -30,6 +30,7 @@ interface BannerPreviewProps {
   coordinatesMobile?: string;
   onCoordinatesChange?: (coordinates: string) => void;
   onCoordinatesMobileChange?: (coordinates: string) => void;
+  text_styles?: import('@/types/banner').BannerTextStyles;
 }
 
 interface BannerContentProps {
@@ -44,6 +45,7 @@ interface BannerContentProps {
   device: "desktop" | "mobile";
   placement?: string;
   onPositionChange?: (position: BannerPosition) => void;
+  textStyles?: import('@/types/banner').BannerTextStyles;
 }
 
 type DeviceType = "desktop" | "mobile";
@@ -60,9 +62,9 @@ const getStyles = (placement: string | undefined, device: DeviceType) => {
   if (isFlexible) {
     return {
       aspectRatio: "",
-      maxWidth: "max-w-full",
+      maxWidth: "max-w-md", // Reducido a ~448px
       mediaClass: "w-full h-auto pointer-events-none",
-      minHeight: "min-h-[200px]",
+      minHeight: "min-h-[150px]",
     };
   }
 
@@ -78,7 +80,7 @@ const getStyles = (placement: string | undefined, device: DeviceType) => {
 const isSingleView = (placement?: string) =>
   placement === "product-detail" || placement === "category-top" || Boolean(placement?.startsWith("banner-"));
 
-function BannerContent({ image, video, title, description, cta, colorFont, linkUrl, device, placement, position, onPositionChange }: Readonly<BannerContentProps>) {
+function BannerContent({ image, video, title, description, cta, colorFont, linkUrl, device, placement, position, onPositionChange, textStyles }: Readonly<BannerContentProps>) {
   const [showContent, setShowContent] = useState(!video);
   const [imageUrl, setImageUrl] = useState<string>();
   const [videoUrl, setVideoUrl] = useState<string>();
@@ -147,7 +149,7 @@ function BannerContent({ image, video, title, description, cta, colorFont, linkU
                 {Array.from({ length: 81 }, (_, i) => <div key={`g-${Math.floor(i/9)}-${i%9}`} className="border border-dashed border-white/10" />)}
               </div>
             </div>
-            {hasContent && <Overlay id={`overlay-${device}`} title={title} description={description} cta={cta} colorFont={colorFont} linkUrl={linkUrl} position={currentPos} device={device} />}
+            {hasContent && <Overlay id={`overlay-${device}`} title={title} description={description} cta={cta} colorFont={colorFont} linkUrl={linkUrl} position={currentPos} device={device} textStyles={textStyles} />}
           </>
         )}
         <div className="absolute top-4 left-4 pointer-events-none">
@@ -168,7 +170,7 @@ function BannerContent({ image, video, title, description, cta, colorFont, linkU
 
 export function BannerPreview(props: Readonly<BannerPreviewProps>) {
   const { desktop_image, desktop_video, mobile_image, mobile_video, title, description, cta, color_font = "#FFFFFF", link_url, placement,
-    position_desktop, position_mobile, onPositionDesktopChange, onPositionMobileChange, coordinates, coordinatesMobile } = props;
+    position_desktop, position_mobile, onPositionDesktopChange, onPositionMobileChange, coordinates, coordinatesMobile, text_styles } = props;
 
   const [viewMode, setViewMode] = useState<DeviceType>("desktop");
   const [reloadKey, setReloadKey] = useState(0);
@@ -185,9 +187,11 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
   const renderContent = (mode: DeviceType, key: string) => {
     const pos = getPos(mode);
     const handler = getHandler(mode);
+    const isFlexible = placement === "category-top" || placement === "product-detail" || placement?.startsWith("banner-");
+    
     return (
       <>
-        <div className="flex justify-center">
+        <div className={`flex justify-center ${isFlexible ? 'max-w-md mx-auto' : ''}`}>
           <BannerContent
             key={key}
             image={mode === "desktop" ? desktop_image : mobile_image}
@@ -201,6 +205,7 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
             onPositionChange={handler}
             device={mode}
             placement={placement}
+            textStyles={text_styles}
           />
         </div>
         <div className="flex justify-center">

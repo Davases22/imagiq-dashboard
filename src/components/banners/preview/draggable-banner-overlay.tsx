@@ -57,6 +57,69 @@ const DEFAULT_TEXT_STYLES_MOBILE: BannerTextStyles = {
   }
 };
 
+/**
+ * Escala los text_styles configurados para el preview basándose en el ancho del contenedor
+ * Calcula dinámicamente el factor de escala comparando el ancho del preview vs el ancho real esperado
+ */
+function scaleTextStylesForPreview(
+  styles: BannerTextStyles | undefined, 
+  containerWidth: number = 448, // ancho del preview en px (max-w-md)
+  realBannerWidth: number = 318 // ancho real del banner en px (por defecto categoría)
+): BannerTextStyles | undefined {
+  if (!styles) return undefined;
+  
+  // Calcular factor de escala dinámico
+  const scaleFactor = containerWidth / realBannerWidth;
+
+  const scaleFontSize = (fontSize: string): string => {
+    // Si es clamp(), extraer el valor máximo y escalarlo
+    const clampMatch = fontSize.match(/clamp\(([^,]+),\s*([^,]+),\s*([^)]+)\)/);
+    if (clampMatch) {
+      const maxValue = clampMatch[3].trim();
+      const numMatch = maxValue.match(/(\d+\.?\d*)(rem|px|em)/);
+      if (numMatch) {
+        const value = parseFloat(numMatch[1]) * scaleFactor;
+        return `${value.toFixed(2)}${numMatch[2]}`;
+      }
+    }
+    
+    // Si es un valor simple (rem, px, em), escalarlo directamente
+    const simpleMatch = fontSize.match(/(\d+\.?\d*)(rem|px|em)/);
+    if (simpleMatch) {
+      const value = parseFloat(simpleMatch[1]) * scaleFactor;
+      return `${value.toFixed(2)}${simpleMatch[2]}`;
+    }
+    
+    return fontSize;
+  };
+
+  const scalePadding = (padding: string): string => {
+    return padding.replace(/(\d+\.?\d*)(rem|px|em)/g, (match, num, unit) => {
+      const scaled = parseFloat(num) * scaleFactor;
+      return `${scaled.toFixed(3)}${unit}`;
+    });
+  };
+
+  return {
+    title: {
+      fontSize: scaleFontSize(styles.title.fontSize),
+      fontWeight: styles.title.fontWeight,
+      lineHeight: styles.title.lineHeight,
+    },
+    description: {
+      fontSize: scaleFontSize(styles.description.fontSize),
+      fontWeight: styles.description.fontWeight,
+      lineHeight: styles.description.lineHeight,
+    },
+    cta: {
+      fontSize: scaleFontSize(styles.cta.fontSize),
+      fontWeight: styles.cta.fontWeight,
+      padding: scalePadding(styles.cta.padding),
+      borderWidth: styles.cta.borderWidth, // borderWidth no se escala
+    },
+  };
+}
+
 export function DraggableBannerOverlay({
   id,
   title,
@@ -77,8 +140,9 @@ export function DraggableBannerOverlay({
   // Si no hay contenido, no renderizar nada
   if (!title && !description && !cta) return null;
 
-  // Usar estilos personalizados o defaults según el dispositivo
-  const styles = textStyles || (device === "mobile" ? DEFAULT_TEXT_STYLES_MOBILE : DEFAULT_TEXT_STYLES_DESKTOP);
+  // Escalar los estilos personalizados para el preview, o usar defaults
+  const scaledStyles = scaleTextStylesForPreview(textStyles);
+  const styles = scaledStyles || (device === "mobile" ? DEFAULT_TEXT_STYLES_MOBILE : DEFAULT_TEXT_STYLES_DESKTOP);
 
   // Determinar alineación del texto según posición X
   const textAlign = getTextAlignment(position);
