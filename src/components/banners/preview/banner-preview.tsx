@@ -101,6 +101,39 @@ const getStyles = (placement: string | undefined, device: DeviceType) => {
 const isSingleView = (placement?: string) =>
   placement === "product-detail" || placement === "category-top" || Boolean(placement?.startsWith("banner-"));
 
+// Componente especial para navbar mobile (tira de notificación)
+function NavbarMobileBanner({ title, description, cta, linkUrl }: { title?: string; description?: string; cta?: string; linkUrl?: string }) {
+  if (!title && !description && !cta) {
+    return (
+      <div className="w-full max-w-2xl mx-auto rounded-lg border-2 border-dashed bg-muted p-4">
+        <p className="text-muted-foreground text-sm text-center">
+          Agrega título, descripción o CTA para ver el preview
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="bg-black text-white px-6 py-3 rounded-lg shadow-lg">
+        <div className="flex flex-col items-center justify-center gap-2 text-center">
+          {title && (
+            <p className="font-bold text-base">{title}</p>
+          )}
+          {description && (
+            <p className="text-sm opacity-90">{description}</p>
+          )}
+          {cta && (
+            <button className="mt-1 bg-white text-black px-5 py-2 rounded-full text-sm font-medium hover:bg-gray-100 transition-colors">
+              {cta}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BannerContent({ image, video, title, description, cta, colorFont, linkUrl, device, placement, position, onPositionChange, textStyles }: Readonly<BannerContentProps>) {
   const [showContent, setShowContent] = useState(!video);
   const [imageUrl, setImageUrl] = useState<string>();
@@ -195,6 +228,26 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
 
   const [viewMode, setViewMode] = useState<DeviceType>("desktop");
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Preview especial para navbar mobile
+  if (placement === "notification") {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <Badge variant="outline">Banner Navbar Mobile</Badge>
+          <Button variant="outline" size="sm" onClick={() => setReloadKey(p => p + 1)} title="Recargar preview">
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
+        <NavbarMobileBanner 
+          title={title} 
+          description={description} 
+          cta={cta} 
+          linkUrl={link_url} 
+        />
+      </div>
+    );
+  }
 
   const getPos = (mode: DeviceType) => {
     const pos = mode === "desktop"
