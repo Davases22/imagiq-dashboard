@@ -34,6 +34,7 @@ import {
   Trash2,
   AlertTriangle
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -350,13 +351,43 @@ export default function UsuariosPage() {
               <CardTitle>Lista de Usuarios</CardTitle>
             </CardHeader>
             <CardContent>
-              <UsersDataTable
-                columns={createUserColumns(handleOpenEditModal)}
-                data={users}
-                onCreateUser={() => setIsCreateModalOpen(true)}
-                onDeleteUsers={handleDeleteUsers}
-                onExportUsers={handleExportUsers}
-              />
+              {isLoading ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-10 w-[300px]" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-9 w-[100px]" />
+                      <Skeleton className="h-9 w-[120px]" />
+                    </div>
+                  </div>
+                  <div className="rounded-md border">
+                    <div className="p-4 space-y-3">
+                      {[...Array(5)].map((_, i) => (
+                        <div key={`skeleton-row-${i}`} className="flex items-center space-x-4">
+                          <Skeleton className="h-4 w-4" />
+                          <Skeleton className="h-10 w-10 rounded-full" />
+                          <Skeleton className="h-4 w-[150px]" />
+                          <Skeleton className="h-4 w-[80px]" />
+                          <Skeleton className="h-4 w-[100px]" />
+                          <Skeleton className="h-4 w-[120px]" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end space-x-2">
+                    <Skeleton className="h-8 w-[100px]" />
+                    <Skeleton className="h-8 w-[100px]" />
+                  </div>
+                </div>
+              ) : (
+                <UsersDataTable
+                  columns={createUserColumns(handleOpenEditModal)}
+                  data={users}
+                  onCreateUser={() => setIsCreateModalOpen(true)}
+                  onDeleteUsers={handleDeleteUsers}
+                  onExportUsers={handleExportUsers}
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>

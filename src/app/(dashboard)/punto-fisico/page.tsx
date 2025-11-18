@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StoreStatsCards } from "@/components/physical-stores/store-stats-cards";
 import { StoresDataTable } from "@/components/physical-stores/stores-data-table";
 import { PickupVerificationModal } from "@/components/physical-stores/pickup-verification-modal";
@@ -60,6 +61,7 @@ export default function PuntoFisicoPage() {
 
   // Initialize services with dependency injection
   const [tiendas, setTiendas] = useState<BackendTienda[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const codeGenerator = new SecureCodeGenerator();
   const codeValidator = new CodeValidator();
   const verificationRepository = new MockVerificationCodeRepository();
@@ -113,7 +115,7 @@ export default function PuntoFisicoPage() {
           // Usar datos mock si falla
         
         } finally {
-          
+          setIsLoading(false);
         }
       };
   
@@ -329,12 +331,39 @@ export default function PuntoFisicoPage() {
               <CardTitle>Lista de Tiendas</CardTitle>
             </CardHeader>
             <CardContent>
-              <StoresDataTable
-                stores={tiendas}
-                onViewStore={(store) => toast.info(`Viendo detalles de ${store.descripcion}`)}
-                onManageOrders={(store) => toast.info(`Gestionar órdenes de ${store.descripcion}`)}
-                onStoreSettings={(store) => toast.info(`Configuración de ${store.descripcion}`)}
-              />
+              {isLoading ? (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-4">
+                    <Skeleton className="h-10 w-[300px]" />
+                  </div>
+                  <div className="rounded-md border">
+                    <div className="p-4 space-y-3">
+                      {[...Array(5)].map((_, i) => (
+                        <div key={i} className="flex items-center space-x-4">
+                          <Skeleton className="h-4 w-4" />
+                          <Skeleton className="h-4 w-[80px]" />
+                          <Skeleton className="h-4 w-[150px]" />
+                          <Skeleton className="h-4 w-[200px]" />
+                          <Skeleton className="h-4 w-[100px]" />
+                          <Skeleton className="h-4 w-[120px]" />
+                          <Skeleton className="h-4 w-[80px]" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end space-x-2">
+                    <Skeleton className="h-8 w-[100px]" />
+                    <Skeleton className="h-8 w-[100px]" />
+                  </div>
+                </div>
+              ) : (
+                <StoresDataTable
+                  stores={tiendas}
+                  onViewStore={(store) => toast.info(`Viendo detalles de ${store.descripcion}`)}
+                  onManageOrders={(store) => toast.info(`Gestionar órdenes de ${store.descripcion}`)}
+                  onStoreSettings={(store) => toast.info(`Configuración de ${store.descripcion}`)}
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
