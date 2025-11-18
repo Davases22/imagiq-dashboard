@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,7 @@ import {
   Search
 } from "lucide-react";
 import { toast } from "sonner";
+import { tiendasEndpoints } from "@/lib/api";
 
 export default function PuntoFisicoPage() {
   const [stores] = useState<PhysicalStore[]>(mockPhysicalStores);
@@ -86,6 +87,43 @@ export default function PuntoFisicoPage() {
     store.location.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
     store.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
+    // Cargar tiendas al montar el componente
+    // useEffect(() => {
+    //   const loadUsers = async () => {
+    //     try {
+    //       const response = await tiendasEndpoints.getAll();
+      
+  
+    //       if (response.success && response.data) {
+    //         // La API devuelve directamente un array
+    //         const backendUsers = Array.isArray(response.data) ? response.data : [];
+    //         const convertedUsers = backendUsers.map(convertBackendUserToUser);
+    //         setUsers(convertedUsers);
+  
+    //         // Actualizar stats
+    //         setStats(prev => ({
+    //           ...prev,
+    //           totalUsers: convertedUsers.length,
+    //         }));
+    //       } else {
+            
+    //         toast.error("Error al cargar usuarios");
+    //         // Usar datos mock si falla
+    //         setUsers(mockUsers);
+    //       }
+    //     } catch (error) {
+         
+    //       toast.error("Error al cargar tiendas");
+    //       // Usar datos mock si falla
+    //       setUsers(mockUsers);
+    //     } finally {
+    //       setIsLoading(false);
+    //     }
+    //   };
+  
+    //   loadUsers();
+    // }, []);
+
 
   const handleViewStore = (store: PhysicalStore) => {
     setSelectedStore(store);

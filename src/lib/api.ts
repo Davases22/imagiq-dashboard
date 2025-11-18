@@ -1322,3 +1322,26 @@ export const userEndpoints = {
   updatePermissions: (payload: { userId: string; permisos: Array<{ recurso: string; accion: string; permitido: boolean }> }) =>
     apiClient.post<{ success: boolean; message?: string }>("/api/admin/users/permisos", payload, true),
 };
+
+export interface BackendTienda {
+  codigo: string;
+  descripcion?: string;
+  departamento?: string;
+  ciudad?: string;
+  direccion?: string;
+  place_ID?: string;
+  ubicacion_cc?: string;
+  horario?: string;
+  telefono?: string;
+  extension?: string;
+  email?: string;
+  codBodega: string;
+  codDane?: string;
+  latitud?: string;
+  longitud?: string;
+}
+
+export const tiendasEndpoints = {
+  getAll: () =>
+    apiClient.get<BackendTienda[]>("/api/stores"),
+};
