@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   Home,
@@ -16,8 +16,8 @@ import {
   ChevronUp,
   User2,
   MapPin,
-} from "lucide-react"
-import { ThemeToggle } from "@/components/theme-toggle"
+} from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 import {
   Sidebar,
@@ -33,22 +33,26 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 import Image from "next/image";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import Link from "next/link"
-import { useAuth } from "@/contexts/AuthContext"
-import { useRouter } from "next/navigation"
+} from "@/components/ui/dropdown-menu";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 
-const storedUser = localStorage.getItem('imagiq_user');
-const parsedUser = JSON.parse(storedUser || "")
+const storedUser = localStorage.getItem("imagiq_user");
+const parsedUser = JSON.parse(storedUser || "");
 
 const data = {
   user: {
@@ -130,35 +134,31 @@ const data = {
       icon: UserCheck,
     },
   ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { logout } = useAuth()
-  const router = useRouter()
+  const { logout } = useAuth();
+  const router = useRouter();
 
   const handleLogout = () => {
-    logout()
-    router.push('/login')
-  }
-  const {theme} = useTheme()
-  console.log(theme)
+    logout();
+    router.push("/login");
+  };
+  const { theme } = useTheme();
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
-          {/* <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Package className="size-4" />
-          </div> */}
           <Image
-                src={ theme == 'light'?  "/frame_black.png" : "/frame_white.png"}
-                alt="Q Logo"
-                height={40}
-                width={40}
-                className="h-10 w-10 transition-all duration-300"
-                priority
-              />
-            
+            src={theme == "light" ? "/frame_black.png" : "/frame_white.png"}
+            alt="Q Logo"
+            height={40}
+            width={40}
+            className="h-10 w-10 transition-all duration-300"
+            priority
+          />
+
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-semibold">Bienvenido</span>
             <span className="truncate text-xs">{parsedUser.name}</span>
@@ -247,7 +247,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <User2 className="size-4" />
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">{data.user.name}</span>
+                    <span className="truncate font-semibold">
+                      {data.user.name}
+                    </span>
                     <span className="truncate text-xs">{data.user.email}</span>
                   </div>
                   <ChevronUp className="ml-auto size-4" />
@@ -277,5 +279,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }
