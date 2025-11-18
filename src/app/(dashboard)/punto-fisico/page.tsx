@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { StoreStatsCards } from "@/components/physical-stores/store-stats-cards";
 import { StoresDataTable } from "@/components/physical-stores/stores-data-table";
 import { PickupVerificationModal } from "@/components/physical-stores/pickup-verification-modal";
@@ -26,8 +24,6 @@ import {
 import {
   MockVerificationCodeRepository,
   MockPickupOrderRepository,
-  MockNotificationSender,
-  MockInventoryService,
   MockLogger,
   MockAuditService
 } from "@/services/physical-stores/mock-repositories";
@@ -41,7 +37,6 @@ import {
   Store,
   Package,
   QrCode,
-  MapPin,
   Users,
   BarChart3,
   Settings,
@@ -49,9 +44,12 @@ import {
   Search
 } from "lucide-react";
 import { toast } from "sonner";
-import { tiendasEndpoints, BackendTienda } from "@/lib/api";
+import { useTiendas } from "@/hooks/use-tiendas";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 
 export default function PuntoFisicoPage() {
+  const { tiendas, isLoading } = useTiendas();
+
   const [stores] = useState<PhysicalStore[]>(mockPhysicalStores);
   const [selectedStore, setSelectedStore] = useState<PhysicalStore | null>(null);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
@@ -59,15 +57,11 @@ export default function PuntoFisicoPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [orders, setOrders] = useState<PickupOrder[]>([]);
 
-  // Initialize services with dependency injection
-  const [tiendas, setTiendas] = useState<BackendTienda[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Initialize services
   const codeGenerator = new SecureCodeGenerator();
   const codeValidator = new CodeValidator();
   const verificationRepository = new MockVerificationCodeRepository();
   const orderRepository = new MockPickupOrderRepository();
-  const notificationSender = new MockNotificationSender();
-  const inventoryService = new MockInventoryService();
   const logger = new MockLogger();
   const auditService = new MockAuditService();
 
@@ -85,63 +79,11 @@ export default function PuntoFisicoPage() {
   const totalOrders = Object.values(mockStoreStats).reduce((sum, stats) => sum + stats.readyOrders, 0);
   const totalCompletedToday = Object.values(mockStoreStats).reduce((sum, stats) => sum + stats.completedToday, 0);
 
-  const filteredStores = stores.filter(store =>
-    store.location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    store.location.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    store.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-    // Cargar tiendas al montar el componente
-    useEffect(() => {
-      const loadTiendas = async () => {
-        try {
-          const response = await tiendasEndpoints.getAll();
-      
-  
-          if (response.success && response.data) {
-            // La API devuelve directamente un array
-            const backendTiendas = Array.isArray(response.data) ? response.data : [];
-            console.log(backendTiendas)
-            setTiendas(backendTiendas);
-  
-           
-          } else {
-            
-            toast.error("Error al cargar usuarios");
-
-          }
-        } catch (error) {
-         
-          toast.error("Error al cargar tiendas");
-          // Usar datos mock si falla
-        
-        } finally {
-          setIsLoading(false);
-        }
-      };
-  
-      loadTiendas();
-    }, []);
-
-
-  const handleViewStore = (store: PhysicalStore) => {
-    setSelectedStore(store);
-    // In a real app, this would fetch store details
-    toast.info(`Viendo detalles de ${store.location.name}`);
-  };
-
   const handleManageOrders = async (store: PhysicalStore) => {
     setSelectedStore(store);
-
-    // Mock orders data for the selected store
     const storeOrders = await orderRepository.findByStoreId(store.id);
     setOrders(storeOrders);
     setIsOrdersModalOpen(true);
-  };
-
-  const handleStoreSettings = (store: PhysicalStore) => {
-    setSelectedStore(store);
-    // In a real app, this would open store settings modal
-    toast.info(`Configuración de ${store.location.name}`);
   };
 
   const handleVerifyPickup = () => {
@@ -157,7 +99,6 @@ export default function PuntoFisicoPage() {
       throw new Error("No store selected");
     }
 
-    // Find the order first
     const order = await orderRepository.findByOrderNumber(data.orderNumber);
     if (!order) {
       return {
@@ -168,7 +109,6 @@ export default function PuntoFisicoPage() {
       };
     }
 
-    // Verify the pickup using the service
     return await verificationService.verifyPickupCode({
       orderId: order.id,
       verificationCode: data.verificationCode,
@@ -183,7 +123,6 @@ export default function PuntoFisicoPage() {
   const handleUpdateOrderStatus = async (orderId: string, status: OrderStatus) => {
     await orderRepository.updateStatus(orderId, status);
 
-    // Refresh orders
     if (selectedStore) {
       const updatedOrders = await orderRepository.findByStoreId(selectedStore.id);
       setOrders(updatedOrders);
@@ -316,6 +255,18 @@ export default function PuntoFisicoPage() {
         </TabsList>
 
         <TabsContent value="stores" className="space-y-3">
+          {/* Search */}
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar tiendas..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
 
           {/* Store Details for Selected Store */}
           {selectedStore && (
@@ -332,30 +283,7 @@ export default function PuntoFisicoPage() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4">
-                    <Skeleton className="h-10 w-[300px]" />
-                  </div>
-                  <div className="rounded-md border">
-                    <div className="p-4 space-y-3">
-                      {[...Array(5)].map((_, i) => (
-                        <div key={i} className="flex items-center space-x-4">
-                          <Skeleton className="h-4 w-4" />
-                          <Skeleton className="h-4 w-[80px]" />
-                          <Skeleton className="h-4 w-[150px]" />
-                          <Skeleton className="h-4 w-[200px]" />
-                          <Skeleton className="h-4 w-[100px]" />
-                          <Skeleton className="h-4 w-[120px]" />
-                          <Skeleton className="h-4 w-[80px]" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-end space-x-2">
-                    <Skeleton className="h-8 w-[100px]" />
-                    <Skeleton className="h-8 w-[100px]" />
-                  </div>
-                </div>
+                <TableSkeleton columns={7} rows={5} showActions={false} />
               ) : (
                 <StoresDataTable
                   stores={tiendas}

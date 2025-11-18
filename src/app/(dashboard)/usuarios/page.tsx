@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,14 +15,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
 import { UserStatsCards } from "@/components/users/user-stats-cards";
 import { UsersDataTable } from "@/components/users/users-data-table";
 import { UserFormModal } from "@/components/users/user-form-modal";
 import { createUserColumns } from "@/components/users/user-columns";
-import { mockUsers, mockUserActivity, mockUserStats, rolePermissions } from "@/lib/mock-data/users";
-import { User, UserActivity, UpdatePermissionsPayload } from "@/types/users";
-import { userEndpoints, CreateUserRequest, BackendUser } from "@/lib/api";
+import { mockUserActivity, rolePermissions } from "@/lib/mock-data/users";
+import { User, UserActivity } from "@/types/users";
+import { useUsers } from "@/hooks/use-users";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 import {
   Users,
   UserPlus,
@@ -30,175 +30,36 @@ import {
   Shield,
   Clock,
   Download,
-  FileText,
   Trash2,
   AlertTriangle
 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
 export default function UsuariosPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [userActivity, setUserActivity] = useState<UserActivity[]>(mockUserActivity);
-  const [stats, setStats] = useState(mockUserStats);
+  const {
+    users,
+    stats,
+    isLoading,
+    createUser,
+    editUser,
+    updatePermissions,
+    exportUsers,
+  } = useUsers();
+
+  const [userActivity] = useState<UserActivity[]>(mockUserActivity);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | undefined>();
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [usersToDelete, setUsersToDelete] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
- 
 
-  // Función para convertir BackendUser a User
-  const convertBackendUserToUser = (backendUser: BackendUser): User => {
-    return {
-      id: backendUser.id || backendUser.uuid || '',
-      email: backendUser.email,
-      name: `${backendUser.nombre} ${backendUser.apellido}`,
-      rol: typeof backendUser.rol === 'number' ? backendUser.rol : parseInt(backendUser.rol) || 4,
-      permissions: [],
-      status: 'active',
-      department: '',
-      phoneNumber: backendUser.telefono || '',
-      location: '',
-      timezone: 'America/Bogota',
-      twoFactorEnabled: false,
-      createdAt: backendUser.created_at ? new Date(backendUser.created_at) : new Date(),
-      updatedAt: backendUser.updated_at ? new Date(backendUser.updated_at) : new Date(),
-      createdBy: 'system',
-      loginAttempts: 0,
-    };
+  const handleCreateUser = async (userData: any) => {
+    return createUser(userData);
   };
 
-  // Cargar usuarios al montar el componente
-  useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        const response = await userEndpoints.getAll();
-    
-
-        if (response.success && response.data) {
-          // La API devuelve directamente un array
-          const backendUsers = Array.isArray(response.data) ? response.data : [];
-          const convertedUsers = backendUsers.map(convertBackendUserToUser);
-          setUsers(convertedUsers);
-
-          // Actualizar stats
-          setStats(prev => ({
-            ...prev,
-            totalUsers: convertedUsers.length,
-          }));
-        } else {
-          
-          toast.error("Error al cargar usuarios");
-          // Usar datos mock si falla
-          setUsers(mockUsers);
-        }
-      } catch (error) {
-       
-        toast.error("Error al cargar usuarios");
-        // Usar datos mock si falla
-        setUsers(mockUsers);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadUsers();
-  }, []);
-
-  const handleCreateUser = async (userData: any): Promise<{ success: boolean; userId?: string }> => {
-    try {
-      const requestData: CreateUserRequest = {
-        nombre: userData.name,
-        apellido: userData.apellido,
-        email: userData.email,
-        contrasena: userData.contrasena,
-        fecha_nacimiento: userData.fecha_nacimiento || undefined,
-        numero_documento: userData.numero_documento || undefined,
-        tipo_documento: userData.tipo_documento || "CC",
-        telefono: userData.telefono || undefined,
-        rol: userData.rol,
-      };
-
- 
-
-      const response = await userEndpoints.create(requestData);
-
-      if (response.success) {
-        toast.success(response.message || "Usuario creado exitosamente");
-
-        // Extraer el ID del usuario creado
-        const userId = response.data?.user?.id;
-
-        // Recargar la lista completa de usuarios desde la API
-        const updatedResponse = await userEndpoints.getAll();
-        if (updatedResponse.success && updatedResponse.data) {
-          const backendUsers = Array.isArray(updatedResponse.data) ? updatedResponse.data : [];
-          const convertedUsers = backendUsers.map(convertBackendUserToUser);
-          setUsers(convertedUsers);
-
-          // Actualizar stats con los datos reales
-          setStats(prev => ({
-            ...prev,
-            totalUsers: convertedUsers.length,
-          }));
-        }
-
-        return { success: true, userId };
-      } else {
-        toast.error(response.message || "Error al crear usuario");
-        return { success: false };
-      }
-    } catch (error) {
-      
-      toast.error("Error al crear usuario");
-      return { success: false };
-    }
-  };
-
-  const handleEditUser = async (userData: any): Promise<{ success: boolean; userId?: string }> => {
+  const handleEditUser = async (userData: any) => {
     if (!editingUser) return { success: false };
-
-    try {
-      const requestData = {
-        nombre: userData.name,
-        apellido: userData.apellido,
-        fecha_nacimiento: userData.fecha_nacimiento || undefined,
-        numero_documento: userData.numero_documento || undefined,
-        tipo_documento: userData.tipo_documento || "CC",
-        telefono: userData.telefono || undefined,
-        rol: userData.rol,
-      };
-
-      const response = await userEndpoints.update(editingUser.id, requestData);
-
-      if (response.success) {
-        toast.success(response.message || "Información básica actualizada exitosamente");
-
-        // Actualizar el estado local
-        const updatedUser: User = {
-          ...editingUser,
-          name: `${userData.name} ${userData.apellido}`,
-          rol: typeof userData.rol === 'number' ? userData.rol : parseInt(userData.rol) || editingUser.rol,
-          phoneNumber: userData.telefono || '',
-          updatedAt: new Date(),
-        };
-
-        setUsers(users.map(user => user.id === editingUser.id ? updatedUser : user));
-
-        // Retornar success para continuar al paso 2
-        return { success: true, userId: editingUser.id };
-      } else {
-        toast.error(response.message || "Error al actualizar usuario");
-        return { success: false };
-      }
-    } catch (error) {
-      
-      toast.error("Error al actualizar usuario");
-      return { success: false };
-    }
+    return editUser(editingUser.id, userData);
   };
 
   const handleDeleteUsers = (userIds: string[]) => {
@@ -206,73 +67,8 @@ export default function UsuariosPage() {
     setIsDeleteAlertOpen(true);
   };
 
-  // const confirmDeleteUsers = () => {
-  //   const deletedUsers = users.filter(user => usersToDelete.includes(user.id));
-  //   setUsers(users.filter(user => !usersToDelete.includes(user.id)));
-
-  //   toast.success(`${usersToDelete.length} usuario(s) eliminado(s)`);
-
-  //   // Update stats
-  //   setStats(prev => {
-  //     const newUsersByRole = { ...prev.usersByRole };
-  //     deletedUsers.forEach(user => {
-  //       newUsersByRole[user.role] = Math.max(0, newUsersByRole[user.role] - 1);
-  //     });
-
-  //     return {
-  //       ...prev,
-  //       totalUsers: prev.totalUsers - usersToDelete.length,
-  //       usersByRole: newUsersByRole
-  //     };
-  //   });
-
-  //   setUsersToDelete([]);
-  //   setIsDeleteAlertOpen(false);
-  // };
-
   const handleOpenEditModal = (user: User) => {
     setEditingUser(user);
-  };
-
-
-
-  const handleSavePermissions = async (payload: UpdatePermissionsPayload): Promise<void> => {
-    try {
-      const response = await userEndpoints.updatePermissions(payload);
-
-      if (response.success) {
-        toast.success("Permisos actualizados exitosamente");
-        // Opcional: Actualizar el usuario en el estado local
-        setUsers(users.map(u =>
-          u.id === payload.userId
-            ? { ...u, permissions: [] } // Aquí podrías mapear los permisos si es necesario
-            : u
-        ));
-      } else {
-        toast.error(response.message || "Error al actualizar permisos");
-      }
-    } catch (error) {
-     
-      toast.error("Error al actualizar permisos");
-    }
-  };
-
-  const handleExportUsers = () => {
-    const csvContent = "data:text/csv;charset=utf-8," +
-      "Nombre,Email,Rol,Estado,Departamento,Ubicación,Último acceso\n" +
-      users.map(user =>
-        `"${user.name}","${user.email}","${user.rol}","${user.status}","${user.department || ''}","${user.location || ''}","${user.lastLogin ? user.lastLogin.toISOString() : 'Nunca'}"`
-      ).join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `usuarios_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    toast.success("Archivo CSV descargado");
   };
 
   const getActionTypeLabel = (action: string) => {
@@ -314,7 +110,7 @@ export default function UsuariosPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleExportUsers}>
+          <Button variant="outline" onClick={exportUsers}>
             <Download className="mr-2 h-4 w-4" />
             Exportar
           </Button>
@@ -352,40 +148,14 @@ export default function UsuariosPage() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Skeleton className="h-10 w-[300px]" />
-                    <div className="flex gap-2">
-                      <Skeleton className="h-9 w-[100px]" />
-                      <Skeleton className="h-9 w-[120px]" />
-                    </div>
-                  </div>
-                  <div className="rounded-md border">
-                    <div className="p-4 space-y-3">
-                      {[...Array(5)].map((_, i) => (
-                        <div key={`skeleton-row-${i}`} className="flex items-center space-x-4">
-                          <Skeleton className="h-4 w-4" />
-                          <Skeleton className="h-10 w-10 rounded-full" />
-                          <Skeleton className="h-4 w-[150px]" />
-                          <Skeleton className="h-4 w-[80px]" />
-                          <Skeleton className="h-4 w-[100px]" />
-                          <Skeleton className="h-4 w-[120px]" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-end space-x-2">
-                    <Skeleton className="h-8 w-[100px]" />
-                    <Skeleton className="h-8 w-[100px]" />
-                  </div>
-                </div>
+                <TableSkeleton columns={6} rows={5} />
               ) : (
                 <UsersDataTable
                   columns={createUserColumns(handleOpenEditModal)}
                   data={users}
                   onCreateUser={() => setIsCreateModalOpen(true)}
                   onDeleteUsers={handleDeleteUsers}
-                  onExportUsers={handleExportUsers}
+                  onExportUsers={exportUsers}
                 />
               )}
             </CardContent>
@@ -499,10 +269,8 @@ export default function UsuariosPage() {
         }}
         user={editingUser}
         onSave={editingUser ? handleEditUser : handleCreateUser}
-        onSavePermissions={handleSavePermissions}
+        onSavePermissions={updatePermissions}
       />
-
-  
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
@@ -519,10 +287,7 @@ export default function UsuariosPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              //onClick={confirmDeleteUsers}
-              className="bg-red-600 hover:bg-red-700"
-            >
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700">
               <Trash2 className="mr-2 h-4 w-4" />
               Eliminar
             </AlertDialogAction>
