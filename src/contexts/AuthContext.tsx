@@ -65,10 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (data.access_token && data.user) {
         const userData: User = {
-          id: data.user.id || data.user.uuid || '1',
+          id: data.user.id || '1',
           email: data.user.email,
-          name: data.user.name || data.user.username || 'Usuario',
-          role: data.user.role || 'Admin'
+          name: data.user.nombre || 'Usuario',
+          role: data.user.rol || 'Admin'
         };
 
         setUser(userData);
