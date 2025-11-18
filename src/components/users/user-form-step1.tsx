@@ -1,6 +1,7 @@
 "use client";
 
 import { UseFormReturn } from "react-hook-form";
+import React, { useState } from 'react';
 import {
   FormField,
   FormItem,
@@ -8,6 +9,7 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
+import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -20,8 +22,11 @@ import {
   User as UserIcon,
   Mail,
   Phone,
-  Key,
+  Eye,
+  EyeOff,
+  Lock,
 } from "lucide-react";
+
 
 interface UserFormStep1Props {
   form: UseFormReturn<any>;
@@ -29,6 +34,8 @@ interface UserFormStep1Props {
 }
 
 export function UserFormStep1({ form, isEditing }: UserFormStep1Props) {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <div className="space-y-6">
       {/* Información Personal */}
@@ -98,13 +105,26 @@ export function UserFormStep1({ form, isEditing }: UserFormStep1Props) {
                 <FormLabel>Contraseña</FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <Key className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder={isEditing ? "Dejar vacío para no cambiar" : "Contraseña"}
-                      className="pl-9"
+                      className="pl-9 pr-10"
                       {...field}
                     />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
                   </div>
                 </FormControl>
                 <FormMessage />
