@@ -314,18 +314,6 @@ export default function PuntoFisicoPage() {
         </TabsList>
 
         <TabsContent value="stores" className="space-y-3">
-          {/* Search */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar tiendas..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </div>
 
           {/* Store Details for Selected Store */}
           {selectedStore && (
