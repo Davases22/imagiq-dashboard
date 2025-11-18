@@ -34,6 +34,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+import Image from "next/image";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,11 +45,15 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import Link from "next/link"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
+import { useTheme } from "next-themes";
+
+const storedUser = localStorage.getItem('imagiq_user');
+const parsedUser = JSON.parse(storedUser || "")
 
 const data = {
   user: {
-    name: "Admin User",
-    email: "admin@example.com",
+    name: parsedUser.name,
+    email: parsedUser.email,
     avatar: "/avatars/admin.jpg",
   },
   navMain: [
@@ -135,17 +140,28 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     logout()
     router.push('/login')
   }
+  const {theme} = useTheme()
+  console.log(theme)
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
-          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          {/* <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Package className="size-4" />
-          </div>
+          </div> */}
+          <Image
+                src={ theme == 'light'?  "/frame_black.png" : "/frame_white.png"}
+                alt="Q Logo"
+                height={40}
+                width={40}
+                className="h-10 w-10 transition-all duration-300"
+                priority
+              />
+            
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">E-Commerce Dashboard</span>
-            <span className="truncate text-xs">Admin Panel</span>
+            <span className="truncate font-semibold">Bienvenido</span>
+            <span className="truncate text-xs">{parsedUser.name}</span>
           </div>
           <ThemeToggle />
         </div>
