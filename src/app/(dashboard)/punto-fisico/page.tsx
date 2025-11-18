@@ -48,7 +48,7 @@ import {
   Search
 } from "lucide-react";
 import { toast } from "sonner";
-import { tiendasEndpoints } from "@/lib/api";
+import { tiendasEndpoints, BackendTienda } from "@/lib/api";
 
 export default function PuntoFisicoPage() {
   const [stores] = useState<PhysicalStore[]>(mockPhysicalStores);
@@ -59,6 +59,7 @@ export default function PuntoFisicoPage() {
   const [orders, setOrders] = useState<PickupOrder[]>([]);
 
   // Initialize services with dependency injection
+  const [tiendas, setTiendas] = useState<BackendTienda[]>([]);
   const codeGenerator = new SecureCodeGenerator();
   const codeValidator = new CodeValidator();
   const verificationRepository = new MockVerificationCodeRepository();
@@ -88,41 +89,36 @@ export default function PuntoFisicoPage() {
     store.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
     // Cargar tiendas al montar el componente
-    // useEffect(() => {
-    //   const loadUsers = async () => {
-    //     try {
-    //       const response = await tiendasEndpoints.getAll();
+    useEffect(() => {
+      const loadTiendas = async () => {
+        try {
+          const response = await tiendasEndpoints.getAll();
       
   
-    //       if (response.success && response.data) {
-    //         // La API devuelve directamente un array
-    //         const backendUsers = Array.isArray(response.data) ? response.data : [];
-    //         const convertedUsers = backendUsers.map(convertBackendUserToUser);
-    //         setUsers(convertedUsers);
+          if (response.success && response.data) {
+            // La API devuelve directamente un array
+            const backendTiendas = Array.isArray(response.data) ? response.data : [];
+            console.log(backendTiendas)
+            setTiendas(backendTiendas);
   
-    //         // Actualizar stats
-    //         setStats(prev => ({
-    //           ...prev,
-    //           totalUsers: convertedUsers.length,
-    //         }));
-    //       } else {
+           
+          } else {
             
-    //         toast.error("Error al cargar usuarios");
-    //         // Usar datos mock si falla
-    //         setUsers(mockUsers);
-    //       }
-    //     } catch (error) {
+            toast.error("Error al cargar usuarios");
+
+          }
+        } catch (error) {
          
-    //       toast.error("Error al cargar tiendas");
-    //       // Usar datos mock si falla
-    //       setUsers(mockUsers);
-    //     } finally {
-    //       setIsLoading(false);
-    //     }
-    //   };
+          toast.error("Error al cargar tiendas");
+          // Usar datos mock si falla
+        
+        } finally {
+          
+        }
+      };
   
-    //   loadUsers();
-    // }, []);
+      loadTiendas();
+    }, []);
 
 
   const handleViewStore = (store: PhysicalStore) => {
@@ -346,11 +342,10 @@ export default function PuntoFisicoPage() {
             </CardHeader>
             <CardContent>
               <StoresDataTable
-                stores={filteredStores}
-                storeStats={mockStoreStats}
-                onViewStore={handleViewStore}
-                onManageOrders={handleManageOrders}
-                onStoreSettings={handleStoreSettings}
+                stores={tiendas}
+                onViewStore={(store) => toast.info(`Viendo detalles de ${store.descripcion}`)}
+                onManageOrders={(store) => toast.info(`Gestionar órdenes de ${store.descripcion}`)}
+                onStoreSettings={(store) => toast.info(`Configuración de ${store.descripcion}`)}
               />
             </CardContent>
           </Card>
