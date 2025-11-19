@@ -127,7 +127,7 @@ export function UserFormStep2({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pl-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {permissionActions.map((accion) => {
                     const permission = permissions.find(
                       p => p.recurso === recurso && p.accion === accion
