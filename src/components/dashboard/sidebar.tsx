@@ -144,14 +144,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     logout();
     router.push("/login");
   };
-  const { theme } = useTheme();
-
+  const { theme , resolvedTheme } = useTheme();
+  const currentTheme = resolvedTheme || theme; 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
           <Image
-            src={theme == "light" ? "/frame_black.png" : "/frame_white.png"}
+            src={currentTheme == "light" ? "/frame_black.png" : "/frame_white.png"}
             alt="Q Logo"
             height={40}
             width={40}
