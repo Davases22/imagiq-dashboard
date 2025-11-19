@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { User, UpdatePermissionsPayload } from "@/types/users";
-import { userEndpoints, CreateUserRequest, BackendUser } from "@/lib/api";
+import { userEndpoints, CreateUserRequest, BackendUser, UserSummaryResponse } from "@/lib/api";
 import { mockUsers, mockUserStats } from "@/lib/mock-data/users";
 
 // Función para convertir BackendUser a User
@@ -32,23 +32,37 @@ export function useUsers() {
   const [stats, setStats] = useState(mockUserStats);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Cargar usuarios
+  // Cargar usuarios y summary
   const loadUsers = async () => {
     try {
-      const response = await userEndpoints.getAll();
+      const [usersResponse, summaryResponse] = await Promise.all([
+        userEndpoints.getAll(),
+        userEndpoints.getSummary()
+      ]);
 
-      if (response.success && response.data) {
-        const backendUsers = Array.isArray(response.data) ? response.data : [];
+      if (usersResponse.success && usersResponse.data) {
+        const backendUsers = Array.isArray(usersResponse.data) ? usersResponse.data : [];
         const convertedUsers = backendUsers.map(convertBackendUserToUser);
         setUsers(convertedUsers);
-
-        setStats(prev => ({
-          ...prev,
-          totalUsers: convertedUsers.length,
-        }));
       } else {
         toast.error("Error al cargar usuarios");
         setUsers(mockUsers);
+      }
+
+      // Actualizar stats con datos del summary
+      if (summaryResponse.success && summaryResponse.data) {
+        const summary = summaryResponse.data;
+        setStats({
+          totalUsers: summary.total,
+          activeUsers: summary.total, // Por ahora usamos total ya que no hay campo de activos
+          pendingUsers: 0,
+          suspendedUsers: 0,
+          newUsersThisMonth: 0,
+          adminUsers: summary.rol_1,
+          regularUsers: summary.rol_2,
+          guestUsers: summary.rol_3,
+          superAdminUsers: summary.rol_4,
+        });
       }
     } catch (error) {
       toast.error("Error al cargar usuarios");

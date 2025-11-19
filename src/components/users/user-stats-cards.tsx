@@ -1,19 +1,13 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { UserStats } from "@/types/users";
 import {
   Users,
-  UserCheck,
-  UserPlus,
-  UserX,
   Shield,
   Crown,
-  Settings,
-  Edit,
-  Eye,
-  Clock
+  User,
+  UserCheck
 } from "lucide-react";
 
 interface UserStatsCardsProps {
@@ -21,53 +15,13 @@ interface UserStatsCardsProps {
 }
 
 export function UserStatsCards({ stats }: UserStatsCardsProps) {
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'super_admin':
-        return <Crown className="h-4 w-4" />;
-      case 'admin':
-        return <Shield className="h-4 w-4" />;
-      case 'manager':
-        return <Settings className="h-4 w-4" />;
-      case 'editor':
-        return <Edit className="h-4 w-4" />;
-      case 'viewer':
-        return <Eye className="h-4 w-4" />;
-      default:
-        return <Users className="h-4 w-4" />;
-    }
-  };
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'super_admin':
-        return 'text-red-600 dark:text-red-400';
-      case 'admin':
-        return 'text-purple-600 dark:text-purple-400';
-      case 'manager':
-        return 'text-blue-600 dark:text-blue-400';
-      case 'editor':
-        return 'text-green-600 dark:text-green-400';
-      case 'viewer':
-        return 'text-gray-600 dark:text-gray-400';
-      default:
-        return 'text-gray-600 dark:text-gray-400';
-    }
-  };
-
-  const getRoleLabel = (role: string) => {
-    const labels: Record<string, string> = {
-      super_admin: 'Super Admins',
-      admin: 'Administradores',
-      manager: 'Managers',
-      editor: 'Editores',
-      viewer: 'Visualizadores'
-    };
-    return labels[role] || role;
+  const getPercentage = (value: number | undefined) => {
+    if (!value || !stats.totalUsers) return 0;
+    return ((value / stats.totalUsers) * 100).toFixed(1);
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       {/* Total Users */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -76,64 +30,75 @@ export function UserStatsCards({ stats }: UserStatsCardsProps) {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{stats.totalUsers}</div>
-          <div className="flex items-center gap-2 mt-2">
-            <Badge variant="secondary" className="text-xs">
-              <UserPlus className="mr-1 h-3 w-3" />
-              +{stats.newUsersThisMonth} este mes
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Active Users */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Usuarios Activos</CardTitle>
-          <UserCheck className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {stats.activeUsers}
-          </div>
           <p className="text-xs text-muted-foreground">
-            {((stats.activeUsers / stats.totalUsers) * 100).toFixed(1)}% del total
+            Usuarios registrados
           </p>
         </CardContent>
       </Card>
 
-      {/* Pending Users */}
+      {/* Super Admins - rol_4 */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Usuarios Pendientes</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-            {stats.pendingUsers}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Requieren activación
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Suspended Users */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Usuarios Suspendidos</CardTitle>
-          <UserX className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium">Super Admins</CardTitle>
+          <Crown className="h-4 w-4 text-red-500" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-            {stats.suspendedUsers}
+            {stats.superAdminUsers ?? 0}
           </div>
           <p className="text-xs text-muted-foreground">
-            Acceso restringido
+            {getPercentage(stats.superAdminUsers)}%
           </p>
         </CardContent>
       </Card>
 
-      
+      {/* Admins - rol_1 */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Administradores</CardTitle>
+          <Shield className="h-4 w-4 text-purple-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            {stats.adminUsers ?? 0}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {getPercentage(stats.adminUsers)}%
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Users - rol_2 */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Usuarios</CardTitle>
+          <UserCheck className="h-4 w-4 text-blue-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {stats.regularUsers ?? 0}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {getPercentage(stats.regularUsers)}%
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Guests - rol_3 */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Invitados</CardTitle>
+          <User className="h-4 w-4 text-gray-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">
+            {stats.guestUsers ?? 0}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {getPercentage(stats.guestUsers)}%
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

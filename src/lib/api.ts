@@ -1310,11 +1310,21 @@ export interface UpdateUserRequest {
   rol?: string;
 }
 
+export interface UserSummaryResponse {
+  total: number;
+  rol_1: number; // Admin
+  rol_2: number; // Usuario
+  rol_3: number; // Invitado
+  rol_4: number; // Super Admin
+}
+
 export const userEndpoints = {
   getAll: () =>
     apiClient.get<BackendUser[]>("/api/admin/users", true),
   getById: (userId: string) =>
     apiClient.get<UserWithPermissions>(`/api/admin/users/permisos/${userId}`, true),
+  getSummary: () =>
+    apiClient.get<UserSummaryResponse>("/api/admin/users/summary", true),
   create: (data: CreateUserRequest) =>
     apiClient.post<CreateUserResponse>("/api/admin/users/add", data, true),
   update: (userId: string, data: UpdateUserRequest) =>
