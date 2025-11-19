@@ -50,102 +50,112 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { useState, useEffect } from "react";
 
-const storedUser = localStorage.getItem("imagiq_user");
-const parsedUser = JSON.parse(storedUser || "");
-
-const data = {
-  user: {
-    name: parsedUser.name,
-    email: parsedUser.email,
-    avatar: "/avatars/admin.jpg",
+const navMain = [
+  {
+    title: "Dashboard",
+    url: "/inicio",
+    icon: Home,
   },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/inicio",
-      icon: Home,
-    },
-    {
-      title: "Productos",
-      url: "/productos",
-      icon: Package,
-    },
-    {
-      title: "Órdenes",
-      url: "/ordenes",
-      icon: FileText,
-    },
-    {
-      title: "Página Web",
-      url: "/pagina-web",
-      icon: Globe,
-    },
-    {
-      title: "Marketing",
-      url: "/marketing",
-      icon: Volume2,
-      items: [
-        {
-          title: "Banners",
-          url: "/marketing/banners",
-        },
-        {
-          title: "Campañas",
-          url: "/marketing/campaigns",
-        },
-      ],
-    },
-    {
-      title: "Clientes",
-      url: "/clientes",
-      icon: Users,
-    },
-    {
-      title: "Punto Físico",
-      url: "/punto-fisico",
-      icon: Store,
-    },
-    {
-      title: "Bodega",
-      url: "/bodega",
-      icon: Warehouse,
-    },
-    {
-      title: "Zonas de Cobertura",
-      url: "/zonas-cobertura",
-      icon: MapPin,
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Facturación",
-      url: "/facturacion",
-      icon: Receipt,
-    },
-    {
-      title: "Configuraciones",
-      url: "/configuraciones",
-      icon: Settings,
-    },
-    {
-      title: "Usuarios",
-      url: "/usuarios",
-      icon: UserCheck,
-    },
-  ],
-};
+  {
+    title: "Productos",
+    url: "/productos",
+    icon: Package,
+  },
+  {
+    title: "Órdenes",
+    url: "/ordenes",
+    icon: FileText,
+  },
+  {
+    title: "Página Web",
+    url: "/pagina-web",
+    icon: Globe,
+  },
+  {
+    title: "Marketing",
+    url: "/marketing",
+    icon: Volume2,
+    items: [
+      {
+        title: "Banners",
+        url: "/marketing/banners",
+      },
+      {
+        title: "Campañas",
+        url: "/marketing/campaigns",
+      },
+    ],
+  },
+  {
+    title: "Clientes",
+    url: "/clientes",
+    icon: Users,
+  },
+  {
+    title: "Punto Físico",
+    url: "/punto-fisico",
+    icon: Store,
+  },
+  {
+    title: "Bodega",
+    url: "/bodega",
+    icon: Warehouse,
+  },
+  {
+    title: "Zonas de Cobertura",
+    url: "/zonas-cobertura",
+    icon: MapPin,
+  },
+];
+
+const navSecondary = [
+  {
+    title: "Facturación",
+    url: "/facturacion",
+    icon: Receipt,
+  },
+  {
+    title: "Configuraciones",
+    url: "/configuraciones",
+    icon: Settings,
+  },
+  {
+    title: "Usuarios",
+    url: "/usuarios",
+    icon: UserCheck,
+  },
+];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { logout } = useAuth();
   const router = useRouter();
+  const { theme, resolvedTheme } = useTheme();
+  const currentTheme = resolvedTheme || theme;
+
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("imagiq_user");
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser({
+          name: parsedUser.name || "",
+          email: parsedUser.email || "",
+        });
+      } catch {
+        setUser(null);
+      }
+    }
+  }, []);
 
   const handleLogout = () => {
     logout();
     router.push("/login");
   };
-  const { theme , resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme; 
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -161,7 +171,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-semibold">Bienvenido</span>
-            <span className="truncate text-xs">{parsedUser.name}</span>
+            <span className="truncate text-xs">{user?.name || ""}</span>
           </div>
           <ThemeToggle />
         </div>
@@ -171,7 +181,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupLabel>Navegación Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {data.navMain.map((item) => (
+              {navMain.map((item) => (
                 <Collapsible
                   key={item.title}
                   asChild
@@ -220,7 +230,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupLabel>Cuenta</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {data.navSecondary.map((item) => (
+              {navSecondary.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title}>
                     <Link href={item.url}>
@@ -248,9 +258,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">
-                      {data.user.name}
+                      {user?.name || ""}
                     </span>
-                    <span className="truncate text-xs">{data.user.email}</span>
+                    <span className="truncate text-xs">{user?.email || ""}</span>
                   </div>
                   <ChevronUp className="ml-auto size-4" />
                 </SidebarMenuButton>
