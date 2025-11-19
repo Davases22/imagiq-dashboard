@@ -28,7 +28,8 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const { login, isLoading } = useAuth();
   const router = useRouter();
-  const { theme } = useTheme();
+  const { theme , resolvedTheme } = useTheme();
+  const currentTheme = resolvedTheme || theme; 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,16 +48,6 @@ export default function LoginPage() {
     }
   };
 
-  const fillDemoCredentials = (userType: "admin" | "demo") => {
-    if (userType === "admin") {
-      setEmail("admin@imagiq.com");
-      setPassword("admin123");
-    } else {
-      setEmail("demo@imagiq.com");
-      setPassword("demo123");
-    }
-    setError("");
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
@@ -64,17 +55,17 @@ export default function LoginPage() {
         {/* Logo/Header */}
         <div className="text-center">
           <div className="inline-flex items-center gap-3">
-          <Image
-            src={theme == "light" ? "/frame_black.png" : "/frame_white.png"}
-            alt="Q Logo"
-            height={40}
-            width={40}
-            className="h-10 w-10 transition-all duration-300"
-            priority
-          />
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            ImagiQ
-          </h1>
+            <Image
+              src={currentTheme == "light" ? "/frame_black.png" : "/frame_white.png"}
+              alt="Q Logo"
+              height={40}
+              width={40}
+              className="h-10 w-10 transition-all duration-300"
+              priority
+            />
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              ImagiQ
+            </h1>
           </div>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Panel de Administración
