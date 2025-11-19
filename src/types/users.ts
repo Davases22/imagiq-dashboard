@@ -72,7 +72,10 @@ export interface UserStats {
   pendingUsers: number;
   suspendedUsers: number;
   newUsersThisMonth: number;
-  // usersByRole: number;
+  adminUsers?: number;       // rol_1
+  regularUsers?: number;     // rol_2
+  guestUsers?: number;       // rol_3
+  superAdminUsers?: number;  // rol_4
 }
 
 // Tipos para la API de permisos
