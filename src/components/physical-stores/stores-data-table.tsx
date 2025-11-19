@@ -33,20 +33,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { PhysicalStore, StoreStats } from "@/types/physical-stores";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { BackendTienda } from "@/lib/api";
 
 interface StoresDataTableProps {
-  stores: PhysicalStore[];
-  storeStats: Record<string, StoreStats>;
-  onViewStore: (store: PhysicalStore) => void;
-  onManageOrders: (store: PhysicalStore) => void;
-  onStoreSettings: (store: PhysicalStore) => void;
+  stores: BackendTienda[];
+  onViewStore: (store: BackendTienda) => void;
+  onManageOrders: (store: BackendTienda) => void;
+  onStoreSettings: (store: BackendTienda) => void;
 }
 
 export function StoresDataTable({
   stores,
-  storeStats,
   onViewStore,
   onManageOrders,
   onStoreSettings,
@@ -56,32 +60,7 @@ export function StoresDataTable({
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300';
-      case 'inactive':
-        return 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300';
-      case 'maintenance':
-        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300';
-      case 'temporarily_closed':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300';
-      default:
-        return 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    const labels = {
-      active: 'Activa',
-      inactive: 'Inactiva',
-      maintenance: 'Mantenimiento',
-      temporarily_closed: 'Cerrada Temporalmente'
-    };
-    return labels[status as keyof typeof labels] || status;
-  };
-
-  const columns: ColumnDef<PhysicalStore>[] = [
+  const columns: ColumnDef<BackendTienda>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -105,15 +84,15 @@ export function StoresDataTable({
       enableHiding: false,
     },
     {
-      accessorKey: "code",
+      accessorKey: "codigo",
       header: "Código",
       cell: ({ row }) => (
-        <div className="font-mono font-medium">{row.getValue("code")}</div>
+        <div className="font-mono font-medium">{row.getValue("codigo")}</div>
       ),
     },
     {
-      id: "location",
-      accessorFn: (row) => row.location.name,
+      id: "descripcion",
+      accessorFn: (row) => row.descripcion,
       header: ({ column }) => {
         return (
           <Button
@@ -129,116 +108,68 @@ export function StoresDataTable({
         const store = row.original;
         return (
           <div>
-            <div className="font-medium">{store.location.name}</div>
+            <div className="font-medium">{store.descripcion || '-'}</div>
             <div className="text-sm text-muted-foreground">
-              {store.location.city}, {store.location.state}
+              {store.ciudad || ''}{store.departamento ? `, ${store.departamento}` : ''}
             </div>
           </div>
         );
       },
     },
     {
-      accessorKey: "status",
-      header: "Estado",
-      cell: ({ row }) => {
-        const status = row.getValue("status") as string;
-        return (
-          <Badge variant="outline" className={getStatusColor(status)}>
-            {getStatusLabel(status)}
-          </Badge>
-        );
-      },
-    },
-    {
-      id: "orders",
-      header: "Órdenes",
-      cell: ({ row }) => {
-        const store = row.original;
-        const stats = storeStats[store.id];
-
-        if (!stats) {
-          return <div className="text-muted-foreground">Sin datos</div>;
-        }
-
-        return (
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">
-                {stats.readyOrders} listas
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {stats.pendingOrders} pendientes
-              </Badge>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {stats.completedToday} completadas hoy
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      id: "performance",
-      header: "Rendimiento",
-      cell: ({ row }) => {
-        const store = row.original;
-        const stats = storeStats[store.id];
-
-        if (!stats) {
-          return <div className="text-muted-foreground">Sin datos</div>;
-        }
-
-        return (
-          <div className="space-y-1">
-            <div className="text-sm font-medium">
-              {stats.customerSatisfaction.toFixed(1)}⭐
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {stats.averagePickupTime.toFixed(1)}m promedio
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      id: "pickupMethods",
-      accessorFn: (row) => row.capabilities.pickupMethods,
-      header: "Métodos",
-      cell: ({ row }) => {
-        const methods = row.original.capabilities.pickupMethods;
-        const methodLabels = {
-          in_store: "Tienda",
-          curbside: "Bordillo",
-          locker: "Locker",
-          drive_thru: "Auto"
-        };
-
-        return (
-          <div className="flex flex-wrap gap-1">
-            {methods.map((method) => (
-              <Badge key={method} variant="outline" className="text-xs">
-                {methodLabels[method as keyof typeof methodLabels] || method}
-              </Badge>
-            ))}
-          </div>
-        );
-      },
-    },
-    {
-      id: "manager",
-      accessorFn: (row) => row.contact.managerName,
-      header: "Manager",
+      accessorKey: "direccion",
+      header: "Dirección",
       cell: ({ row }) => {
         const store = row.original;
         return (
           <div>
-            <div className="font-medium">{store.contact.managerName}</div>
-            <div className="text-sm text-muted-foreground">
-              {store.contact.phone}
-            </div>
+            <div className="text-sm">{store.direccion || '-'}</div>
+            {store.ubicacion_cc && (
+              <div className="text-xs text-muted-foreground">
+                {store.ubicacion_cc}
+              </div>
+            )}
           </div>
         );
       },
+    },
+    {
+      accessorKey: "horario",
+      header: "Horario",
+      cell: ({ row }) => (
+        <div className="text-sm">{row.getValue("horario") || '-'}</div>
+      ),
+    },
+    {
+      id: "contacto",
+      header: "Contacto",
+      cell: ({ row }) => {
+        const store = row.original;
+        return (
+          <div className="space-y-1">
+            {store.telefono && (
+              <div className="text-sm">
+                {store.telefono}{store.extension ? ` ext. ${store.extension}` : ''}
+              </div>
+            )}
+            {store.email && (
+              <div className="text-xs text-muted-foreground">
+                {store.email}
+              </div>
+            )}
+            {!store.telefono && !store.email && (
+              <div className="text-muted-foreground">-</div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "codBodega",
+      header: "Cod. Bodega",
+      cell: ({ row }) => (
+        <div className="font-mono text-sm">{row.getValue("codBodega")}</div>
+      ),
     },
     {
       id: "actions",
@@ -299,9 +230,9 @@ export function StoresDataTable({
       <div className="flex items-center py-4">
         <Input
           placeholder="Buscar tiendas..."
-          value={(table.getColumn("location")?.getFilterValue() as string) ?? ""}
+          value={(table.getColumn("descripcion")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
-            table.getColumn("location")?.setFilterValue(event.target.value)
+            table.getColumn("descripcion")?.setFilterValue(event.target.value)
           }
           className="max-w-sm"
         />
@@ -356,28 +287,77 @@ export function StoresDataTable({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
+      <div className="flex items-center justify-between space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} de{" "}
-          {table.getFilteredRowModel().rows.length} fila(s) seleccionadas.
+          {table.getFilteredSelectedRowModel().rows.length > 0 && (
+            <span>
+              {table.getFilteredSelectedRowModel().rows.length} de {table.getFilteredRowModel().rows.length} fila(s) seleccionada(s).
+            </span>
+          )}
         </div>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Anterior
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Siguiente
-          </Button>
+        <div className="flex items-center space-x-6 lg:space-x-8">
+          <div className="flex items-center space-x-2">
+            <p className="text-sm font-medium">Filas por página</p>
+            <Select
+              value={`${table.getState().pagination.pageSize}`}
+              onValueChange={(value) => {
+                table.setPageSize(Number(value));
+              }}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue placeholder={table.getState().pagination.pageSize} />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {[10, 20, 30, 40, 50].map((pageSize) => (
+                  <SelectItem key={pageSize} value={`${pageSize}`}>
+                    {pageSize}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+            Página {table.getState().pagination.pageIndex + 1} de{" "}
+            {table.getPageCount()}
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <span className="sr-only">Ir a primera página</span>
+              <span>{'<<'}</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <span className="sr-only">Ir a página anterior</span>
+              <span>{'<'}</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              <span className="sr-only">Ir a página siguiente</span>
+              <span>{'>'}</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+            >
+              <span className="sr-only">Ir a última página</span>
+              <span>{'>>'}</span>
+            </Button>
+          </div>
         </div>
       </div>
     </div>

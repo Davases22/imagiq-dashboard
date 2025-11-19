@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { StoreStatsCards } from "@/components/physical-stores/store-stats-cards";
@@ -25,8 +24,6 @@ import {
 import {
   MockVerificationCodeRepository,
   MockPickupOrderRepository,
-  MockNotificationSender,
-  MockInventoryService,
   MockLogger,
   MockAuditService
 } from "@/services/physical-stores/mock-repositories";
@@ -40,7 +37,6 @@ import {
   Store,
   Package,
   QrCode,
-  MapPin,
   Users,
   BarChart3,
   Settings,
@@ -48,8 +44,12 @@ import {
   Search
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTiendas } from "@/hooks/use-tiendas";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 
 export default function PuntoFisicoPage() {
+  const { tiendas, isLoading } = useTiendas();
+
   const [stores] = useState<PhysicalStore[]>(mockPhysicalStores);
   const [selectedStore, setSelectedStore] = useState<PhysicalStore | null>(null);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
@@ -57,13 +57,11 @@ export default function PuntoFisicoPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [orders, setOrders] = useState<PickupOrder[]>([]);
 
-  // Initialize services with dependency injection
+  // Initialize services
   const codeGenerator = new SecureCodeGenerator();
   const codeValidator = new CodeValidator();
   const verificationRepository = new MockVerificationCodeRepository();
   const orderRepository = new MockPickupOrderRepository();
-  const notificationSender = new MockNotificationSender();
-  const inventoryService = new MockInventoryService();
   const logger = new MockLogger();
   const auditService = new MockAuditService();
 
@@ -81,31 +79,11 @@ export default function PuntoFisicoPage() {
   const totalOrders = Object.values(mockStoreStats).reduce((sum, stats) => sum + stats.readyOrders, 0);
   const totalCompletedToday = Object.values(mockStoreStats).reduce((sum, stats) => sum + stats.completedToday, 0);
 
-  const filteredStores = stores.filter(store =>
-    store.location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    store.location.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    store.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleViewStore = (store: PhysicalStore) => {
-    setSelectedStore(store);
-    // In a real app, this would fetch store details
-    toast.info(`Viendo detalles de ${store.location.name}`);
-  };
-
   const handleManageOrders = async (store: PhysicalStore) => {
     setSelectedStore(store);
-
-    // Mock orders data for the selected store
     const storeOrders = await orderRepository.findByStoreId(store.id);
     setOrders(storeOrders);
     setIsOrdersModalOpen(true);
-  };
-
-  const handleStoreSettings = (store: PhysicalStore) => {
-    setSelectedStore(store);
-    // In a real app, this would open store settings modal
-    toast.info(`Configuración de ${store.location.name}`);
   };
 
   const handleVerifyPickup = () => {
@@ -121,7 +99,6 @@ export default function PuntoFisicoPage() {
       throw new Error("No store selected");
     }
 
-    // Find the order first
     const order = await orderRepository.findByOrderNumber(data.orderNumber);
     if (!order) {
       return {
@@ -132,7 +109,6 @@ export default function PuntoFisicoPage() {
       };
     }
 
-    // Verify the pickup using the service
     return await verificationService.verifyPickupCode({
       orderId: order.id,
       verificationCode: data.verificationCode,
@@ -147,7 +123,6 @@ export default function PuntoFisicoPage() {
   const handleUpdateOrderStatus = async (orderId: string, status: OrderStatus) => {
     await orderRepository.updateStatus(orderId, status);
 
-    // Refresh orders
     if (selectedStore) {
       const updatedOrders = await orderRepository.findByStoreId(selectedStore.id);
       setOrders(updatedOrders);
@@ -307,13 +282,16 @@ export default function PuntoFisicoPage() {
               <CardTitle>Lista de Tiendas</CardTitle>
             </CardHeader>
             <CardContent>
-              <StoresDataTable
-                stores={filteredStores}
-                storeStats={mockStoreStats}
-                onViewStore={handleViewStore}
-                onManageOrders={handleManageOrders}
-                onStoreSettings={handleStoreSettings}
-              />
+              {isLoading ? (
+                <TableSkeleton columns={7} rows={5} showActions={false} />
+              ) : (
+                <StoresDataTable
+                  stores={tiendas}
+                  onViewStore={(store) => toast.info(`Viendo detalles de ${store.descripcion}`)}
+                  onManageOrders={(store) => toast.info(`Gestionar órdenes de ${store.descripcion}`)}
+                  onStoreSettings={(store) => toast.info(`Configuración de ${store.descripcion}`)}
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
