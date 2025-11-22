@@ -50,8 +50,23 @@ export default function ProductDetailPage() {
     return sortedByPrice[0];
   };
 
-  // Establecer la mejor variante como seleccionada por defecto
+  // Resetear selectedColor cuando cambia el producto (para evitar que persista entre productos diferentes)
   useEffect(() => {
+    setSelectedColor(null);
+  }, [productId]);
+
+  // Establecer la mejor variante como seleccionada por defecto (solo para productos normales con colores)
+  useEffect(() => {
+    // Detectar si es un bundle: SKU o ID empieza con "F" (importante)
+    const isBundle = product?.sku?.startsWith('F') || product?.id?.startsWith('F') || product?.isBundle === true;
+    
+    // Si es un bundle, mantener selectedColor como null (los bundles no tienen variantes de color)
+    if (isBundle) {
+      setSelectedColor(null);
+      return;
+    }
+    
+    // Para productos normales, establecer la mejor variante si hay colores disponibles
     if (product && product.colors.length > 0 && !selectedColor) {
       const bestVariant = findBestVariantToDisplay(product.colors);
       if (bestVariant) {
@@ -59,7 +74,7 @@ export default function ProductDetailPage() {
         console.log("Setting best variant as default", { bestVariant });
       }
     }
-  }, [product, selectedColor])
+  }, [product, productId, selectedColor])
 
 
   if (loading) {
@@ -72,7 +87,10 @@ export default function ProductDetailPage() {
         <AlertCircle className="h-12 w-12 text-muted-foreground" />
         <h2 className="text-2xl font-bold">Producto no encontrado</h2>
         <p className="text-muted-foreground">{error || "No se pudo cargar el producto"}</p>
-        <Button onClick={() => router.push("/productos")}>
+        <Button onClick={() => {
+          // En caso de error, siempre volver a 'products' por defecto
+          router.push("/productos?viewMode=products");
+        }}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver a productos
         </Button>
@@ -80,6 +98,9 @@ export default function ProductDetailPage() {
     )
   }
 
+  // Detectar si es un bundle: SKU o ID empieza con "F" (importante)
+  const isBundle = product.sku?.startsWith('F') || product.id?.startsWith('F') || product.isBundle === true
+  
   const currentPrice = selectedColor?.price || product.price
   const currentOriginalPrice = selectedColor?.originalPrice || product.originalPrice
   const currentDiscount = selectedColor?.discount || product.discount
@@ -87,6 +108,7 @@ export default function ProductDetailPage() {
   const currentStockEcommerce = selectedColor?.stock ?? 0
   const currentStockTiendas = selectedColor?.stockTiendas || {}
   const currentImage = selectedColor?.imageUrl || product.image
+  const bundleDiscount = product.bundleDiscount // Monto monetario del descuento
   console.log(selectedColor)
 
   return (
@@ -94,7 +116,11 @@ export default function ProductDetailPage() {
       {/* Botón de regreso */}
       <Button
         variant="ghost"
-        onClick={() => router.push("/productos")}
+        onClick={() => {
+          // Si es un bundle, navegar con viewMode=bundles; si es producto normal, viewMode=products
+          const viewMode = isBundle ? 'bundles' : 'products';
+          router.push(`/productos?viewMode=${viewMode}`);
+        }}
         className="mb-4"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -122,6 +148,8 @@ export default function ProductDetailPage() {
             currentStock={currentStock}
             currentStockTiendas={currentStockTiendas}
             onColorSelect={setSelectedColor}
+            isBundle={isBundle}
+            bundleDiscount={bundleDiscount}
           />
 
           {/* Componente de Descripción */}

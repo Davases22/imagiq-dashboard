@@ -8,7 +8,7 @@
  * - TypeScript interfaces para requests/responses
  */
 
-import { BackendCategory, BackendMenu, BackendSubmenu, CreateCategoryRequest, UpdateCategoryRequest, CreateMenuRequest, UpdateMenuRequest, CreateSubmenuRequest, UpdateSubmenuRequest, BackendWhatsAppTemplate } from "@/types";
+import { BackendCategory, BackendCategoryV2, BackendMenu, BackendMenuV2, BackendSubmenu, CreateCategoryRequest, UpdateCategoryRequest, CreateMenuRequest, UpdateMenuRequest, CreateSubmenuRequest, UpdateSubmenuRequest, BackendWhatsAppTemplate } from "@/types";
 import { BackendBanner, BannerPaginationData } from "@/types/banner";
 import { ProductColumn, DisplayTypesResponse, FilterOperator, DynamicFilter, FilterOrderConfig } from "@/types/filters";
 import { apiClient as apiClientWithKey, apiClientFormData, getApiKey } from "@/lib/api-client";
@@ -71,10 +71,29 @@ export class ApiClient {
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
     const apiKey = getApiKey();
-    const headers = useAuth ? this.getAuthHeaders() : this.headers;
+    const baseHeaders = useAuth ? this.getAuthHeaders() : this.headers;
+    
+    // Asegurar que el API key siempre esté incluido, incluso si hay headers personalizados
+    const headers = new Headers(baseHeaders);
+    if (apiKey) {
+      headers.set('X-API-Key', apiKey);
+    }
+    
+    // Combinar headers personalizados de options, asegurando que el API key siempre esté presente
+    if (options.headers) {
+      const customHeaders = new Headers(options.headers);
+      customHeaders.forEach((value, key) => {
+        headers.set(key, value);
+      });
+      // Re-establecer el API key después de combinar headers personalizados
+      if (apiKey) {
+        headers.set('X-API-Key', apiKey);
+      }
+    }
+    
     const config: RequestInit = {
-      headers: headers,
       ...options,
+      headers: headers,
     };
 
     try {
@@ -304,6 +323,20 @@ export const productEndpoints = {
     const url = `/api/products/search/grouped?${searchParams.toString()}`;
     return apiClient.get<ProductApiResponse>(url);
   },
+  // V2: Endpoint que incluye bundles + productos tradicionales
+  // Nota: Este endpoint usa el API key automáticamente a través de apiClient.get()
+  // El API key se incluye en el header 'X-API-Key' para autenticación
+  getFilteredSearchV2: (params: ProductFilterParams) => {
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        searchParams.append(key, String(value));
+      }
+    });
+    const url = `/api/products/v2/search/grouped?${searchParams.toString()}`;
+    // El método get() incluye automáticamente el API key en los headers
+    return apiClient.get<ProductApiResponseV2>(url);
+  },
   getById: (id: string) =>
     apiClient.get<ProductApiResponse>(`/api/products/${id}`),
   getByCategory: (category: string) =>
@@ -318,9 +351,19 @@ export const productEndpoints = {
     apiClient.get<ProductApiResponse2>(
       `/api/products/filtered?codigoMarket=${codigoMarket}`
     ),
+  // V2: Endpoint que busca por codigoMarket o product_sku (soporta bundles)
+  // Nota: Este endpoint usa el API key automáticamente a través de apiClient.get()
+  getByCodigoMarketV2: (codigoMarket: string) => {
+    const url = `/api/products/v2/filtered?codigoMarket=${codigoMarket}`;
+    // El método get() incluye automáticamente el API key en los headers
+    return apiClient.get<ProductApiResponseV2>(url);
+  },
   search: (query: string) =>
     apiClient.get<ProductApiResponse>(`/api/products/filtered?nombre=${query}`),
   getSummary: () => apiClient.get<ProductSummary>("/api/products/summary"),
+  // V2: Endpoint de resumen que incluye información de bundles
+  // Nota: Este endpoint usa el API key automáticamente a través de apiClient.get()
+  getSummaryV2: () => apiClient.get<ProductSummaryV2>("/api/products/v2/summary"),
   getColumnNames: () => apiClient.get<ProductColumn[]>("/api/products/columns/metadata"),
   getDistinctValues: (columnKey: string, params?: { categoria?: string; menu?: string; submenu?: string }) => {
     const searchParams = new URLSearchParams();
@@ -477,12 +520,16 @@ export const productEndpoints = {
   },
 
   // Obtener videos premium
-  getPremiumVideos: (sku: string) =>
-    apiClient.get<{ videos: string[] }>(`/api/multimedia/producto/${sku}/premium-videos`),
+  getPremiumVideos: (sku: string) => {
+    const safeSku = encodeSkuForPath(sku);
+    return apiClient.get<{ videos: string[] }>(`/api/multimedia/producto/${safeSku}/premium-videos`);
+  },
 
   // Obtener imágenes premium
-  getPremiumImages: (sku: string) =>
-    apiClient.get<{ images: string[] }>(`/api/multimedia/producto/${sku}/premium-images`),
+  getPremiumImages: (sku: string) => {
+    const safeSku = encodeSkuForPath(sku);
+    return apiClient.get<{ images: string[] }>(`/api/multimedia/producto/${safeSku}/premium-images`);
+  },
 
   // Reordenar imágenes existentes
   reorderImages: (sku: string, imageUrls: string[]) => {
@@ -567,6 +614,7 @@ export interface ProductFilterParams {
   stock?: number;
   limit?: number;
   sortBy?: string;
+  productType?: 'bundles' | 'products'; // V2: Filtrar por tipo de producto (solo bundles o products)
   sortOrder?: "desc" | "asc";
 }
 
@@ -606,6 +654,15 @@ export interface ProductSummary {
   lowStock: number;
 }
 
+// V2: ProductSummary que incluye información de bundles
+export interface ProductSummaryV2 {
+  productsTotal: number; // Total de productos tradicionales
+  bundlesTotal: number; // Total de bundles activos
+  totalValue: number; // Valor total del inventario (productos + bundles)
+  lowStock: number; // Productos con stock ≤ 10 (solo productos tradicionales)
+  bundlesActive: number; // Bundles activos actualmente
+}
+
 export interface ProductApiData {
   codigoMarketBase: string;
   codigoMarket?: string[];
@@ -640,6 +697,96 @@ export interface ProductApiData {
   segmento?: string[]; // Array de segmentos del producto (ej: ["Premium"])
 }
 
+// V2: Tipos para Bundles y Productos Agrupados
+/**
+ * Bundle de productos (isBundle: true)
+ */
+export interface ProductBundle {
+  isBundle: true;
+  product_sku: string;
+  modelo: string; // Concatenación de modelos: "Modelo1 + Modelo2"
+  categoria?: string;
+  menu?: string;
+  submenu?: string;
+  bundle_price?: number; // Precio del bundle
+  bundle_discount?: number;
+  ind_entre_estre?: number;
+  fecha_inicio: Date | string;
+  fecha_final: Date | string;
+  hora_inicio: string;
+  hora_final: string;
+  skus_bundle: string[]; // Array de SKUs que componen el bundle
+  // ✨ NUEVOS: Campos de imágenes desde product_media (igual que productos tradicionales)
+  imagePreviewUrl?: string[]; // Array con 1 URL de preview (igual que ProductGrouped)
+  imageDetailsUrls?: string[][]; // Array de arrays con URLs de detalle (igual que ProductGrouped)
+  imagenPremium?: string[][]; // Array de arrays con imágenes premium del carrusel (igual que ProductGrouped)
+  videoPremium?: string[][]; // Array de arrays con videos premium del carrusel (igual que ProductGrouped)
+  imagenFinalPremium?: string[][]; // Array de arrays con imagen final premium del dispositivo (igual que ProductGrouped)
+}
+
+/**
+ * Producto tradicional agrupado (isBundle: false)
+ * Esencialmente igual a ProductApiData pero con isBundle explícito
+ */
+export interface ProductGrouped {
+  isBundle: false;
+  codigoMarketBase: string;
+  codigoMarket?: string[];
+  nombreMarket: string | string[];
+  categoria: string;
+  menu: string;
+  modelo: string | string[];
+  peso?: string | string[];
+  ancho?: string | string[];
+  alto?: string | string[];
+  color?: string[];
+  capacidad?: string[];
+  memoriaram?: string[];
+  descGeneral?: string | null;
+  sku?: string[];
+  desDetallada?: string[];
+  stock?: number[];
+  stockTiendas?: Record<string, number>[];
+  stockTotal?: number[];
+  imagePreviewUrl?: string[];
+  imageDetailsUrls?: string[][];
+  urlImagenes?: string[];
+  urlRender3D?: string[];
+  precioNormal?: number[];
+  precioeccommerce?: number[]; // Precio ecommerce
+  precioDescto?: number[];
+  fechaInicioVigencia?: string[];
+  fechaFinalVigencia?: string[];
+  imagen_premium?: string[][];
+  imagen_final_premium?: (string | null)[];
+  video_premium?: string[][];
+  segmento?: string[];
+  // Campos adicionales que vienen del API
+  subcategoria?: string;
+  nombreColor?: string[];
+  ean?: string[];
+  cantidadTiendas?: number[];
+  cantidadTiendasReserva?: number[];
+}
+
+/**
+ * Respuesta del endpoint V2 que incluye bundles + productos tradicionales
+ */
+export interface SearchBundlesResult {
+  products: (ProductBundle | ProductGrouped)[];
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface ProductApiResponseV2 {
+  data: SearchBundlesResult;
+  success?: boolean;
+  message?: string;
+}
+
 // Product media update interfaces
 export interface ProductMediaUpdateData {
   sku: string;
@@ -672,6 +819,9 @@ export interface ProductMultimediaData {
 // Categories API endpoints
 export const categoryEndpoints = {
   getVisibleCompletas: () => apiClient.get<BackendCategory[]>("/api/categorias/visibles/completas"),
+  // V2: Endpoint de categorías que incluye información de bundles
+  // Nota: Este endpoint usa el API key automáticamente a través de apiClient.get()
+  getVisibleCompletasV2: () => apiClient.get<BackendCategoryV2[]>("/api/categorias/v2/visibles/completas"),
   getDistinct: () => apiClient.get<string[]>("/api/categorias/distinct"),
   create: (data: CreateCategoryRequest) =>
     apiClient.post<BackendCategory>("/api/categorias/visibles", data),

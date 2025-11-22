@@ -402,21 +402,35 @@ export const createProductColumns = (
       },
       cell: ({ row }) => {
         const product = row.original;
+        const isBundle = product.isBundle === true;
         return (
           <TooltipProvider>
-            <div className="max-w-[200px]">
+            <div className={isBundle ? "max-w-[500px]" : "max-w-[200px]"}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="font-medium truncate cursor-default">
-                    {product.name}
+                  <div className="flex items-center gap-2">
+                    <div className={`font-medium ${isBundle ? '' : 'truncate'} cursor-default`}>
+                      {product.name}
+                    </div>
+                    {isBundle && (
+                      <Badge variant="secondary" className="shrink-0">
+                        Bundle
+                      </Badge>
+                    )}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{product.name}</p>
+                  {isBundle && product.skusBundle && (
+                    <p className="text-xs mt-1">Incluye: {product.skusBundle.join(', ')}</p>
+                  )}
                 </TooltipContent>
               </Tooltip>
-              <div className="text-sm text-muted-foreground truncate">
-                {product.description}
+              <div className={`text-sm text-muted-foreground ${isBundle ? '' : 'truncate'}`}>
+                {isBundle && product.skusBundle 
+                  ? `Incluye: ${product.skusBundle.join(', ')}`
+                  : product.description
+                }
               </div>
             </div>
           </TooltipProvider>
@@ -479,8 +493,22 @@ export const createProductColumns = (
         );
       },
       cell: ({ row }) => {
+        const product = row.original;
+        const isBundle = product.isBundle === true;
         const price = row.getValue("price") as string;
-        return <div className="font-medium">{price || "N/A"}</div>;
+        
+        return (
+          <div className="flex flex-col gap-1">
+            <div className="font-medium">{price || "N/A"}</div>
+            {isBundle && product.bundleDiscount && (
+              <div className="text-xs text-muted-foreground">
+                Con descuento: ${typeof product.bundleDiscount === 'number' 
+                  ? product.bundleDiscount.toLocaleString('es-CO') 
+                  : product.bundleDiscount}
+              </div>
+            )}
+          </div>
+        );
       },
     },
     {
@@ -505,8 +533,15 @@ export const createProductColumns = (
         );
       },
       cell: ({ row }) => {
+        const product = row.original;
+        const isBundle = product.isBundle === true;
+        
+        // Para bundles, no mostrar nada en la columna de stock
+        if (isBundle) {
+          return null;
+        }
+        
         const stock = row.getValue("stockTotal") as number | undefined;
-
         return (
           <div className="flex items-center gap-2">
             <span className="font-medium">{stock ?? 0}</span>

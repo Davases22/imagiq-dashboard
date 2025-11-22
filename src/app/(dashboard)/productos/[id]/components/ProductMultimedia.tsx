@@ -13,6 +13,7 @@ import { EditImagesModal } from "./EditImagesModal"
 import { EditPremiumModal } from "./EditPremiumModal"
 import { productEndpoints } from "@/lib/api"
 import { toast } from "sonner"
+import emptyImg from "@/img/empty.jpeg"
 
 interface ProductMultimediaProps {
   product: ProductCardProps
@@ -29,6 +30,9 @@ export function ProductMultimedia({
   currentDiscount,
   currentStock,
 }: ProductMultimediaProps) {
+  // Detectar si es un bundle: SKU o ID empieza con "F" (importante)
+  const isBundle = product.sku?.startsWith('F') || product.id?.startsWith('F') || product.isBundle === true
+  
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false)
@@ -83,11 +87,11 @@ export function ProductMultimedia({
     return items;
   })()
 
-  // Reiniciar el índice de imagen cuando cambie el color
+  // Reiniciar el índice de imagen cuando cambie el color o el tipo de producto
   useEffect(() => {
     setCurrentImageIndex(0)
     setCurrentVideoIndex(0)
-  }, [selectedColor])
+  }, [selectedColor, isBundle])
 
   // Manejar carga y errores del video cuando cambia la URL
   useEffect(() => {
@@ -386,103 +390,212 @@ export function ProductMultimedia({
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-muted-foreground">Imagen preview</h3>
               <div className="relative w-full h-64 overflow-hidden rounded-lg bg-muted group">
-                {typeof currentImage === 'string' ? (
-                  <Image
-                    key={selectedColor?.sku || 'default'}
-                    src={currentImage}
-                    alt={`${product.name} - ${selectedColor?.label || ''}`}
-                    fill
-                    priority
-                    className="object-contain"
-                  />
-                ) : (
-                  <Image
-                    key={selectedColor?.sku || 'default'}
-                    src={currentImage}
-                    alt={`${product.name} - ${selectedColor?.label || ''}`}
-                    fill
-                    className="object-contain"
-                    priority
-                  />
-                )}
+                {(() => {
+                  // Para bundles: verificar si hay imágenes válidas (preview o detalle)
+                  if (isBundle) {
+                    const hasPreview = product.image && typeof product.image === 'string' && 
+                                      product.image.trim() !== '' && 
+                                      product.image !== '/empty.jpeg' && 
+                                      !product.image.includes('empty') &&
+                                      product.image !== '/img/empty.jpeg';
+                    const hasDetailImages = product.bundleDetailImages && 
+                                          product.bundleDetailImages.length > 0 &&
+                                          product.bundleDetailImages.some(url => 
+                                            url && typeof url === 'string' && 
+                                            url.trim() !== '' && 
+                                            url !== '/empty.jpeg' && 
+                                            !url.includes('empty')
+                                          );
+                    
+                    // Si no hay preview válido ni imágenes de detalle, mostrar placeholder "Sin imagen"
+                    if (!hasPreview && !hasDetailImages) {
+                      return (
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <span className="text-xs text-muted-foreground">
+                            Sin imagen
+                          </span>
+                        </div>
+                      );
+                    }
+                    
+                    // Si hay preview válido, usarlo; si no, usar la primera imagen de detalle válida
+                    const previewImage = hasPreview 
+                      ? (product.image as string)
+                      : (hasDetailImages ? product.bundleDetailImages!.find(url => 
+                          url && typeof url === 'string' && 
+                          url.trim() !== '' && 
+                          url !== '/empty.jpeg' && 
+                          !url.includes('empty')
+                        ) : undefined);
+                    
+                    // Si aún no hay imagen válida, mostrar placeholder
+                    if (!previewImage) {
+                      return (
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <span className="text-xs text-muted-foreground">
+                            Sin imagen
+                          </span>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <Image
+                        key={product.sku || product.id || 'bundle-preview'}
+                        src={previewImage}
+                        alt={product.name}
+                        fill
+                        priority
+                        className="object-contain"
+                      />
+                    );
+                  }
+                  
+                  // Para productos normales, usar currentImage como antes
+                  if (typeof currentImage === 'string') {
+                    // Verificar si es una imagen válida
+                    const isValidImage = currentImage.trim() !== '' && 
+                                        currentImage !== '/empty.jpeg' && 
+                                        !currentImage.includes('empty');
+                    
+                    if (!isValidImage) {
+                      return (
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <span className="text-xs text-muted-foreground">
+                            Sin imagen
+                          </span>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <Image
+                        key={selectedColor?.sku || 'default'}
+                        src={currentImage}
+                        alt={`${product.name} - ${selectedColor?.label || ''}`}
+                        fill
+                        priority
+                        className="object-contain"
+                      />
+                    );
+                  }
+                  
+                  // Para StaticImageData, usar directamente
+                  return (
+                    <Image
+                      key={selectedColor?.sku || 'default'}
+                      src={currentImage}
+                      alt={`${product.name} - ${selectedColor?.label || ''}`}
+                      fill
+                      className="object-contain"
+                      priority
+                    />
+                  );
+                })()}
               </div>
             </div>
 
-            {/* Imágenes detalladas - Carrusel */}
-            {selectedColor?.imageDetailsUrls && selectedColor.imageDetailsUrls.length > 0 && (
-              <div className="mt-6 space-y-2">
-                <h3 className="text-sm font-medium text-muted-foreground">Imágenes de detalle</h3>
-                <div className="relative w-full h-64 overflow-hidden rounded-lg bg-muted group">
-                  <Image
-                    src={selectedColor.imageDetailsUrls[currentImageIndex]}
-                    alt={`${product.name} - ${selectedColor.label} - Detalle ${currentImageIndex + 1}`}
-                    fill
-                    className="object-contain"
-                  />
+            {/* Imágenes detalladas - Carrusel (siempre mostrar, con placeholder si no hay imágenes) */}
+            <div className="mt-6 space-y-2">
+              <h3 className="text-sm font-medium text-muted-foreground">Imágenes de detalle</h3>
+              {(() => {
+                // Obtener imágenes válidas (filtrar vacías, null, undefined, y empty.jpeg)
+                const detailImages = isBundle && product.bundleDetailImages
+                  ? product.bundleDetailImages.filter(url => url && typeof url === 'string' && url.trim() !== '' && url !== '/empty.jpeg' && !url.includes('empty') && !url.includes('empty.jpeg'))
+                  : selectedColor?.imageDetailsUrls?.filter(url => url && typeof url === 'string' && url.trim() !== '' && url !== '/empty.jpeg' && !url.includes('empty') && !url.includes('empty.jpeg')) || [];
+                
+                // Si no hay imágenes válidas, mostrar placeholder "Sin imagen"
+                if (detailImages.length === 0) {
+                  return (
+                    <div className="relative w-full h-64 overflow-hidden rounded-lg bg-muted group">
+                      <div className="w-full h-full bg-muted flex items-center justify-center">
+                        <span className="text-xs text-muted-foreground">
+                          Sin imagen
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <>
+                    <div className="relative w-full h-64 overflow-hidden rounded-lg bg-muted group">
+                      <Image
+                        src={detailImages[currentImageIndex] || detailImages[0]}
+                        alt={
+                          isBundle
+                            ? `${product.name} - Detalle ${currentImageIndex + 1}`
+                            : `${product.name} - ${selectedColor?.label || ''} - Detalle ${currentImageIndex + 1}`
+                        }
+                        fill
+                        className="object-contain"
+                      />
 
-                  {/* Botones de navegación */}
-                  {selectedColor.imageDetailsUrls.length > 1 && (
-                    <>
-                      <button
-                        onClick={() => setCurrentImageIndex((prev) =>
-                          prev === 0 ? selectedColor.imageDetailsUrls!.length - 1 : prev - 1
-                        )}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <ChevronLeft className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => setCurrentImageIndex((prev) =>
-                          prev === selectedColor.imageDetailsUrls!.length - 1 ? 0 : prev + 1
-                        )}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <ChevronRight className="h-5 w-5" />
-                      </button>
-                    </>
-                  )}
+                    {/* Botones de navegación */}
+                    {detailImages.length > 1 && (
+                      <>
+                        <button
+                          onClick={() => setCurrentImageIndex((prev) =>
+                            prev === 0 ? detailImages.length - 1 : prev - 1
+                          )}
+                          className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => setCurrentImageIndex((prev) =>
+                            prev === detailImages.length - 1 ? 0 : prev + 1
+                          )}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ChevronRight className="h-5 w-5" />
+                        </button>
+                      </>
+                    )}
 
-                  {/* Indicadores de página */}
-                  {selectedColor.imageDetailsUrls.length > 1 && (
-                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                      {selectedColor.imageDetailsUrls.map((_, index) => (
+                    {/* Indicadores de página */}
+                    {detailImages.length > 1 && (
+                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                        {detailImages.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentImageIndex(index)}
+                            className={`h-2 rounded-full transition-all ${
+                              index === currentImageIndex
+                                ? 'w-8 bg-white'
+                                : 'w-2 bg-white/50 hover:bg-white/75'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                    {/* Miniaturas */}
+                    <div className="flex gap-2 overflow-x-auto pb-2 pt-2 pl-2">
+                      {detailImages.map((url, index) => (
                         <button
                           key={index}
                           onClick={() => setCurrentImageIndex(index)}
-                          className={`h-2 rounded-full transition-all ${
+                          className={`relative flex-shrink-0 w-20 h-20 overflow-hidden rounded-lg border-2 transition-all ${
                             index === currentImageIndex
-                              ? 'w-8 bg-white'
-                              : 'w-2 bg-white/50 hover:bg-white/75'
+                              ? 'border-primary ring-2 ring-primary ring-offset-2'
+                              : 'border-border hover:border-primary/50'
                           }`}
-                        />
+                        >
+                          <Image
+                            src={url}
+                            alt={`${product.name} - Miniatura ${index + 1}`}
+                            fill
+                            className="object-cover"
+                          />
+                        </button>
                       ))}
                     </div>
-                  )}
-                </div>
-
-                {/* Miniaturas */}
-                <div className="flex gap-2 overflow-x-auto pb-2 pt-2 pl-2">
-                  {selectedColor.imageDetailsUrls.map((url, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentImageIndex(index)}
-                      className={`relative flex-shrink-0 w-20 h-20 overflow-hidden rounded-lg border-2 transition-all ${
-                        index === currentImageIndex
-                          ? 'border-primary ring-2 ring-primary ring-offset-2'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <Image
-                        src={url}
-                        alt={`${product.name} - Miniatura ${index + 1}`}
-                        fill
-                        className="object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </>
+                );
+              })()}
+            </div>
           </>
         )}
 
@@ -491,12 +604,19 @@ export function ProductMultimedia({
           {product.isNew && (
             <Badge variant="default">Nuevo</Badge>
           )}
-          {currentDiscount && (
+          {/* No mostrar badge de descuento para bundles (se muestra en PriceDisplay) */}
+          {!isBundle && currentDiscount && (
             <Badge variant="destructive">{currentDiscount}</Badge>
           )}
-          {currentStock > 0 ? (
-            <Badge variant="default">En stock ({currentStock})</Badge>
-          ) : (
+          {/* No mostrar badge de stock para bundles (no tienen stock individual) */}
+          {!isBundle && (
+            currentStock > 0 ? (
+              <Badge variant="default">En stock ({currentStock})</Badge>
+            ) : (
+              <Badge variant="secondary">Agotado</Badge>
+            )
+          )}
+          {isBundle && (
             <Badge variant="secondary">Agotado</Badge>
           )}
         </div>

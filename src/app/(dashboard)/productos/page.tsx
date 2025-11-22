@@ -1,12 +1,14 @@
 "use client"
 
 import { lazy, Suspense, useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Package, DollarSign, AlertTriangle, Heart } from "lucide-react"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Package, DollarSign, AlertTriangle, Heart } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { productEndpoints, ProductSummary, categoryEndpoints } from "@/lib/api"
+import { productEndpoints, ProductSummaryV2, categoryEndpoints } from "@/lib/api"
+import { BackendCategoryV2 } from "@/types"
 
 const ProductsTableWrapper = lazy(() =>
   import("@/components/tables/products-table-wrapper").then(mod => ({
@@ -37,31 +39,102 @@ function TableSkeleton() {
   )
 }
 
+type ViewMode = 'bundles' | 'products'
+
 export default function ProductosPage() {
   const router = useRouter()
-  const [summary, setSummary] = useState<ProductSummary | null>(null)
+  const searchParams = useSearchParams()
+  const [summary, setSummary] = useState<ProductSummaryV2 | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [menusCount, setMenusCount] = useState(0)
+  
+  // Obtener viewMode de los query params, o usar 'products' por defecto
+  const viewModeParam = searchParams.get('viewMode') as ViewMode | null
+  const initialViewMode: ViewMode = (viewModeParam === 'bundles' || viewModeParam === 'products') ? viewModeParam : 'products'
+  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode)
+  
+  // Actualizar viewMode cuando cambien los query params
+  useEffect(() => {
+    const newViewMode = searchParams.get('viewMode') as ViewMode | null
+    if (newViewMode === 'bundles' || newViewMode === 'products') {
+      setViewMode(newViewMode)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const fetchSummary = async () => {
       setIsLoading(true)
-      const response = await productEndpoints.getSummary()
-      if (response.success) {
-        setSummary(response.data)
+      try {
+        // Usar solo V1 (como estaba en main)
+        const response = await productEndpoints.getSummary()
+        if (response.success && response.data) {
+          // Convertir V1 a V2 para mantener compatibilidad con la UI
+          const v1Data = response.data
+          
+          // Obtener total de bundles desde V2
+          let bundlesTotal: number | undefined = undefined
+          try {
+            const bundlesResponse = await productEndpoints.getFilteredSearchV2({
+              page: 1,
+              limit: 1, // Solo necesitamos el totalItems, no los productos
+              productType: 'bundles'
+            })
+            if (bundlesResponse.success && bundlesResponse.data) {
+              const bundlesResult = bundlesResponse.data.data || bundlesResponse.data
+              if (bundlesResult && bundlesResult.totalItems !== undefined) {
+                bundlesTotal = bundlesResult.totalItems
+              }
+            }
+          } catch (bundlesError) {
+            console.warn("Error fetching bundles total:", bundlesError)
+            // Si falla, dejar undefined (vacío)
+          }
+          
+          setSummary({
+            productsTotal: v1Data.productsTotal ?? 0,
+            bundlesTotal: bundlesTotal ?? 0, // Total de bundles desde V2, usar 0 si es undefined
+            totalValue: v1Data.totalValue ?? 0,
+            lowStock: v1Data.lowStock ?? 0,
+            bundlesActive: bundlesTotal ?? 0 // Usar el total de bundles como activos (o 0 si es undefined)
+          })
+        } else {
+          // Si V1 falla, dejar todo vacío (no poner 0)
+          setSummary(null)
+        }
+      } catch (error) {
+        console.error("Error fetching summary:", error)
+        // Si hay error, dejar vacío (no poner 0)
+        setSummary(null)
+      } finally {
+        setIsLoading(false)
       }
-      setIsLoading(false)
     }
 
     const fetchMenusCount = async () => {
       try {
-        const response = await categoryEndpoints.getVisibleCompletas()
-        const totalMenus = response.data.reduce((total, category) => {
-          return total + category.menus.filter(menu => menu.nombre).length
-        }, 0)
-        setMenusCount(totalMenus)
+        // Usar el endpoint V2 que incluye información de bundles
+        const response = await categoryEndpoints.getVisibleCompletasV2()
+        if (response.success && response.data) {
+          const categorias = response.data as BackendCategoryV2[]
+          const totalMenus = categorias.reduce((total, category) => {
+            return total + category.menus.filter(menu => menu.nombre).length
+          }, 0)
+          setMenusCount(totalMenus)
+        }
       } catch (error) {
         console.error("Error fetching menus count:", error)
+        // Fallback a V1 si V2 falla
+        try {
+          const fallbackResponse = await categoryEndpoints.getVisibleCompletas()
+          if (fallbackResponse.success && fallbackResponse.data) {
+            const totalMenus = fallbackResponse.data.reduce((total, category) => {
+              return total + category.menus.filter(menu => menu.nombre).length
+            }, 0)
+            setMenusCount(totalMenus)
+          }
+        } catch (fallbackError) {
+          console.error("Error en fallback:", fallbackError)
+        }
       }
     }
 
@@ -88,7 +161,7 @@ export default function ProductosPage() {
       </div>
 
       {/* Métricas de productos */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Productos</CardTitle>
@@ -105,6 +178,30 @@ export default function ProductosPage() {
                 <div className="text-2xl font-bold">{summary?.productsTotal ?? 0}</div>
                 <p className="text-xs text-muted-foreground">
                   {summary?.productsTotal ?? 0} únicos
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Bundles</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-4 w-32" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">
+                  {summary?.bundlesTotal !== undefined ? summary.bundlesTotal : 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {summary?.bundlesTotal !== undefined ? `${summary.bundlesTotal} bundles` : 'Bundles activos'}
                 </p>
               </>
             )}
@@ -183,11 +280,19 @@ export default function ProductosPage() {
       {/* Tabla de productos */}
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Productos</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Lista de Productos</CardTitle>
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+              <TabsList>
+                <TabsTrigger value="bundles">Bundles</TabsTrigger>
+                <TabsTrigger value="products">Productos</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </CardHeader>
         <CardContent>
           <Suspense fallback={<TableSkeleton />}>
-            <ProductsTableWrapper />
+            <ProductsTableWrapper viewMode={viewMode} />
           </Suspense>
         </CardContent>
       </Card>

@@ -17,6 +17,8 @@ interface ProductInfoProps {
   currentStockEcommerce: number
   currentStockTiendas: Record<string, number>
   onColorSelect: (color: ProductColor) => void
+  isBundle?: boolean
+  bundleDiscount?: number
 }
 
 export function ProductInfo({
@@ -28,6 +30,8 @@ export function ProductInfo({
   currentStockEcommerce,
   currentStockTiendas,
   onColorSelect,
+  isBundle,
+  bundleDiscount,
 }: ProductInfoProps) {
   const getStockColor = (stock: number) => {
     if (stock === 0) return 'text-red-600'
@@ -60,6 +64,8 @@ export function ProductInfo({
       <PriceDisplay
         currentPrice={currentPrice}
         currentOriginalPrice={currentOriginalPrice}
+        isBundle={isBundle}
+        bundleDiscount={bundleDiscount}
       />
 
       {/* Selectores de variantes */}

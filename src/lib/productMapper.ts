@@ -4,7 +4,7 @@
  * - Usa imágenes mock mientras se implementan
  */
 
-import { ProductApiData } from './api';
+import { ProductApiData, ProductBundle, ProductGrouped } from './api';
 import { StaticImageData } from 'next/image';
 
 // Importar imágenes mock para usar temporalmente
@@ -63,6 +63,16 @@ export interface ProductCardProps {
   setSelectedColor?: (color: ProductColor) => void;
   puntos_q?: number; // Puntos Q acumulables por producto (valor fijo por ahora)
   segmento?: string[]; // Array de segmentos del producto (ej: ["Premium"])
+  // Campos para bundles
+  isBundle?: boolean;
+  bundlePrice?: number;
+  bundleDiscount?: number;
+  skusBundle?: string[];
+  fechaInicio?: Date | string;
+  fechaFinal?: Date | string;
+  horaInicio?: string;
+  horaFinal?: string;
+  bundleDetailImages?: string[]; // URLs de imágenes de detalle para bundles
 }
 
 // Mapeo de colores de la API a colores del frontend
@@ -660,4 +670,137 @@ export function groupProductsByCategory(products: ProductCardProps[]): Record<st
   });
   
   return grouped;
+}
+
+/**
+ * Mapea un ProductBundle de la API a ProductCardProps
+ */
+export function mapBundleToFrontend(bundle: ProductBundle): ProductCardProps {
+  const formatPrice = (price: number) => `$ ${price.toLocaleString('es-CO')}`;
+  
+  // bundle_price es el precio CON descuento (precio actual)
+  const price = bundle.bundle_price ? formatPrice(bundle.bundle_price) : 'Precio no disponible';
+  
+  // bundle_discount es un MONTO monetario (no porcentaje)
+  // Precio original = precio con descuento + monto del descuento
+  let originalPrice: string | undefined;
+  if (bundle.bundle_discount && bundle.bundle_price && bundle.bundle_discount > 0) {
+    const precioOriginal = bundle.bundle_price + bundle.bundle_discount;
+    originalPrice = formatPrice(precioOriginal);
+  }
+  
+  // El descuento se muestra como monto monetario (no porcentaje) en la tabla
+  // Para la página de detalle, no usamos discount string, sino bundleDiscount (number)
+  const discount = undefined; // No mostrar porcentaje, el descuento se muestra en bundleDiscount
+
+  // Convertir fechas de string a Date si es necesario
+  const fechaInicio = typeof bundle.fecha_inicio === 'string' 
+    ? new Date(bundle.fecha_inicio) 
+    : bundle.fecha_inicio;
+  const fechaFinal = typeof bundle.fecha_final === 'string' 
+    ? new Date(bundle.fecha_final) 
+    : bundle.fecha_final;
+
+  // Determinar si es nuevo (menos de 30 días desde fecha de inicio)
+  const ahora = new Date();
+  const diasDiferencia = fechaInicio instanceof Date 
+    ? (ahora.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24)
+    : 31; // Si no hay fecha válida, no marcarlo como nuevo
+  const isNew = diasDiferencia < 30;
+
+  // ✨ Obtener imagen preview del bundle si está disponible (igual que productos normales)
+  // Prioridad: 1) imagePreviewUrl, 2) primera imagen de imageDetailsUrls, 3) emptyImg
+  let bundleImage: string | StaticImageData = emptyImg;
+  
+  // 1. Intentar usar imagePreviewUrl primero
+  if (bundle.imagePreviewUrl && Array.isArray(bundle.imagePreviewUrl) && bundle.imagePreviewUrl.length > 0) {
+    const firstImageUrl = bundle.imagePreviewUrl.find(url => url && url.trim() !== '');
+    if (firstImageUrl) {
+      bundleImage = firstImageUrl;
+    }
+  }
+  
+  // 2. Si imagePreviewUrl está vacío pero imageDetailsUrls tiene imágenes, usar la primera de detalle
+  if (bundleImage === emptyImg && bundle.imageDetailsUrls && Array.isArray(bundle.imageDetailsUrls) && bundle.imageDetailsUrls.length > 0) {
+    const firstDetailArray = bundle.imageDetailsUrls[0];
+    if (firstDetailArray && Array.isArray(firstDetailArray) && firstDetailArray.length > 0) {
+      const firstDetailImage = firstDetailArray.find(url => url && url.trim() !== '');
+      if (firstDetailImage) {
+        bundleImage = firstDetailImage;
+      }
+    }
+  }
+
+  // ✨ Obtener imágenes de detalle del bundle si están disponibles
+  let bundleDetailImages: string[] | undefined = undefined;
+  if (bundle.imageDetailsUrls && Array.isArray(bundle.imageDetailsUrls) && bundle.imageDetailsUrls.length > 0) {
+    // Para bundles, tomar el primer array de URLs de detalle (similar a productos normales)
+    const firstDetailArray = bundle.imageDetailsUrls[0];
+    if (firstDetailArray && Array.isArray(firstDetailArray) && firstDetailArray.length > 0) {
+      const filteredUrls = firstDetailArray.filter(url => url && url.trim() !== '');
+      bundleDetailImages = filteredUrls.length > 0 ? filteredUrls : [emptyImg.src];
+    }
+  }
+
+  return {
+    id: bundle.product_sku,
+    name: bundle.modelo,
+    image: bundleImage, // ✨ Usar imagen del bundle si está disponible
+    colors: [], // Los bundles no tienen variantes de color (pero podrían tener imágenes de detalle)
+    price,
+    originalPrice,
+    discount,
+    isNew,
+    rating: 4.5,
+    reviewCount: 0,
+    description: `Bundle compuesto por: ${bundle.skus_bundle.join(', ')}`,
+    brand: "Samsung",
+    model: bundle.modelo,
+    category: bundle.categoria,
+    menu: bundle.menu,
+    capacity: null,
+    stock: 0, // Los bundles no tienen stock individual
+    stockTotal: 0,
+    sku: bundle.product_sku,
+    detailedDescription: `Incluye: ${bundle.skus_bundle.join(', ')}`,
+    segmento: [],
+    // Campos específicos de bundle
+    isBundle: true,
+    bundlePrice: bundle.bundle_price,
+    bundleDiscount: bundle.bundle_discount,
+    skusBundle: bundle.skus_bundle,
+    fechaInicio: fechaInicio,
+    fechaFinal: fechaFinal,
+    horaInicio: bundle.hora_inicio,
+    horaFinal: bundle.hora_final,
+    bundleDetailImages, // ✨ Imágenes de detalle para bundles
+  };
+}
+
+/**
+ * Mapea un ProductGrouped de la API a ProductCardProps
+ */
+export function mapGroupedProductToFrontend(product: ProductGrouped): ProductCardProps {
+  // Usar el mapper existente, pero primero necesitamos convertir ProductGrouped a ProductApiData
+  const apiProduct: ProductApiData = {
+    ...product,
+    precioNormal: product.precioeccommerce || product.precioNormal,
+  };
+  
+  return mapApiProductToFrontend(apiProduct);
+}
+
+/**
+ * Mapea un array mixto de ProductBundle | ProductGrouped a ProductCardProps[]
+ */
+export function mapBundlesAndProductsToFrontend(
+  items: (ProductBundle | ProductGrouped)[]
+): ProductCardProps[] {
+  return items.map(item => {
+    if (item.isBundle === true) {
+      return mapBundleToFrontend(item);
+    } else {
+      return mapGroupedProductToFrontend(item);
+    }
+  });
 }

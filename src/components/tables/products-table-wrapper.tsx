@@ -1,23 +1,27 @@
 "use client";
 
-import { useMemo, useCallback, useState, useEffect } from "react";
+import { useMemo, useCallback, useState, useEffect, useRef } from "react";
 import { DataTable } from "@/components/tables/data-table";
 import { createProductColumns } from "@/components/tables/columns/products-columns";
 import { useProducts } from "@/features/products/useProducts";
 import { categoryEndpoints, GroupedNotificationsResponse } from "@/lib/api";
+import { BackendCategoryV2 } from "@/types";
 
 const statuses = [
   { label: "Activo", value: "active" },
   { label: "Inactivo", value: "inactive" },
 ];
 
+type ViewMode = 'bundles' | 'products'
+
 interface ProductsTableWrapperProps {
   filterBySku?: string[];
   notificationsData?: GroupedNotificationsResponse | null;
   notificationsOnly?: boolean;
+  viewMode?: ViewMode;
 }
 
-export function ProductsTableWrapper({ filterBySku, notificationsData, notificationsOnly = false }: ProductsTableWrapperProps = {}) {
+export function ProductsTableWrapper({ filterBySku, notificationsData, notificationsOnly = false, viewMode = 'products' }: ProductsTableWrapperProps = {}) {
   const [pageSize, setPageSize] = useState(10);
 
   // Cargar filtros guardados desde localStorage (antes de cualquier petición)
@@ -57,19 +61,40 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await categoryEndpoints.getVisibleCompletas();
-        const categoryOptions = response.data.flatMap(category =>
-          category.menus
-            .filter(menu => menu.nombre) // Filtrar menús vacíos
-            .map(menu => ({
-              label: menu.nombre,
-              value: menu.nombre
-            }))
-        );
-        console.log(categoryOptions)
-        setCategories(categoryOptions);
+        // Usar el endpoint V2 que incluye información de bundles
+        const response = await categoryEndpoints.getVisibleCompletasV2();
+        if (response.success && response.data) {
+          const categorias = response.data as BackendCategoryV2[];
+          const categoryOptions = categorias.flatMap(category =>
+            category.menus
+              .filter(menu => menu.nombre) // Filtrar menús vacíos
+              .map(menu => ({
+                label: menu.nombre,
+                value: menu.nombre
+              }))
+          );
+          console.log(categoryOptions)
+          setCategories(categoryOptions);
+        }
       } catch (error) {
         console.error("Error fetching categories:", error);
+        // Fallback a V1 si V2 falla
+        try {
+          const fallbackResponse = await categoryEndpoints.getVisibleCompletas();
+          if (fallbackResponse.success && fallbackResponse.data) {
+            const categoryOptions = fallbackResponse.data.flatMap(category =>
+              category.menus
+                .filter(menu => menu.nombre) // Filtrar menús vacíos
+                .map(menu => ({
+                  label: menu.nombre,
+                  value: menu.nombre
+                }))
+            );
+            setCategories(categoryOptions);
+          }
+        } catch (fallbackError) {
+          console.error("Error en fallback:", fallbackError);
+        }
       }
     };
 
@@ -77,45 +102,28 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
   }, []);
 
   const initialFilters = useMemo(() => {
-    const filters: Record<string, any> = { limit: 10, page: 1 };
+    // V2: Siempre cargar 10 productos al inicio según el viewMode usando productType
+    const filters: Record<string, any> = { 
+      limit: 10, 
+      page: 1,
+      productType: viewMode // V2: Pasar viewMode como productType al backend para filtrar
+    };
 
     // Si hay filtro por SKU, aplicarlo (tiene prioridad sobre todo)
     if (filterBySku && filterBySku.length > 0) {
       filters.sku = filterBySku.join(",");
       filters.limit = 100; // Aumentar límite para mostrar todos los productos con notificaciones
+      delete filters.productType; // No aplicar productType si hay filtro por SKU
       return filters; // Retornar solo con filtro de SKU
     }
 
-    // Aplicar filtros guardados desde el inicio (solo si no hay filtro por SKU)
-    const savedFilters = getInitialFilters();
-    const savedSearch = typeof window !== 'undefined' ? localStorage.getItem('productsSearchQuery') : null;
-
-    if (savedFilters.menu && savedFilters.menu.length > 0) {
-      const hasBuds = savedFilters.menu.includes("buds");
-
-      if (hasBuds) {
-        const budsValues = savedFilters.menu.filter(v => v === "buds");
-        const otherValues = savedFilters.menu.filter(v => v !== "buds");
-
-        if (budsValues.length > 0) {
-          filters.name = savedSearch
-            ? `${savedSearch}, ${budsValues.join(", ")}`
-            : budsValues.join(", ");
-        }
-        if (otherValues.length > 0) {
-          filters.menu = otherValues.join(", ");
-        }
-      } else {
-        filters.menu = savedFilters.menu.join(", ");
-      }
-    }
-
-    if (savedSearch && !filters.name) {
-      filters.name = savedSearch;
-    }
-
+    // NO aplicar filtros guardados en la carga inicial para evitar problemas
+    // Los filtros guardados se aplicarán cuando el usuario interactúe con la UI
+    // Esto asegura que siempre se carguen productos al inicio
+    
+    console.log("[ProductsTableWrapper] Filtros iniciales (viewMode:", viewMode, "productType:", filters.productType, "limit: 10):", filters);
     return filters;
-  }, [filterBySku]);
+  }, [filterBySku, viewMode]);
 
   const {
     products,
@@ -137,11 +145,13 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
         page: 1,
         sortBy: field,
         sortOrder: direction,
+        productType: viewMode, // V2: Siempre mantener productType según viewMode
       };
 
       // Siempre mantener el filtro de SKU si existe (para productos con notificaciones)
       if (filterBySku && filterBySku.length > 0) {
         filters.sku = filterBySku.join(",");
+        delete filters.productType; // No aplicar productType si hay filtro por SKU
       }
 
       // Aplicar filtros de menú
@@ -180,7 +190,7 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
 
       filterProducts(filters);
     },
-    [filterProducts, currentFilters, searchQuery, pageSize, filterBySku]
+    [filterProducts, currentFilters, searchQuery, pageSize, filterBySku, viewMode]
   );
 
   const handlePaginationChange = useCallback(
@@ -191,11 +201,13 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       const filters: Record<string, any> = {
         limit: pagination.pageSize,
         page: newPage,
+        productType: viewMode, // V2: Siempre mantener productType según viewMode
       };
 
       // Siempre mantener el filtro de SKU si existe (para productos con notificaciones)
       if (filterBySku && filterBySku.length > 0) {
         filters.sku = filterBySku.join(",");
+        delete filters.productType; // No aplicar productType si hay filtro por SKU
       }
 
       // Aplicar filtros de menú (separados por comas)
@@ -221,6 +233,7 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       // Aplicar búsqueda solo si no se sobreescribió con buds
       if (searchQuery && !filters.name) {
         filters.name = searchQuery;
+        filters.productType = viewMode; // V2: Incluir productType para búsqueda correcta
       }
 
       // Mantener ordenamiento actual
@@ -240,7 +253,7 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
 
       filterProducts(filters);
     },
-    [filterProducts, currentFilters, searchQuery, sortBy, sortOrder, filterBySku]
+    [filterProducts, pageSize, currentFilters, sortBy, sortOrder, filterBySku, viewMode]
   );
 
   const handleSearchChange = useCallback(
@@ -260,6 +273,7 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
         name: search,
         limit: pageSize,
         page: 1,
+        productType: viewMode, // V2: Incluir productType para que el backend sepa si buscar por modelo (bundles) o nombre (productos)
       };
 
       // Siempre mantener el filtro de SKU si existe (para productos con notificaciones)
@@ -304,7 +318,7 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
 
       filterProducts(filters);
     },
-    [filterProducts, pageSize, currentFilters, sortBy, sortOrder, filterBySku]
+    [filterProducts, pageSize, currentFilters, sortBy, sortOrder, filterBySku, viewMode]
   );
 
   const handleFilterChange = useCallback(
@@ -327,11 +341,13 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       const filters: Record<string, any> = {
         limit: pageSize,
         page: 1,
+        productType: viewMode, // V2: Siempre mantener productType según viewMode
       };
 
       // Siempre mantener el filtro de SKU si existe (para productos con notificaciones)
       if (filterBySku && filterBySku.length > 0) {
         filters.sku = filterBySku.join(",");
+        delete filters.productType; // No aplicar productType si hay filtro por SKU
       }
 
       // Manejar filtro de Estado
@@ -372,6 +388,7 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       // Mantener la búsqueda existente solo si no se incluyó con buds
       if (searchQuery && !filters.name) {
         filters.name = searchQuery;
+        filters.productType = viewMode; // V2: Incluir productType para búsqueda correcta
       }
 
       // Mantener ordenamiento
@@ -391,7 +408,7 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
 
       filterProducts(filters);
     },
-    [filterProducts, pageSize, searchQuery, currentFilters, sortBy, sortOrder]
+    [filterProducts, pageSize, searchQuery, currentFilters, sortBy, sortOrder, viewMode]
   );
 
   const tableFilters = useMemo(
@@ -413,8 +430,52 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
 
   const columns = useMemo(
     () => createProductColumns(handleSortChange, notificationsData, notificationsOnly),
-    [handleSortChange, notificationsData]
+    [handleSortChange, notificationsData, notificationsOnly]
   );
+
+  // Filtrar productos según el modo de vista
+  // V2: Ya no necesitamos filtrar en frontend porque el backend lo hace con productType
+  // Pero mantenemos el filtrado por si acaso el backend no soporta productType
+  const filteredProducts = useMemo(() => {
+    // Si el backend ya filtró por productType, solo mostrar los productos tal cual
+    // Si no, filtrar en frontend como fallback
+    if (viewMode === 'bundles') {
+      return products.filter(p => p.isBundle === true);
+    } else {
+      // viewMode === 'products'
+      return products.filter(p => p.isBundle !== true);
+    }
+  }, [products, viewMode]);
+
+  // Recargar productos cuando cambie el viewMode
+  // Usar useRef para evitar recargas múltiples
+  const previousViewModeRef = useRef(viewMode);
+  
+  useEffect(() => {
+    // Solo recargar si el viewMode realmente cambió
+    if (previousViewModeRef.current !== viewMode) {
+      previousViewModeRef.current = viewMode;
+      
+      // Resetear paginación: página 1 y límite 10
+      setPageSize(10);
+      
+      // V2: Usar productType para filtrar en el backend
+      const filters: Record<string, any> = { 
+        limit: 10, 
+        page: 1,
+        productType: viewMode // Pasar viewMode como productType
+      };
+
+      // Limpiar búsqueda y filtros cuando cambia el viewMode
+      setSearchQuery("");
+      setCurrentFilters({});
+      localStorage.removeItem('productsSearchQuery');
+      localStorage.removeItem('productsMenuFilter');
+
+      console.log("[ProductsTableWrapper] Recargando productos por cambio de viewMode:", previousViewModeRef.current, "→", viewMode, "con productType:", filters.productType, "page: 1, limit: 10");
+      filterProducts(filters);
+    }
+  }, [viewMode, filterProducts]);
 
   if (error) {
     return (
@@ -426,12 +487,13 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
 
   return (
     <DataTable
+      key={`products-table-${viewMode}`} // Forzar re-render cuando cambia viewMode para resetear estado interno
       columns={columns}
-      data={products}
+      data={filteredProducts}
       searchKey="name"
       filters={tableFilters} // Permitir filtros (siempre se mantiene el filtro de SKU)
       pageCount={totalPages}
-      pageIndex={currentPage - 1}
+      pageIndex={((currentPage ?? 1) - 1) || 0}
       pageSize={pageSize}
       totalItems={totalItems}
       onPaginationChange={handlePaginationChange}

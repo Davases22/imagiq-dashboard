@@ -14,7 +14,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 import {
   Table,
@@ -86,6 +86,16 @@ export function DataTable<TData, TValue>({
     pageIndex: controlledPageIndex ?? 0,
     pageSize: controlledPageSize ?? 10,
   })
+
+  // Sincronizar paginación cuando cambien los valores controlados (especialmente cuando cambia viewMode)
+  useEffect(() => {
+    if (controlledPageIndex !== undefined || controlledPageSize !== undefined) {
+      setPagination({
+        pageIndex: controlledPageIndex ?? 0,
+        pageSize: controlledPageSize ?? 10,
+      })
+    }
+  }, [controlledPageIndex, controlledPageSize])
 
   const table = useReactTable({
     data,

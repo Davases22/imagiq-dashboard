@@ -16,9 +16,13 @@ import {
   ProductFilterParams,
   ProductApiResponse,
   ProductApiResponse2,
+  ProductBundle,
+  ProductGrouped,
+  SearchBundlesResult,
+  ProductPaginationData,
 } from "@/lib/api";
 
-import {mapApiProductsToFrontend ,groupProductsByCategory} from "@/lib/productMapper";
+import {mapApiProductsToFrontend, mapBundlesAndProductsToFrontend, mapGroupedProductToFrontend, mapBundleToFrontend, groupProductsByCategory} from "@/lib/productMapper";
 import { StaticImageData } from "next/image";
 
 export interface ProductColor {
@@ -73,6 +77,16 @@ export interface ProductCardProps {
   setSelectedColor?: (color: ProductColor) => void;
   puntos_q?: number; // Puntos Q acumulables por producto (valor fijo por ahora)
   segmento?: string[]; // Array de segmentos del producto (ej: ["Premium"])
+  // Campos para bundles
+  isBundle?: boolean;
+  bundlePrice?: number;
+  bundleDiscount?: number;
+  skusBundle?: string[];
+  fechaInicio?: Date | string;
+  fechaFinal?: Date | string;
+  horaInicio?: string;
+  horaFinal?: string;
+  bundleDetailImages?: string[]; // URLs de imágenes de detalle para bundles
 }
 
 
@@ -95,6 +109,7 @@ export interface ProductFilters {
   limit?: number; // Límite de productos por página
   sortBy?: string; // Campo por el cual ordenar (nombre, price, stock, etc.)
   sortOrder?: "desc" | "asc"; // Dirección del ordenamiento
+  productType?: 'bundles' | 'products'; // V2: Filtrar por tipo de producto (solo bundles o products)
 }
 
 
@@ -123,7 +138,7 @@ export const useProducts = (
   const [groupedProducts, setGroupedProducts] = useState<
     Record<string, ProductCardProps[]>
   >({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // Como en main: iniciar en false
   const [error, setError] = useState<string | null>(null);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -160,7 +175,16 @@ export const useProducts = (
 
       if (filters.color) params.color = filters.color;
       if (filters.capacity) params.capacidad = filters.capacity;
-      if (filters.name) params.query = filters.name;
+      if (filters.name) {
+        params.query = filters.name; // Mantener para compatibilidad con V1
+        
+        // V2: Para bundles buscar por 'modelo', para productos por 'nombre'
+        if (filters.productType === 'bundles') {
+          params.modelo = filters.name; // Bundles: buscar por modelo
+        } else {
+          params.nombre = filters.name; // Productos: buscar por nombre
+        }
+      }
       if (filters.sku) params.sku = filters.sku;
       if(filters.stock) params.stock = filters.stock;
       if (filters.withDiscount !== undefined)
@@ -195,12 +219,18 @@ export const useProducts = (
         params.sortOrder = filters.sortOrder;
       }
 
+      // V2: Agregar productType solo si está presente y es para bundles (V2)
+      // No incluir productType para productos normales (V1 no lo acepta)
+      if (filters.productType === 'bundles') {
+        params.productType = filters.productType;
+      }
+
       return params;
     },
     [currentPage]
   );
 
-  // Función principal para obtener productos
+  // Función principal para obtener productos (V1 para productos, V2 para bundles)
   const fetchProducts = useCallback(
     async (filters: ProductFilters = {}, append = false) => {
       setLoading(true);
@@ -208,29 +238,105 @@ export const useProducts = (
 
       try {
         const apiParams = convertFiltersToApiParams(filters);
-        const response = await productEndpoints.getFilteredSearch(apiParams);
-
-        if (response.success && response.data && response.data.data) {
-          const paginationData = response.data.data;
-          const mappedProducts = mapApiProductsToFrontend(paginationData.products);
-
-          if (append) {
-            setProducts((prev) => [...prev, ...mappedProducts]);
-          } else {
-            setProducts(mappedProducts);
-            setGroupedProducts(groupProductsByCategory(mappedProducts));
+        
+        // V2: Usar V2 solo para bundles, V1 directamente para productos
+        let response;
+        let useV2 = false;
+        
+        if (filters.productType === 'bundles') {
+          // Para bundles, usar V2
+          try {
+            console.log("[fetchProducts] Usando endpoint V2 para bundles con params:", apiParams);
+            response = await productEndpoints.getFilteredSearchV2(apiParams);
+            
+            // Verificar si la respuesta V2 es válida
+            if (response.success && response.data) {
+              const bundlesResult = response.data.data || response.data;
+              if (bundlesResult && bundlesResult.products !== undefined) {
+                useV2 = true;
+                console.log("[fetchProducts] V2 Response válida para bundles:", response);
+              }
+            }
+          } catch (v2Error) {
+            console.warn("[fetchProducts] V2 no disponible para bundles, usando V1:", v2Error);
+            // Limpiar parámetros específicos de V2 que V1 no acepta
+            const v1Params = { ...apiParams };
+            delete v1Params.productType; // V1 no acepta productType
+            delete v1Params.modelo; // V1 no acepta modelo
+            delete v1Params.filterMode; // V1 no acepta filterMode
+            response = await productEndpoints.getFilteredSearch(v1Params);
           }
+        } else {
+          // Para productos normales, usar V1 directamente (sin V2)
+          // Limpiar parámetros específicos de V2 que V1 no acepta
+          const v1Params = { ...apiParams };
+          delete v1Params.productType; // V1 no acepta productType
+          delete v1Params.modelo; // V1 no acepta modelo
+          delete v1Params.filterMode; // V1 no acepta filterMode
+          
+          console.log("[fetchProducts] Usando endpoint V1 para productos con params:", v1Params);
+          response = await productEndpoints.getFilteredSearch(v1Params);
+        }
 
-          setTotalItems(paginationData.total);
-          setTotalPages(paginationData.totalPages);
-          setCurrentPage(paginationData.page);
-          setHasNextPage(paginationData.hasNextPage);
-          setHasPreviousPage(paginationData.hasPreviousPage);
+        if (response.success && response.data) {
+          if (useV2) {
+            // Procesar respuesta V2
+            const bundlesResult = response.data.data || response.data;
+            if (bundlesResult && bundlesResult.products) {
+              // Type assertion: sabemos que en V2 es SearchBundlesResult
+              const paginationData = bundlesResult as SearchBundlesResult;
+              // Type assertion: sabemos que en V2 los productos son (ProductBundle | ProductGrouped)[]
+              const mappedProducts = mapBundlesAndProductsToFrontend(
+                paginationData.products as (ProductBundle | ProductGrouped)[]
+              );
 
-          // Si no hay resultados y estamos en una página > 1, no hacer nada más
-          // El reset de página debe ser manual, no automático
-          if (mappedProducts.length === 0 && paginationData.page > 1) {
-            console.warn("Empty results on page > 1, but not auto-resetting to avoid infinite loop");
+              if (append) {
+                setProducts((prev) => [...prev, ...mappedProducts]);
+              } else {
+                setProducts(mappedProducts);
+                setGroupedProducts(groupProductsByCategory(mappedProducts));
+              }
+
+              setTotalItems(paginationData.totalItems);
+              setTotalPages(paginationData.totalPages);
+              setCurrentPage(paginationData.currentPage ?? 1); // Usar 1 si es undefined o NaN
+              setHasNextPage(paginationData.hasNextPage);
+              setHasPreviousPage(paginationData.hasPreviousPage);
+            } else {
+              setError("Error: Estructura de respuesta V2 inválida");
+            }
+          } else {
+            // Procesar respuesta V1 (como en main)
+            console.log("[fetchProducts] Procesando respuesta V1:", response.data);
+            if (response.data.data) {
+              // Type assertion: sabemos que en V1 es ProductPaginationData
+              const paginationData = response.data.data as ProductPaginationData;
+              console.log("[fetchProducts] Pagination data V1:", {
+                total: paginationData.total,
+                page: paginationData.page,
+                totalPages: paginationData.totalPages,
+                productsCount: paginationData.products?.length || 0
+              });
+              
+              const mappedProducts = mapApiProductsToFrontend(paginationData.products);
+              console.log("[fetchProducts] Productos mapeados:", mappedProducts.length);
+
+              if (append) {
+                setProducts((prev) => [...prev, ...mappedProducts]);
+              } else {
+                setProducts(mappedProducts);
+                setGroupedProducts(groupProductsByCategory(mappedProducts));
+              }
+
+              setTotalItems(paginationData.total);
+              setTotalPages(paginationData.totalPages);
+              setCurrentPage(paginationData.page ?? 1); // Usar 1 si es undefined o NaN
+              setHasNextPage(paginationData.hasNextPage);
+              setHasPreviousPage(paginationData.hasPreviousPage);
+            } else {
+              console.error("[fetchProducts] V1: No hay data.data en la respuesta:", response.data);
+              setError(response.message || "Error al cargar productos");
+            }
           }
         } else {
           setError(response.message || "Error al cargar productos");
@@ -302,6 +408,7 @@ export const useProducts = (
       typeof initialFilters === "function"
         ? initialFilters()
         : initialFilters || {};
+    console.log("[useProducts] Cargando productos iniciales con filtros:", filtersToUse);
     fetchProducts(filtersToUse, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -341,37 +448,56 @@ export const useProduct = (productId: string) => {
       try {
         const codigoMarketBase = productId;
 
-        // Usar el endpoint específico para buscar por codigoMarketBase
-        const response = await productEndpoints.getByCodigoMarket(codigoMarketBase);
+        // Usar el endpoint V2 que soporta bundles y productos tradicionales
+        const response = await productEndpoints.getByCodigoMarketV2(codigoMarketBase);
+
+        console.log("V2 Response for product detail:", response);
+        console.log("Response structure:", {
+          success: response.success,
+          hasData: !!response.data,
+          dataKeys: response.data ? Object.keys(response.data) : [],
+        });
 
         if (response.success && response.data) {
-          const apiData = response.data as ProductApiResponse2;
-          console.log("Fetched product data:", apiData);
-          const mappedProducts = mapApiProductsToFrontend(apiData.products);
+          // El endpoint V2 retorna ProductApiResponseV2 que contiene SearchBundlesResult en data.data
+          const bundlesResult = response.data.data || response.data;
+          
+          if (bundlesResult && bundlesResult.products && bundlesResult.products.length > 0) {
+            // Mapear bundles + productos tradicionales
+            const mappedProducts = mapBundlesAndProductsToFrontend(bundlesResult.products);
 
-          if (mappedProducts.length > 0) {
-            const foundProduct = mappedProducts[0]; // Tomar el primer producto encontrado
-            setProduct(foundProduct);
+            if (mappedProducts.length > 0) {
+              const foundProduct = mappedProducts[0]; // Tomar el primer producto encontrado
+              setProduct(foundProduct);
 
-            // Obtener productos relacionados (otros productos con el mismo modelo base)
-            const modelBase =
-              foundProduct.name.split(" ")[1] ||
-              foundProduct.name.split(" ")[0];
-            const related = mappedProducts
-              .filter(
-                (p: ProductCardProps) => p.name.includes(modelBase) && p.id !== foundProduct.id
-              )
-              .slice(0, 4);
-            setRelatedProducts(related);
+              // Obtener productos relacionados (otros productos con el mismo modelo base)
+              const modelBase =
+                foundProduct.name.split(" ")[1] ||
+                foundProduct.name.split(" ")[0];
+              const related = mappedProducts
+                .filter(
+                  (p: ProductCardProps) => p.name.includes(modelBase) && p.id !== foundProduct.id
+                )
+                .slice(0, 4);
+              setRelatedProducts(related);
+            } else {
+              setError("Producto no encontrado");
+            }
           } else {
+            console.error("Invalid response structure:", bundlesResult);
             setError("Producto no encontrado");
           }
         } else {
-          setError("Error al obtener datos del producto");
+          console.error("Response error:", {
+            success: response.success,
+            message: response.message,
+            data: response.data,
+          });
+          setError(response.message || "Error al obtener datos del producto");
         }
       } catch (err) {
         console.error("Error fetching product:", err);
-        setError("Error al cargar el producto");
+        setError("Error de conexión al cargar el producto");
       } finally {
         setLoading(false);
       }

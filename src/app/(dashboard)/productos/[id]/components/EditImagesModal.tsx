@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProductCardProps, ProductColor } from "@/features/products/useProducts"
 import { productEndpoints } from "@/lib/api"
+import { getApiKey } from "@/lib/api-client"
 import { toast } from "sonner"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -34,6 +35,11 @@ export function EditImagesModal({
   selectedColor,
   isPremiumMode,
 }: EditImagesModalProps) {
+  // Detectar si es un bundle: SKU empieza con "F"
+  const isBundle = product.sku?.startsWith('F') || product.id?.startsWith('F') || false
+  // Para bundles, usar el SKU del producto directamente; para productos normales, usar selectedColor.sku
+  const currentSku = isBundle ? (product.sku || product.id) : (selectedColor?.sku || product.sku)
+
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [previewImageFile, setPreviewImageFile] = useState<File | null>(null)
   const [originalPreviewUrl, setOriginalPreviewUrl] = useState<string | null>(null)
@@ -60,12 +66,12 @@ export function EditImagesModal({
   // Cargar multimedia existente cuando se abre el modal
   useEffect(() => {
     const loadExistingMultimedia = async () => {
-      if (!isOpen || !selectedColor?.sku) return
+      if (!isOpen || !currentSku) return
 
-      console.log("Cargando multimedia para SKU:", selectedColor.sku)
+      console.log("Cargando multimedia para SKU:", currentSku)
       setIsLoadingData(true)
       try {
-        const response = await productEndpoints.getMultimedia(selectedColor.sku)
+        const response = await productEndpoints.getMultimedia(currentSku)
         console.log("Respuesta del endpoint getMultimedia:", response)
 
         if (response.success && response.data) {
@@ -107,7 +113,7 @@ export function EditImagesModal({
     }
 
     loadExistingMultimedia()
-  }, [isOpen, selectedColor?.sku])
+  }, [isOpen, currentSku])
 
   // Cargar contenido premium cuando se activa el switch
   useEffect(() => {
@@ -248,8 +254,14 @@ export function EditImagesModal({
   }
 
   const handleSave = async () => {
-    if (!selectedColor) {
+    // Para bundles no se requiere color, para productos normales sí
+    if (!isBundle && !selectedColor) {
       toast.error("No se ha seleccionado un color")
+      return
+    }
+
+    if (!currentSku) {
+      toast.error("No se pudo obtener el SKU del producto")
       return
     }
 
@@ -277,7 +289,7 @@ export function EditImagesModal({
         if (allFiles.length > 0) {
           toast.info(`Subiendo ${allFiles.length} imagen(es)...`)
           const response = await productEndpoints.addMultipleImages(
-            selectedColor.sku,
+            currentSku,
             allFiles
           )
 
@@ -318,7 +330,7 @@ export function EditImagesModal({
         if (imagenesEliminadas.length > 0) {
           toast.info(`Eliminando ${imagenesEliminadas.length} imagen(es) de detalle...`)
           const deleteResponse = await productEndpoints.deleteDetailImages(
-            selectedColor.sku,
+            currentSku,
             imagenesEliminadas
           )
 
@@ -334,13 +346,15 @@ export function EditImagesModal({
         // Si había una imagen preview original pero ahora está null, eliminarla del backend
         if (originalPreviewUrl && !previewImage && !previewImageFile) {
           toast.info("Eliminando imagen preview...")
-          const safeSku = selectedColor.sku.replace(/\//g, "_")
+          const safeSku = currentSku.replace(/\//g, "_")
+          const apiKey = getApiKey()
           const deleteResponse = await fetch(`${API_BASE_URL}/api/products/${safeSku}/media/preview`, {
             method: "DELETE",
             headers: {
               "Content-Type": "application/json",
+              ...(apiKey && { 'X-API-Key': apiKey }),
             },
-            body: JSON.stringify({ sku: selectedColor.sku }),
+            body: JSON.stringify({ sku: currentSku }),
           })
 
           if (!deleteResponse.ok) {
@@ -357,7 +371,7 @@ export function EditImagesModal({
           toast.info("Subiendo imagen preview...")
 
           const response = await productEndpoints.updateImageAtPosition(
-            selectedColor.sku,
+            currentSku,
             1, // Posición 1 = preview
             previewImageFile
           )
@@ -385,7 +399,7 @@ export function EditImagesModal({
               toast.info(`Reemplazando imagen en posición ${i + 1}...`)
 
               const response = await productEndpoints.addMultipleImages(
-                selectedColor.sku,
+                currentSku,
                 [image]
               )
 
@@ -416,7 +430,7 @@ export function EditImagesModal({
           if (newFiles.length === 1) {
             // Solo una imagen nueva
             toast.info("Agregando nueva imagen...")
-            const response = await productEndpoints.addImage(selectedColor.sku, newFiles[0])
+            const response = await productEndpoints.addImage(currentSku, newFiles[0])
 
             if (!response.success) {
               toast.error(response.message || "Error al agregar imagen")
@@ -429,7 +443,7 @@ export function EditImagesModal({
             toast.info(`Subiendo ${newFiles.length} imagen(es) de detalle...`)
 
             const response = await productEndpoints.addMultipleImages(
-              selectedColor.sku,
+              currentSku,
               newFiles
             )
 
@@ -498,7 +512,7 @@ export function EditImagesModal({
           // Solo llamar a reordenar si hay al menos una imagen
           if (finalImageUrls.length > 0) {
             toast.info("Reordenando imágenes...")
-            const response = await productEndpoints.reorderImages(selectedColor.sku, finalImageUrls)
+            const response = await productEndpoints.reorderImages(currentSku, finalImageUrls)
 
             if (!response.success) {
               toast.error(response.message || "Error al reordenar imágenes")
@@ -537,7 +551,7 @@ export function EditImagesModal({
           <DialogTitle>Editar multimedia</DialogTitle>
           <DialogDescription>
             Actualiza imágenes, videos y archivos AR para {product.name}
-            {selectedColor && ` - ${selectedColor.label}`}
+            {!isBundle && selectedColor && ` - ${selectedColor.label}`}
           </DialogDescription>
         </DialogHeader>
 

@@ -382,6 +382,21 @@ export interface BackendMenu {
   submenus?: BackendSubmenu[];
 }
 
+// V2: Categorías y Menús con información de bundles
+export interface BackendCategoryV2 extends BackendCategory {
+  // ✨ NUEVO: Estadísticas de bundles
+  totalBundles?: number;        // Total de bundles en esta categoría
+  bundlesActive?: number;       // Bundles activos (dentro de rango de fechas válido)
+  menus: BackendMenuV2[];
+}
+
+export interface BackendMenuV2 extends BackendMenu {
+  // ✨ NUEVO: Estadísticas de bundles
+  totalBundles?: number;        // Total de bundles en este menú
+  bundlesActive?: number;       // Bundles activos en este menú
+  submenus?: BackendSubmenu[];  // Los submenús NO tienen estadísticas de bundles
+}
+
 export interface BackendSubmenu {
   uuid: string;
   nombre: string;
