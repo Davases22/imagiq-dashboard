@@ -767,6 +767,7 @@ export function mapBundleToFrontend(bundle: ProductBundle): ProductCardProps {
     // Campos específicos de bundle
     isBundle: true,
     bundlePrice: bundle.bundle_price,
+    skuMultimedia: bundle.sku_multimedia, // ✨ SKU para multimedia (usar este para cargar/guardar imágenes)
     bundleDiscount: bundle.bundle_discount,
     skusBundle: bundle.skus_bundle,
     fechaInicio: fechaInicio,

@@ -30,8 +30,8 @@ export function ProductMultimedia({
   currentDiscount,
   currentStock,
 }: ProductMultimediaProps) {
-  // Detectar si es un bundle: SKU o ID empieza con "F" (importante)
-  const isBundle = product.sku?.startsWith('F') || product.id?.startsWith('F') || product.isBundle === true
+  // Detectar si es un bundle: usar el campo isBundle (no verificar por startsWith 'F')
+  const isBundle = product.isBundle === true
   
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -441,7 +441,7 @@ export function ProductMultimedia({
                     
                     return (
                       <Image
-                        key={product.sku || product.id || 'bundle-preview'}
+                        key={isBundle ? (product.skuMultimedia || product.sku || product.id) : (product.sku || product.id) || 'bundle-preview'}
                         src={previewImage}
                         alt={product.name}
                         fill

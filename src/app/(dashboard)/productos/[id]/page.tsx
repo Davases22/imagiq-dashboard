@@ -57,8 +57,8 @@ export default function ProductDetailPage() {
 
   // Establecer la mejor variante como seleccionada por defecto (solo para productos normales con colores)
   useEffect(() => {
-    // Detectar si es un bundle: SKU o ID empieza con "F" (importante)
-    const isBundle = product?.sku?.startsWith('F') || product?.id?.startsWith('F') || product?.isBundle === true;
+    // Detectar si es un bundle: usar el campo isBundle (no verificar por startsWith 'F')
+    const isBundle = product?.isBundle === true;
     
     // Si es un bundle, mantener selectedColor como null (los bundles no tienen variantes de color)
     if (isBundle) {
@@ -98,8 +98,8 @@ export default function ProductDetailPage() {
     )
   }
 
-  // Detectar si es un bundle: SKU o ID empieza con "F" (importante)
-  const isBundle = product.sku?.startsWith('F') || product.id?.startsWith('F') || product.isBundle === true
+  // Detectar si es un bundle: usar el campo isBundle (no verificar por startsWith 'F')
+  const isBundle = product.isBundle === true
   
   const currentPrice = selectedColor?.price || product.price
   const currentOriginalPrice = selectedColor?.originalPrice || product.originalPrice

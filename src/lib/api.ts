@@ -704,6 +704,7 @@ export interface ProductApiData {
 export interface ProductBundle {
   isBundle: true;
   product_sku: string;
+  sku_multimedia?: string; // ✨ SKU para multimedia (usado para imágenes y contenido multimedia en bundles)
   modelo: string; // Concatenación de modelos: "Modelo1 + Modelo2"
   categoria?: string;
   menu?: string;

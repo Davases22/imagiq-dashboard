@@ -87,6 +87,7 @@ export interface ProductCardProps {
   horaInicio?: string;
   horaFinal?: string;
   bundleDetailImages?: string[]; // URLs de imágenes de detalle para bundles
+  skuMultimedia?: string; // ✨ SKU para multimedia en bundles (para cargar/guardar imágenes)
 }
 
 

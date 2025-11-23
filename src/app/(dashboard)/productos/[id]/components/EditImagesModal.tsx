@@ -35,10 +35,12 @@ export function EditImagesModal({
   selectedColor,
   isPremiumMode,
 }: EditImagesModalProps) {
-  // Detectar si es un bundle: SKU empieza con "F"
-  const isBundle = product.sku?.startsWith('F') || product.id?.startsWith('F') || false
-  // Para bundles, usar el SKU del producto directamente; para productos normales, usar selectedColor.sku
-  const currentSku = isBundle ? (product.sku || product.id) : (selectedColor?.sku || product.sku)
+  // Detectar si es un bundle: usar el campo isBundle (no verificar por startsWith 'F')
+  const isBundle = product.isBundle === true
+  // Para bundles, usar skuMultimedia si está disponible (para multimedia); para productos normales, usar selectedColor.sku
+  const currentSku = isBundle 
+    ? (product.skuMultimedia || product.sku || product.id) // ✨ Usar skuMultimedia para bundles
+    : (selectedColor?.sku || product.sku)
 
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [previewImageFile, setPreviewImageFile] = useState<File | null>(null)
