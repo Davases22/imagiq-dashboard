@@ -151,6 +151,26 @@ function ActionsCell({
             </DialogDescription>
           </DialogHeader>
 
+          {/* Imagen del producto */}
+          <div className="flex justify-center mb-4">
+            <div className="w-32 h-32 relative overflow-hidden rounded-lg border">
+              {product.image ? (
+                <Image
+                  src={product.image}
+                  alt={product.name}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-muted flex items-center justify-center">
+                  <span className="text-xs text-muted-foreground">
+                    Sin imagen
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
             {notificationData?.emails.map((email, index) => (
               <div
