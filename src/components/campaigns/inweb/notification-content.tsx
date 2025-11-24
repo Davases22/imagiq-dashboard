@@ -15,6 +15,7 @@ export interface NotificationContentData {
   url: string;
   previewUrl: string;
   htmlContent: string;
+  imageFile?: File;
 }
 
 interface NotificationContentProps {
@@ -128,6 +129,7 @@ export function NotificationContent({ data, onChange, displayStyle }: Notificati
                           onChange({
                             ...data,
                             image: reader.result as string,
+                            imageFile: file,
                           });
                         };
                         reader.readAsDataURL(file);

@@ -33,6 +33,7 @@ import {
   SchedulingSettings,
   SchedulingSettingsData,
 } from "@/components/campaigns/inweb/scheduling-settings";
+import { inWebCampaignEndpoints } from "@/lib/api";
 
 export default function CrearCampaignInWebPage() {
   const router = useRouter();
@@ -64,6 +65,7 @@ export default function CrearCampaignInWebPage() {
     enableFallback: boolean;
     contentType: "image" | "html";
     htmlContent: string;
+    imageFile?: File;
   }>({
     // Campaign Info
     campaignName: "",
@@ -116,12 +118,136 @@ export default function CrearCampaignInWebPage() {
     router.push("/marketing/campaigns");
   };
 
-  const handleSave = () => {
-    console.log("Guardando campaña InWeb:", inWebData);
+  const handleSave = async () => {
+    const payload = {
+      campaign: {
+        name: inWebData.campaignName,
+        type: inWebData.campaignType,
+        channel: "inweb"
+      },
+      targeting: {
+        audience: inWebData.targetAudience,
+        cities: inWebData.selectedCities,
+        ageRange: {
+          min: inWebData.minAge,
+          max: inWebData.maxAge
+        },
+        purchaseFilter: {
+          operator: inWebData.purchaseOperator,
+          count: inWebData.purchaseCount
+        }
+      },
+      content: {
+        type: inWebData.contentType,
+        // Solo incluir image si es HTML, si es image type se envía como File
+        image: inWebData.contentType === "html" ? "" : "", //inWebData.image
+        url: inWebData.url,
+        htmlContent: inWebData.htmlContent
+      },
+      behavior: {
+        displayStyle: inWebData.displayStyle,
+        ttl: inWebData.ttl,
+        urgency: inWebData.urgency,
+        enableFallback: inWebData.enableFallback
+      },
+      enableFrequencyCap: inWebData.enableFrequencyCap,
+      frequencyCap: inWebData.enableFrequencyCap ? {
+        maxPerDay: inWebData.maxPerDay,
+        maxPerWeek: inWebData.maxPerWeek
+      } : null,
+      scheduling: {
+        sendImmediately: inWebData.sendImmediately,
+        scheduledDate: inWebData.scheduledDate?.toISOString() || null
+      },
+      enableABTest: inWebData.enableABTest,
+      abTest: inWebData.enableABTest ? {
+        enabled: true,
+        percentage: inWebData.abTestPercentage
+      } : null,
+      createdBy: "" // TODO: Obtener del usuario autenticado
+    };
+
+    try {
+      // Si es tipo imagen, enviar el archivo, si no, enviar solo el JSON
+      const imageFile = inWebData.contentType === "image" ? inWebData.imageFile : undefined;
+      const response = await inWebCampaignEndpoints.create(payload, imageFile);
+
+      if (!response.success) {
+        throw new Error(response.message || 'Error al guardar borrador');
+      }
+
+      console.log('Borrador guardado:', response.data);
+      // TODO: Mostrar notificación de éxito
+    } catch (error) {
+      console.error('Error al guardar:', error);
+      // TODO: Mostrar notificación de error
+    }
   };
 
-  const handleSend = () => {
-    console.log("Enviando campaña InWeb:", inWebData);
+  const handleSend = async () => {
+    const payload = {
+      campaign: {
+        name: inWebData.campaignName,
+        type: inWebData.campaignType,
+        channel: "inweb"
+      },
+      targeting: {
+        audience: inWebData.targetAudience,
+        cities: inWebData.selectedCities,
+        ageRange: {
+          min: inWebData.minAge,
+          max: inWebData.maxAge
+        },
+        purchaseFilter: {
+          operator: inWebData.purchaseOperator,
+          count: inWebData.purchaseCount
+        }
+      },
+      content: {
+        type: inWebData.contentType,
+        // Solo incluir image si es HTML, si es image type se envía como File
+        image: inWebData.contentType === "html" ? "" : "",
+        url: inWebData.url,
+        htmlContent: inWebData.htmlContent
+      },
+      behavior: {
+        displayStyle: inWebData.displayStyle,
+        ttl: inWebData.ttl,
+        urgency: inWebData.urgency,
+        enableFallback: inWebData.enableFallback
+      },
+      enableFrequencyCap: inWebData.enableFrequencyCap,
+      frequencyCap: inWebData.enableFrequencyCap ? {
+        maxPerDay: inWebData.maxPerDay,
+        maxPerWeek: inWebData.maxPerWeek
+      } : null,
+      scheduling: {
+        sendImmediately: inWebData.sendImmediately,
+        scheduledDate: inWebData.scheduledDate?.toISOString() || null
+      },
+      enableABTest: inWebData.enableABTest,
+      abTest: inWebData.enableABTest ? {
+        enabled: true,
+        percentage: inWebData.abTestPercentage
+      } : null,
+      createdBy: "admin@example.com" // TODO: Obtener del usuario autenticado
+    };
+
+    try {
+      // Si es tipo imagen, enviar el archivo, si no, enviar solo el JSON
+      const imageFile = inWebData.contentType === "image" ? inWebData.imageFile : undefined;
+      const response = await inWebCampaignEndpoints.create(payload, imageFile);
+
+      if (!response.success) {
+        throw new Error(response.message || 'Error al crear campaña');
+      }
+
+      console.log('Campaña creada:', response.data);
+      router.push(`/marketing/campaigns/crear`); ///marketing/campaigns/${response.data.id}`
+    } catch (error) {
+      console.error('Error al crear campaña:', error);
+      // TODO: Mostrar notificación de error
+    }
   };
 
   const handleCampaignInfoChange = (data: CampaignInfoData) => {

@@ -128,9 +128,24 @@ export default function CampañasPage() {
                     <div className="text-xs text-muted-foreground">2 campañas activas</div>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
-                  Crear
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => router.push('/marketing/campaigns/inweb')}
+                  >
+                    Ver todas
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => router.push('/marketing/campaigns/crear/inweb')}
+                  >
+                    Crear
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>

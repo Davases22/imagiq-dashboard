@@ -1355,3 +1355,127 @@ export const tiendasEndpoints = {
   getAll: () =>
     apiClient.get<BackendTienda[]>("/api/stores"),
 };
+
+// InWeb Campaigns API endpoints
+export interface InWebCampaignPayload {
+  campaign: {
+    name: string;
+    type: string;
+    channel: string;
+  };
+  targeting: {
+    audience: string;
+    cities: string[];
+    ageRange: {
+      min: number;
+      max: number;
+    };
+    purchaseFilter: {
+      operator: string;
+      count: number;
+    };
+  };
+  content: {
+    type: string;
+    image: string;
+    url: string;
+    htmlContent: string;
+  };
+  behavior: {
+    displayStyle: string;
+    ttl: number;
+    urgency: string;
+    enableFallback: boolean;
+  };
+  enableFrequencyCap: boolean;
+  frequencyCap: {
+    maxPerDay: number;
+    maxPerWeek: number;
+  } | null;
+  scheduling: {
+    sendImmediately: boolean;
+    scheduledDate: string | null;
+  };
+  enableABTest: boolean;
+  abTest: {
+    enabled: boolean;
+    percentage: number;
+  } | null;
+  createdBy: string;
+}
+
+export interface InWebCampaign {
+  id: string;
+  campaign_name: string;
+  campaign_type: string;
+  channel: string;
+  audience: string;
+  cities: string[];
+  age_min: number;
+  age_max: number;
+  purchase_filter_operator: string;
+  purchase_filter_count: number | null;
+  content_type: string;
+  image_url: string | null;
+  content_url: string | null;
+  html_content: string | null;
+  display_style: string;
+  ttl: number;
+  urgency: string;
+  enable_fallback: boolean;
+  enable_frequency_cap: boolean;
+  max_per_day: number | null;
+  max_per_week: number | null;
+  send_immediately: boolean;
+  scheduled_date: string | null;
+  enable_ab_test: boolean;
+  ab_test_percentage: number | null;
+  status: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InWebCampaignPaginationData {
+  data: InWebCampaign[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export const inWebCampaignEndpoints = {
+  create: (payload: InWebCampaignPayload, imageFile?: File) => {
+    // Si hay imagen, usar FormData
+    if (imageFile) {
+      const formData = new FormData();
+      formData.append('file', imageFile);
+      formData.append('data', JSON.stringify(payload));
+      return apiClient.postFormData<InWebCampaign>("/api/campaigns/inweb-campaigns/create", formData);
+    }
+    // Si no hay imagen (solo HTML), usar JSON
+    return apiClient.post<InWebCampaign>("/api/campaigns/inweb-campaigns/create", payload);
+  },
+  getAll: (params?: { page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', String(params.page));
+    if (params?.limit) searchParams.append('limit', String(params.limit));
+    const queryString = searchParams.toString();
+    const url = `/api/campaigns/inweb-campaigns${queryString ? `?${queryString}` : ''}`;
+    return apiClient.get<InWebCampaignPaginationData>(url);
+  },
+  getById: (id: string) =>
+    apiClient.get<InWebCampaign>(`/api/campaigns/inweb-campaigns/findOne?id=${id}`),
+  update: (id: string, payload: Partial<InWebCampaignPayload>, imageFile?: File) => {
+    // Si hay imagen, usar FormData
+    if (imageFile) {
+      const formData = new FormData();
+      formData.append('file', imageFile);
+      formData.append('data', JSON.stringify({ id, ...payload }));
+      return apiClient.putFormData<InWebCampaign>("/api/campaigns/inweb-campaigns/update", formData);
+    }
+    // Si no hay imagen, usar JSON
+    return apiClient.put<InWebCampaign>("/api/campaigns/inweb-campaigns/update", { id, ...payload });
+  },
+  delete: (id: string) =>
+    apiClient.delete<{ success: boolean; message?: string }>(`/api/campaigns/inweb-campaigns/delete?id=${id}`),
+};
