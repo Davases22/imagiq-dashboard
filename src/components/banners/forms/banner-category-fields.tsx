@@ -10,28 +10,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { categoryEndpoints } from "@/lib/api";
-import { BackendCategory } from "@/types";
+import { BackendCategory, BackendMenu } from "@/types";
 import { Loader2 } from "lucide-react";
 
 interface BannerCategoryFieldsProps {
   categoryId?: string;
   subcategoryId?: string;
+  submenuId?: string;
   onCategoryChange: (categoryId: string, categoryName: string) => void;
   onSubcategoryChange: (subcategoryId: string, subcategoryName: string) => void;
+  onSubmenuChange: (submenuId: string, submenuName: string) => void;
 }
 
 export function BannerCategoryFields({
   categoryId,
   subcategoryId,
+  submenuId,
   onCategoryChange,
   onSubcategoryChange,
+  onSubmenuChange,
 }: Readonly<BannerCategoryFieldsProps>) {
   const [categories, setCategories] = useState<BackendCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentCategoryUuid, setCurrentCategoryUuid] = useState<string>("");
-  const [currentSubcategoryUuid, setCurrentSubcategoryUuid] = useState<string>("");
-  const initializedRef = useRef<string>("");
+  const [currentSubcategoryUuid, setCurrentSubcategoryUuid] =
+    useState<string>("");
+  const [currentSubmenuUuid, setCurrentSubmenuUuid] = useState<string>("");
+  const initializedRef = useRef<boolean>(false);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -40,8 +46,6 @@ export function BannerCategoryFields({
         const response = await categoryEndpoints.getVisibleCompletas();
 
         if (response.success && response.data) {
-          console.log("Categorías cargadas:", response.data.length, "categorías");
-          console.log("UUIDs de categorías:", response.data.map(c => ({ uuid: c.uuid, nombre: c.nombreVisible || c.nombre })));
           setCategories(response.data);
         } else {
           setError("Error al cargar categorías");
@@ -57,61 +61,69 @@ export function BannerCategoryFields({
     fetchCategories();
   }, []);
 
-  // Cuando se cargan las categorías y hay un categoryId (nombre), buscar por nombre y notificar con UUID
+  // Inicializar valores cuando se cargan las categorías (modo edición SOLAMENTE)
+  // Este efecto SOLO se ejecuta UNA VEZ cuando las categorías se cargan por primera vez
   useEffect(() => {
-    // Evitar reinicializar si ya se procesó este categoryId
-    const currentKey = `${categoryId}-${subcategoryId}`;
-    if (initializedRef.current === currentKey) return;
-
-    if (categories.length === 0 || !categoryId || categoryId === "") return;
-
-    // Buscar categoría por nombre (categoryId es el nombre de la categoría)
-    const category = categories.find((cat) => {
-      const catName = cat.nombreVisible || cat.nombre || "";
-      return catName === categoryId;
-    });
-
-    if (!category) {
-      console.warn("Categoría no encontrada por nombre:", categoryId);
+    // Solo ejecutar una vez cuando las categorías están listas y hay IDs para inicializar
+    if (categories.length === 0 || !categoryId || initializedRef.current) {
       return;
     }
 
-    console.log("Inicializando categoría:", category.nombreVisible || category.nombre, "UUID:", category.uuid);
+    // Buscar categoría por UUID (create mode) o por nombre (edit mode)
+    const category = categories.find((cat) => {
+      const catName = cat.nombreVisible || cat.nombre || "";
+      return cat.uuid === categoryId || catName === categoryId;
+    });
 
-    // Actualizar estado interno con UUID
-    setCurrentCategoryUuid(category.uuid);
-
-    // Notificar con el UUID y el nombre de categoría
-    const categoryName = category.nombreVisible || category.nombre || "";
-    if (categoryName) {
-      onCategoryChange(category.uuid, categoryName);
+    if (!category) {
+      console.error(
+        "[BannerCategoryFields] ❌ Categoría no encontrada:",
+        categoryId
+      );
+      return;
     }
 
-    // Buscar subcategoría por nombre si existe
+    // Establecer UUID de categoría
+    setCurrentCategoryUuid(category.uuid);
+
+    // Inicializar subcategoría si existe
     if (subcategoryId && subcategoryId !== "none" && category.menus) {
       const menu = category.menus.find((m) => {
         const menuName = m.nombreVisible || m.nombre || "";
-        return menuName === subcategoryId;
+        return m.uuid === subcategoryId || menuName === subcategoryId;
       });
 
       if (menu) {
-        const menuName = menu.nombreVisible || menu.nombre || "";
-        console.log("Inicializando subcategoría:", menuName, "UUID:", menu.uuid);
         setCurrentSubcategoryUuid(menu.uuid);
-        if (menuName) {
-          onSubcategoryChange(menu.uuid, menuName);
+
+        // Inicializar submenú si existe
+        if (submenuId && submenuId !== "none" && menu.submenus) {
+          const submenu = menu.submenus.find((sm) => {
+            const submenuName = sm.nombreVisible || sm.nombre || "";
+            return sm.uuid === submenuId || submenuName === submenuId;
+          });
+
+          if (submenu) {
+            setCurrentSubmenuUuid(submenu.uuid);
+          }
         }
       }
     }
 
-    // Marcar como inicializado para este par específico
-    initializedRef.current = currentKey;
-  }, [categories, categoryId, subcategoryId, onCategoryChange, onSubcategoryChange]);
+    // Marcar como inicializado para evitar re-ejecución
+    initializedRef.current = true;
+  }, [categories, categoryId, subcategoryId, submenuId]);
 
-  // Usar el UUID interno si está disponible, sino buscar por nombre
-  const selectedCategory = categories.find((cat) =>
-    cat.uuid === currentCategoryUuid ||
-    (cat.nombreVisible || cat.nombre) === categoryId
+  const selectedCategory = categories.find(
+    (cat) =>
+      cat.uuid === currentCategoryUuid ||
+      (cat.nombreVisible || cat.nombre) === categoryId
+  );
+
+  const selectedMenu: BackendMenu | undefined = selectedCategory?.menus?.find(
+    (menu) =>
+      menu.uuid === currentSubcategoryUuid ||
+      (menu.nombreVisible || menu.nombre) === subcategoryId
   );
 
   const handleCategoryChange = (newCategoryId: string) => {
@@ -119,15 +131,35 @@ export function BannerCategoryFields({
     const categoryName = category?.nombreVisible || category?.nombre || "";
     setCurrentCategoryUuid(newCategoryId);
     setCurrentSubcategoryUuid("");
+    setCurrentSubmenuUuid("");
     onCategoryChange(newCategoryId, categoryName);
     onSubcategoryChange("none", "");
+    onSubmenuChange("none", "");
+  };
+
+  const handleSubcategoryChange = (value: string) => {
+    const menu = selectedCategory?.menus?.find((m) => m.uuid === value);
+    const menuName = menu?.nombreVisible || menu?.nombre || "";
+    setCurrentSubcategoryUuid(value);
+    setCurrentSubmenuUuid("");
+    onSubcategoryChange(value, menuName);
+    onSubmenuChange("none", "");
+  };
+
+  const handleSubmenuChange = (value: string) => {
+    const submenu = selectedMenu?.submenus?.find((sm) => sm.uuid === value);
+    const submenuName = submenu?.nombreVisible || submenu?.nombre || "";
+    setCurrentSubmenuUuid(value);
+    onSubmenuChange(value, submenuName);
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">Cargando categorías...</span>
+        <span className="ml-2 text-sm text-muted-foreground">
+          Cargando categorías...
+        </span>
       </div>
     );
   }
@@ -140,7 +172,10 @@ export function BannerCategoryFields({
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="category">Categoría *</Label>
-        <Select value={currentCategoryUuid || categoryId} onValueChange={handleCategoryChange}>
+        <Select
+          value={currentCategoryUuid || categoryId}
+          onValueChange={handleCategoryChange}
+        >
           <SelectTrigger id="category">
             <SelectValue placeholder="Selecciona una categoría" />
           </SelectTrigger>
@@ -159,21 +194,42 @@ export function BannerCategoryFields({
           <Label htmlFor="subcategory">Subcategoría (Opcional)</Label>
           <Select
             value={currentSubcategoryUuid || subcategoryId}
-            onValueChange={(value) => {
-              const menu = selectedCategory.menus.find((m) => m.uuid === value);
-              const menuName = menu?.nombreVisible || menu?.nombre || "";
-              setCurrentSubcategoryUuid(value);
-              onSubcategoryChange(value, menuName);
-            }}
+            onValueChange={handleSubcategoryChange}
           >
             <SelectTrigger id="subcategory">
               <SelectValue placeholder="Selecciona una subcategoría" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem key="none" value="none">Ninguna (mostrar en toda la categoría)</SelectItem>
+              <SelectItem key="none" value="none">
+                Ninguna (mostrar en toda la categoría)
+              </SelectItem>
               {selectedCategory.menus.map((menu) => (
                 <SelectItem key={menu.uuid} value={menu.uuid}>
                   {menu.nombreVisible || menu.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {selectedMenu?.submenus && selectedMenu.submenus.length > 0 && (
+        <div className="space-y-2">
+          <Label htmlFor="submenu">Serie / Submenú (Opcional)</Label>
+          <Select
+            value={currentSubmenuUuid || submenuId}
+            onValueChange={handleSubmenuChange}
+          >
+            <SelectTrigger id="submenu">
+              <SelectValue placeholder="Selecciona una serie" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem key="none" value="none">
+                Ninguna (mostrar en toda la subcategoría)
+              </SelectItem>
+              {selectedMenu.submenus.map((submenu) => (
+                <SelectItem key={submenu.uuid} value={submenu.uuid}>
+                  {submenu.nombreVisible || submenu.nombre}
                 </SelectItem>
               ))}
             </SelectContent>
