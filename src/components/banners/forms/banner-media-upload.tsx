@@ -167,8 +167,8 @@ function MediaField({
 }
 
 export function BannerMediaUpload({ files, existingUrls, placement, onFileChange }: BannerMediaUploadProps) {
-  // Para product-detail y category-top (o placements que empiezan con "banner-"), solo mostrar una opción general
-  const isSingleMedia = placement === "product-detail" || placement === "category-top" || placement.startsWith("banner-");
+  // Para product-detail, mostrar solo una opción general (formato vertical)
+  const isSingleMedia = placement === "product-detail";
 
   if (isSingleMedia) {
     return (
@@ -198,7 +198,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
     );
   }
 
-  // Para otros placements, mostrar desktop y mobile separados
+  // Para todos los demás placements (hero, home, category-top, banner-*), mostrar desktop y mobile separados
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <MediaField

@@ -55,6 +55,7 @@ export interface BackendBanner {
 
   category_id?: string;
   subcategory_id?: string;
+  submenu_id?: string;
   created_at: string;
   updated_at: string;
   created_by?: string;

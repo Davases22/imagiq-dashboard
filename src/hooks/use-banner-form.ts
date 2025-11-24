@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { bannerEndpoints } from "@/lib/api";
 import type { BannerPosition, BannerTextStyles } from "@/types/banner";
-import { gridToPercentage, getDefaultPosition } from "@/components/banners/utils/position-utils";
+import {
+  gridToPercentage,
+  getDefaultPosition,
+} from "@/components/banners/utils/position-utils";
+import { parsePlacementString } from "@/components/banners/utils/placement-parser";
 import {
   buildCreateBannerFormData,
   buildUpdateBannerFormData,
@@ -11,30 +15,27 @@ import {
   type ExistingMediaUrls,
 } from "@/components/banners/utils/banner-form-builder";
 
-// Helpers extraídos para reducir la complejidad cognitiva del hook
-function parsePlacementString(placement?: string) {
-  let parsedCategoryId = "";
-  let parsedSubcategoryId = "none";
-
-  if (placement?.startsWith("banner-")) {
-    const parts = placement.replace("banner-", "").split("-") ?? [];
-    if (parts.length > 0) parsedCategoryId = parts[0];
-    if (parts.length > 1) parsedSubcategoryId = parts.slice(1).join("-");
-  }
-
-  return { parsedCategoryId, parsedSubcategoryId };
-}
-
-function parsePositionFromBackend(pos: any): BannerPosition | null {
+function parsePositionFromBackend(
+  pos: string | BannerPosition | null | undefined
+): BannerPosition | null {
   if (!pos) return null;
+
   if (typeof pos === "string") {
     try {
-      pos = JSON.parse(pos);
+      const parsed = JSON.parse(pos);
+      if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+        return parsed as BannerPosition;
+      }
+      return null;
     } catch {
       return null;
     }
   }
-  if (typeof pos.x === "number" && typeof pos.y === "number") return pos as BannerPosition;
+
+  if (typeof pos.x === "number" && typeof pos.y === "number") {
+    return pos as BannerPosition;
+  }
+
   return null;
 }
 
@@ -54,7 +55,11 @@ interface UseBannerFormOptions {
  * - Handlers de cambio
  * - Envío del formulario
  */
-export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFormOptions) {
+export function useBannerForm({
+  mode,
+  bannerId,
+  initialPlacement,
+}: UseBannerFormOptions) {
   const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -72,13 +77,18 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
     coordinates_mobile: "4-4",
     category_id: "",
     subcategory_id: "none",
+    submenu_id: "none",
   });
 
   const [existingUrls, setExistingUrls] = useState<ExistingMediaUrls>({});
 
   // NUEVO: Estado para posiciones basadas en porcentajes
-  const [positionDesktop, setPositionDesktop] = useState<BannerPosition>(getDefaultPosition());
-  const [positionMobile, setPositionMobile] = useState<BannerPosition>(getDefaultPosition());
+  const [positionDesktop, setPositionDesktop] = useState<BannerPosition>(
+    getDefaultPosition()
+  );
+  const [positionMobile, setPositionMobile] = useState<BannerPosition>(
+    getDefaultPosition()
+  );
 
   // NUEVO: Estado para estilos de texto
   // NUEVO: Estilos de texto
@@ -105,24 +115,15 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
               mobile_video_url: banner.mobile_video_url,
             });
 
-            // Parsear placement para extraer category_id y subcategory_id
-            // Formato: "banner-{categoria}" o "banner-{categoria}-{subcategoria}"
-            let parsedCategoryId = "";
-            let parsedSubcategoryId = "none";
-
-            if (banner.placement?.startsWith("banner-")) {
-              // Usar optional chaining para evitar warnings y manejar undefined de forma segura
-              const parts = banner.placement?.replace("banner-", "")?.split("-") ?? [];
-              // El primer elemento es el nombre de la categoría
-              if (parts.length > 0) parsedCategoryId = parts[0];
-              // Si hay más elementos, los demás son la subcategoría (unidos por -)
-              if (parts.length > 1) parsedSubcategoryId = parts.slice(1).join("-");
-            }
+            // Parsear placement para extraer categoría, subcategoría y submenú
+            const { categoryName, subcategoryName, submenuName } =
+              parsePlacementString(banner.placement);
 
             console.log("Banner cargado del backend:", {
               placement: banner.placement,
-              parsedCategoryName: parsedCategoryId,
-              parsedSubcategoryName: parsedSubcategoryId,
+              parsedCategoryName: categoryName,
+              parsedSubcategoryName: subcategoryName,
+              parsedSubmenuName: submenuName,
             });
 
             // Cargar datos del formulario
@@ -136,43 +137,30 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
               color_font: banner.color_font || "#000000",
               coordinates: banner.coordinates || "4-4",
               coordinates_mobile: banner.coordinates_mobile || "4-4",
-              category_id: parsedCategoryId,
-              subcategory_id: parsedSubcategoryId,
+              category_id: categoryName,
+              subcategory_id: subcategoryName,
+              submenu_id: submenuName,
             });
 
             // NUEVO: Cargar posiciones basadas en porcentajes (o convertir desde grid)
-            // Helper para validar y parsear posiciones del backend
-            const parsePosition = (pos: any): BannerPosition | null => {
-              if (!pos) return null;
-              // Si es string, intentar parsear JSON
-              if (typeof pos === 'string') {
-                try {
-                  pos = JSON.parse(pos);
-                } catch {
-                  return null;
-                }
-              }
-              // Validar que tenga x e y numéricos
-              if (typeof pos.x === 'number' && typeof pos.y === 'number') {
-                return pos as BannerPosition;
-              }
-              return null;
-            };
-
-            const desktopPos = parsePosition(banner.position_desktop)
-              || gridToPercentage(banner.coordinates)
-              || getDefaultPosition();
-            const mobilePos = parsePosition(banner.position_mobile)
-              || gridToPercentage(banner.coordinates_mobile)
-              || getDefaultPosition();
+            const desktopPos =
+              parsePositionFromBackend(banner.position_desktop) ||
+              gridToPercentage(banner.coordinates) ||
+              getDefaultPosition();
+            const mobilePos =
+              parsePositionFromBackend(banner.position_mobile) ||
+              gridToPercentage(banner.coordinates_mobile) ||
+              getDefaultPosition();
 
             setPositionDesktop(desktopPos);
             setPositionMobile(mobilePos);
 
             // NUEVO: Cargar estilos de texto si existen
-            const parseTextStyles = (styles: any): BannerTextStyles | undefined => {
+            const parseTextStyles = (
+              styles: any
+            ): BannerTextStyles | undefined => {
               if (!styles) return undefined;
-              if (typeof styles === 'string') {
+              if (typeof styles === "string") {
                 try {
                   return JSON.parse(styles) as BannerTextStyles;
                 } catch {
@@ -238,19 +226,29 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
     }
 
     // Validar imágenes obligatorias para hero y home
-    const isHeroOrHome = formData.placement === "hero" || formData.placement === "home";
+    const isHeroOrHome =
+      formData.placement === "hero" || formData.placement === "home";
 
     if (isHeroOrHome) {
       // Validar imagen desktop (nueva o existente)
-      const hasDesktopImage = formData.desktop_image || existingUrls.desktop_image_url;
+      const hasDesktopImage =
+        formData.desktop_image || existingUrls.desktop_image_url;
       if (!hasDesktopImage) {
-        return { success: false, error: "La imagen de escritorio es obligatoria para banners Hero y Home" };
+        return {
+          success: false,
+          error:
+            "La imagen de escritorio es obligatoria para banners Hero y Home",
+        };
       }
 
       // Validar imagen mobile (nueva o existente)
-      const hasMobileImage = formData.mobile_image || existingUrls.mobile_image_url;
+      const hasMobileImage =
+        formData.mobile_image || existingUrls.mobile_image_url;
       if (!hasMobileImage) {
-        return { success: false, error: "La imagen móvil es obligatoria para banners Hero y Home" };
+        return {
+          success: false,
+          error: "La imagen móvil es obligatoria para banners Hero y Home",
+        };
       }
     }
 
@@ -259,6 +257,11 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
 
   // Envío del formulario
   const prepareAndSend = async (status: "draft" | "active") => {
+    // SIMPLIFICACIÓN: El backend NO necesita category_id, subcategory_id, submenu_id
+    // Solo necesita el placement string para determinar dónde mostrar el banner
+    // Ejemplo: "banner-Dispositivos móviles-Galaxy Tab-Galaxy Tab A"
+    // El frontend parseará este string para mostrar el banner en el lugar correcto
+
     const fields: BannerFormFields = {
       name: formData.name,
       placement: formData.placement,
@@ -269,8 +272,11 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
       color_font: formData.color_font,
       coordinates: formData.coordinates,
       coordinates_mobile: formData.coordinates_mobile,
-      category_id: formData.category_id,
-      subcategory_id: formData.subcategory_id === "none" ? "" : formData.subcategory_id,
+      // NO enviamos category_id, subcategory_id, submenu_id
+      // El placement es suficiente
+      category_id: undefined,
+      subcategory_id: undefined,
+      submenu_id: undefined,
       // NUEVO: Posiciones basadas en porcentajes
       position_desktop: positionDesktop,
       position_mobile: positionMobile,
@@ -291,14 +297,24 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
     }
 
     if (!bannerId) throw new Error("Banner ID is required for edit mode");
-    const data = buildUpdateBannerFormData(bannerId, fields, files, existingUrls, status);
+    const data = buildUpdateBannerFormData(
+      bannerId,
+      fields,
+      files,
+      existingUrls,
+      status
+    );
     return bannerEndpoints.update(data);
   };
 
-  const handleSubmit = async (status: "draft" | "active", onValidationError?: (error: string) => void) => {
+  const handleSubmit = async (
+    status: "draft" | "active",
+    onValidationError?: (error: string) => void
+  ) => {
     const validation = validate();
     if (!validation.success) {
-      if (validation.error && onValidationError) onValidationError(validation.error);
+      if (validation.error && onValidationError)
+        onValidationError(validation.error);
       return;
     }
 
@@ -312,7 +328,8 @@ export function useBannerForm({ mode, bannerId, initialPlacement }: UseBannerFor
         alert(response.message || `Error al ${action} el banner`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
       alert(errorMessage);
       console.error("Error submitting banner:", error);
     } finally {

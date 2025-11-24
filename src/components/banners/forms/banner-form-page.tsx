@@ -14,6 +14,7 @@ import { BannerCategoryFields } from "./banner-category-fields";
 import { BannerTextStylesFields } from "./banner-text-styles-fields";
 import { BannerPreview } from "../preview/banner-preview";
 import { BannerSizeGuide } from "./banner-size-guide";
+import { buildNormalizedPlacement } from "@/utils/normalizeText";
 
 interface BannerFormPageProps {
   readonly mode: "create" | "edit";
@@ -28,8 +29,9 @@ interface BannerFormPageProps {
 export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormPageProps) {
   const router = useRouter();
 
-  // Ref para guardar el nombre de categoría y evitar race conditions con useState
+  // Refs para guardar nombres y evitar race conditions con useState
   const categoryNameRef = useRef("");
+  const subcategoryNameRef = useRef("");
 
   // Estado para controlar qué dispositivo está activo
   const [activeDevice, setActiveDevice] = useState<"desktop" | "mobile">("desktop");
@@ -120,20 +122,54 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
                 <BannerCategoryFields
                   categoryId={formData.category_id}
                   subcategoryId={formData.subcategory_id}
+                  submenuId={formData.submenu_id}
                   onCategoryChange={(categoryId, newCategoryName) => {
                     handleFieldChange("category_id", categoryId);
                     categoryNameRef.current = newCategoryName;
-                    // Actualizar placement solo con la categoría
-                    handleFieldChange("placement", `banner-${newCategoryName}`);
+                    subcategoryNameRef.current = "";
+                    handleFieldChange("submenu_id", "none");
+                    // ✨ Actualizar placement solo con la categoría (NORMALIZADO)
+                    handleFieldChange("placement", buildNormalizedPlacement(newCategoryName));
                   }}
                   onSubcategoryChange={(subcategoryId, newSubcategoryName) => {
                     handleFieldChange("subcategory_id", subcategoryId);
-                    // Actualizar placement con categoría y subcategoría usando el ref
-                    // El ref siempre tiene el valor más reciente, evitando race conditions
+                    subcategoryNameRef.current = newSubcategoryName;
+                    handleFieldChange("submenu_id", "none");
+                    // ✨ Actualizar placement con categoría y subcategoría (NORMALIZADO)
                     const currentCategoryName = categoryNameRef.current;
                     const newPlacement = subcategoryId === "none" || !subcategoryId
-                      ? `banner-${currentCategoryName}`
-                      : `banner-${currentCategoryName}-${newSubcategoryName}`;
+                      ? buildNormalizedPlacement(currentCategoryName)
+                      : buildNormalizedPlacement(currentCategoryName, newSubcategoryName);
+                    handleFieldChange("placement", newPlacement);
+                  }}
+                  onSubmenuChange={(submenuId, newSubmenuName) => {
+                    handleFieldChange("submenu_id", submenuId);
+                    // ✨ Construir placement con los 3 niveles (NORMALIZADO)
+                    const currentCategoryName = categoryNameRef.current;
+                    const currentSubcategoryName = subcategoryNameRef.current;
+
+                    let newPlacement: string;
+
+                    if (currentSubcategoryName && currentSubcategoryName !== "none") {
+                      if (submenuId !== "none" && newSubmenuName) {
+                        // Nivel 3: banner-categoria-menu-submenu
+                        newPlacement = buildNormalizedPlacement(
+                          currentCategoryName,
+                          currentSubcategoryName,
+                          newSubmenuName
+                        );
+                      } else {
+                        // Nivel 2: banner-categoria-menu
+                        newPlacement = buildNormalizedPlacement(
+                          currentCategoryName,
+                          currentSubcategoryName
+                        );
+                      }
+                    } else {
+                      // Nivel 1: banner-categoria
+                      newPlacement = buildNormalizedPlacement(currentCategoryName);
+                    }
+
                     handleFieldChange("placement", newPlacement);
                   }}
                 />

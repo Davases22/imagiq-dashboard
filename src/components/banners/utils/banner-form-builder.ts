@@ -17,6 +17,7 @@ export interface BannerFormFields {
   coordinates_mobile: string;
   category_id?: string;
   subcategory_id?: string;
+  submenu_id?: string;
   // NUEVO: Posiciones basadas en porcentajes
   position_desktop?: BannerPosition;
   position_mobile?: BannerPosition;
@@ -79,9 +80,10 @@ function appendTextFields(
     formData.append('text_styles', JSON.stringify(fields.text_styles));
   }
 
-  // Solo enviar category_id y subcategory_id si tienen valor
-  if (fields.category_id) formData.append("category_id", fields.category_id);
-  if (fields.subcategory_id) formData.append("subcategory_id", fields.subcategory_id);
+  // NOTA: NO enviamos category_id, subcategory_id, submenu_id al backend
+  // El placement string es suficiente para que el frontend determine la ubicación
+  // Enviar estos UUIDs causa errores de validación 500 en el backend
+  // Solo el placement es necesario: "banner-{categoria}-{menu}-{submenu}"
 }
 
 /**
