@@ -12,8 +12,6 @@ import {
 interface OfertaBasicFieldsProps {
   titulo: string
   descripcion: string
-  descuento: string
-  tipoDescuento: "porcentaje" | "monto"
   fechaInicio: string
   fechaFin: string
   onFieldChange: (field: string, value: string) => void
@@ -22,8 +20,6 @@ interface OfertaBasicFieldsProps {
 export function OfertaBasicFields({
   titulo,
   descripcion,
-  descuento,
-  tipoDescuento,
   fechaInicio,
   fechaFin,
   onFieldChange,
@@ -56,48 +52,6 @@ export function OfertaBasicFields({
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="tipoDescuento">
-            Tipo de Descuento <span className="text-destructive">*</span>
-          </Label>
-          <Select
-            value={tipoDescuento}
-            onValueChange={(value) => onFieldChange("tipoDescuento", value)}
-          >
-            <SelectTrigger id="tipoDescuento">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="porcentaje">Porcentaje (%)</SelectItem>
-              <SelectItem value="monto">Monto Fijo ($)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="descuento">
-            Descuento <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="descuento"
-            type="number"
-            min="0"
-            step={tipoDescuento === "porcentaje" ? "1" : "0.01"}
-            max={tipoDescuento === "porcentaje" ? "100" : undefined}
-            placeholder={tipoDescuento === "porcentaje" ? "30" : "500"}
-            value={descuento}
-            onChange={(e) => onFieldChange("descuento", e.target.value)}
-            required
-          />
-          <p className="text-xs text-muted-foreground">
-            {tipoDescuento === "porcentaje"
-              ? "Porcentaje de descuento (0-100)"
-              : "Monto fijo en pesos"}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
           <Label htmlFor="fechaInicio">
             Fecha de Inicio <span className="text-destructive">*</span>
           </Label>
@@ -118,7 +72,7 @@ export function OfertaBasicFields({
             id="fechaFin"
             type="date"
             value={fechaFin}
-            onChange={(e) => onFieldChange("fechaInicio", e.target.value)}
+            onChange={(e) => onFieldChange("fechaFin", e.target.value)}
             min={fechaInicio}
             required
           />

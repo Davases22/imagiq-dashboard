@@ -11,6 +11,10 @@ import {
   OfertaBannersManager,
   OfertaSummaryCard,
   OfertaBannerPreviewCard,
+  OfertaSectionsManager,
+  OfertaInfoSection,
+  OfertaFaqSection,
+  OfertaContentSummary,
 } from "@/components/ofertas"
 import { useOfertaForm } from "@/hooks/use-oferta-form"
 
@@ -18,8 +22,6 @@ export default function CrearOfertaPage() {
   const {
     titulo,
     descripcion,
-    descuento,
-    tipoDescuento,
     fechaInicio,
     fechaFin,
     isActive,
@@ -30,6 +32,16 @@ export default function CrearOfertaPage() {
     activeBannerId,
     setActiveBannerId,
     activeBanner,
+    productSections,
+    setProductSections,
+    infoSectionEnabled,
+    setInfoSectionEnabled,
+    infoItems,
+    setInfoItems,
+    faqEnabled,
+    setFaqEnabled,
+    faqItems,
+    setFaqItems,
     handleOfertaFieldChange,
     handleBannersChange,
     handlePositionDesktopChange,
@@ -68,8 +80,6 @@ export default function CrearOfertaPage() {
                 <OfertaBasicFields
                   titulo={titulo}
                   descripcion={descripcion}
-                  descuento={descuento}
-                  tipoDescuento={tipoDescuento}
                   fechaInicio={fechaInicio}
                   fechaFin={fechaFin}
                   onFieldChange={handleOfertaFieldChange}
@@ -115,6 +125,35 @@ export default function CrearOfertaPage() {
 
             <Card>
               <CardHeader>
+                <CardTitle>Secciones de Productos</CardTitle>
+                <CardDescription>
+                  Organiza productos por categorías, menús o submenús
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <OfertaSectionsManager
+                  sections={productSections}
+                  onSectionsChange={setProductSections}
+                />
+              </CardContent>
+            </Card>
+
+            <OfertaInfoSection
+              enabled={infoSectionEnabled}
+              items={infoItems}
+              onEnabledChange={setInfoSectionEnabled}
+              onItemsChange={setInfoItems}
+            />
+
+            <OfertaFaqSection
+              enabled={faqEnabled}
+              items={faqItems}
+              onEnabledChange={setFaqEnabled}
+              onItemsChange={setFaqItems}
+            />
+
+            <Card>
+              <CardHeader>
                 <CardTitle>Estado</CardTitle>
               </CardHeader>
               <CardContent>
@@ -150,12 +189,19 @@ export default function CrearOfertaPage() {
           {/* Preview - Columna Derecha (Sticky) */}
           <div className="lg:sticky lg:top-4 lg:self-start space-y-6">
             <OfertaSummaryCard
-              descuento={descuento}
-              tipoDescuento={tipoDescuento}
               fechaInicio={fechaInicio}
               fechaFin={fechaFin}
               bannersEnabled={bannersEnabled}
               bannersCount={banners.length}
+            />
+
+            <OfertaContentSummary
+              bannersCount={banners.length}
+              sectionsCount={productSections.length}
+              infoItemsCount={infoItems.length}
+              faqItemsCount={faqItems.length}
+              infoEnabled={infoSectionEnabled}
+              faqEnabled={faqEnabled}
             />
 
             {bannersEnabled && activeBanner && (
