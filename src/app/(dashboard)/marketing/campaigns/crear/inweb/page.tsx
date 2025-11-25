@@ -38,6 +38,12 @@ import { inWebCampaignEndpoints } from "@/lib/api";
 export default function CrearCampaignInWebPage() {
   const router = useRouter();
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [errors, setErrors] = useState<{
+    campaignName?: string;
+    image?: string;
+    htmlContent?: string;
+    scheduledDate?: string;
+  }>({});
 
   const [inWebData, setInWebData] = useState<{
     campaignName: string;
@@ -119,6 +125,35 @@ export default function CrearCampaignInWebPage() {
   };
 
   const handleSave = async () => {
+    // Limpiar errores previos
+    const newErrors: typeof errors = {};
+
+    // Validaciones obligatorias
+    if (!inWebData.campaignName.trim()) {
+      newErrors.campaignName = "El nombre de la campaña es obligatorio";
+    }
+
+    if (inWebData.contentType === "image" && !inWebData.imageFile) {
+      newErrors.image = "Debes subir una imagen cuando el tipo de contenido es 'imagen'";
+    }
+
+    if (inWebData.contentType === "html" && !inWebData.htmlContent.trim()) {
+      newErrors.htmlContent = "El contenido HTML es obligatorio cuando el tipo de contenido es 'HTML'";
+    }
+
+    if (!inWebData.sendImmediately && !inWebData.scheduledDate) {
+      newErrors.scheduledDate = "Debes seleccionar una fecha de programación si no envías inmediatamente";
+    }
+
+    // Si hay errores, actualizar el estado y salir
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    // Limpiar errores si todo está bien
+    setErrors({});
+
     const payload = {
       campaign: {
         name: inWebData.campaignName,
@@ -185,6 +220,35 @@ export default function CrearCampaignInWebPage() {
   };
 
   const handleSend = async () => {
+    // Limpiar errores previos
+    const newErrors: typeof errors = {};
+
+    // Validaciones obligatorias
+    if (!inWebData.campaignName.trim()) {
+      newErrors.campaignName = "El nombre de la campaña es obligatorio";
+    }
+
+    if (inWebData.contentType === "image" && !inWebData.imageFile) {
+      newErrors.image = "Debes subir una imagen cuando el tipo de contenido es 'imagen'";
+    }
+
+    if (inWebData.contentType === "html" && !inWebData.htmlContent.trim()) {
+      newErrors.htmlContent = "El contenido HTML es obligatorio cuando el tipo de contenido es 'HTML'";
+    }
+
+    if (!inWebData.sendImmediately && !inWebData.scheduledDate) {
+      newErrors.scheduledDate = "Debes seleccionar una fecha de programación si no envías inmediatamente";
+    }
+
+    // Si hay errores, actualizar el estado y salir
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    // Limpiar errores si todo está bien
+    setErrors({});
+
     const payload = {
       campaign: {
         name: inWebData.campaignName,
@@ -325,6 +389,9 @@ export default function CrearCampaignInWebPage() {
               campaignType: inWebData.campaignType,
             }}
             onChange={handleCampaignInfoChange}
+            errors={{
+              campaignName: errors.campaignName,
+            }}
           />
 
           {/* Audience Segmentation */}
@@ -364,6 +431,10 @@ export default function CrearCampaignInWebPage() {
             }}
             onChange={handleNotificationContentChange}
             displayStyle={inWebData.displayStyle}
+            errors={{
+              image: errors.image,
+              htmlContent: errors.htmlContent,
+            }}
           />
 
           {/* Scheduling */}
@@ -375,6 +446,9 @@ export default function CrearCampaignInWebPage() {
               abTestPercentage: inWebData.abTestPercentage,
             }}
             onChange={handleSchedulingSettingsChange}
+            errors={{
+              scheduledDate: errors.scheduledDate,
+            }}
           />
 
           {/* Action Buttons */}

@@ -16,9 +16,12 @@ export interface SchedulingSettingsData {
 interface SchedulingSettingsProps {
   data: SchedulingSettingsData;
   onChange: (data: SchedulingSettingsData) => void;
+  errors?: {
+    scheduledDate?: string;
+  };
 }
 
-export function SchedulingSettings({ data, onChange }: SchedulingSettingsProps) {
+export function SchedulingSettings({ data, onChange, errors }: SchedulingSettingsProps) {
   return (
     <Card>
       <CardHeader>
@@ -45,7 +48,9 @@ export function SchedulingSettings({ data, onChange }: SchedulingSettingsProps) 
         {!data.sendImmediately && (
           <div className="space-y-3 pt-2 border-t">
             <div className="space-y-2">
-              <Label htmlFor="scheduledDate">Fecha y Hora de Envío</Label>
+              <Label htmlFor="scheduledDate">
+                Fecha y Hora de Envío <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="scheduledDate"
                 type="datetime-local"
@@ -69,7 +74,11 @@ export function SchedulingSettings({ data, onChange }: SchedulingSettingsProps) 
                   })
                 }
                 min={new Date().toISOString().slice(0, 16)}
+                className={errors?.scheduledDate ? "border-red-500" : ""}
               />
+              {errors?.scheduledDate && (
+                <p className="text-xs text-red-500">{errors.scheduledDate}</p>
+              )}
             </div>
           </div>
         )}

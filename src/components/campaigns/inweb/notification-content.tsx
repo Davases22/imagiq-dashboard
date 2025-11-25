@@ -22,9 +22,13 @@ interface NotificationContentProps {
   data: NotificationContentData;
   onChange: (data: NotificationContentData) => void;
   displayStyle?: "popup" | "slider";
+  errors?: {
+    image?: string;
+    htmlContent?: string;
+  };
 }
 
-export function NotificationContent({ data, onChange, displayStyle }: NotificationContentProps) {
+export function NotificationContent({ data, onChange, displayStyle, errors }: NotificationContentProps) {
   const [imageError, setImageError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -105,7 +109,7 @@ export function NotificationContent({ data, onChange, displayStyle }: Notificati
           <>
             <div className="space-y-2">
               <Label htmlFor="imageUpload">
-                Subir Imagen
+                Subir Imagen <span className="text-red-500">*</span>
                 {displayStyle === "slider" && (
                   <span className="text-xs text-muted-foreground ml-2">
                     (Dimensiones requeridas: 1480x392 px)
@@ -139,7 +143,7 @@ export function NotificationContent({ data, onChange, displayStyle }: Notificati
                       }
                     }
                   }}
-                  className="flex-1"
+                  className={errors?.image ? "flex-1 border-red-500" : "flex-1"}
                 />
                 <Upload className="h-4 w-4 text-muted-foreground" />
               </div>
@@ -148,6 +152,9 @@ export function NotificationContent({ data, onChange, displayStyle }: Notificati
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{imageError}</AlertDescription>
                 </Alert>
+              )}
+              {errors?.image && (
+                <p className="text-xs text-red-500">{errors.image}</p>
               )}
             </div>
 
@@ -189,7 +196,9 @@ export function NotificationContent({ data, onChange, displayStyle }: Notificati
           </>
         ) : (
           <div className="space-y-2">
-            <Label htmlFor="htmlContent">Contenido HTML</Label>
+            <Label htmlFor="htmlContent">
+              Contenido HTML <span className="text-red-500">*</span>
+            </Label>
             <Textarea
               id="htmlContent"
               placeholder="<div style='padding: 20px; background: linear-gradient(to right, #667eea, #764ba2); color: white;'>
@@ -204,8 +213,11 @@ export function NotificationContent({ data, onChange, displayStyle }: Notificati
                 })
               }
               rows={8}
-              className="font-mono text-sm max-h-96 overflow-y-auto"
+              className={errors?.htmlContent ? "font-mono text-sm max-h-96 overflow-y-auto border-red-500" : "font-mono text-sm max-h-96 overflow-y-auto"}
             />
+            {errors?.htmlContent && (
+              <p className="text-xs text-red-500">{errors.htmlContent}</p>
+            )}
             <p className="text-xs text-muted-foreground">
               Puedes usar HTML y CSS inline para personalizar el contenido
             </p>

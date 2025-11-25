@@ -14,9 +14,12 @@ export interface CampaignInfoData {
 interface CampaignInfoProps {
   data: CampaignInfoData;
   onChange: (data: CampaignInfoData) => void;
+  errors?: {
+    campaignName?: string;
+  };
 }
 
-export function CampaignInfo({ data, onChange }: CampaignInfoProps) {
+export function CampaignInfo({ data, onChange, errors }: CampaignInfoProps) {
   return (
     <Card>
       <CardHeader>
@@ -27,7 +30,9 @@ export function CampaignInfo({ data, onChange }: CampaignInfoProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-2">
-          <Label htmlFor="campaignName">Nombre de la Campaña</Label>
+          <Label htmlFor="campaignName">
+            Nombre de la Campaña <span className="text-red-500">*</span>
+          </Label>
           <Input
             id="campaignName"
             placeholder="Ej: Push Black Friday 2024"
@@ -38,7 +43,11 @@ export function CampaignInfo({ data, onChange }: CampaignInfoProps) {
                 campaignName: e.target.value,
               })
             }
+            className={errors?.campaignName ? "border-red-500" : ""}
           />
+          {errors?.campaignName && (
+            <p className="text-xs text-red-500">{errors.campaignName}</p>
+          )}
         </div>
 
         <div className="space-y-2">
