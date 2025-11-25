@@ -13,6 +13,7 @@ import {
   MousePointer,
   ArrowRight,
   Filter,
+  Tag,
 } from "lucide-react"
 
 export default function PaginaWebPage() {
@@ -33,6 +34,14 @@ export default function PaginaWebPage() {
       description: "Configura filtros dinámicos para productos (precio, color, almacenamiento, etc.)",
       icon: Filter,
       path: "/pagina-web/filtros",
+      available: true,
+    },
+    {
+      id: "ofertas",
+      title: "Page Ofertas",
+      description: "Gestiona las ofertas especiales y promociones de tu sitio web",
+      icon: Tag,
+      path: "/pagina-web/ofertas",
       available: true,
     },
     {
