@@ -38,6 +38,31 @@ export interface BannerItem {
   positionMobile: BannerPosition
 }
 
+interface ProductSection {
+  id: string
+  name: string
+  type: "categoria" | "menu" | "submenu"
+  categoryId?: string
+  menuId?: string
+  submenuId?: string
+  useBackgroundImage: boolean
+  backgroundImage?: File | string
+  products: string[]
+}
+
+interface InfoItem {
+  id: string
+  title: string
+  image?: File | string
+  linkUrl: string
+}
+
+interface FaqItem {
+  id: string
+  question: string
+  answer: string
+}
+
 export function useOfertaForm() {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
@@ -45,8 +70,6 @@ export function useOfertaForm() {
   // Estados de oferta
   const [titulo, setTitulo] = useState("")
   const [descripcion, setDescripcion] = useState("")
-  const [descuento, setDescuento] = useState("")
-  const [tipoDescuento, setTipoDescuento] = useState<"porcentaje" | "monto">("porcentaje")
   const [fechaInicio, setFechaInicio] = useState("")
   const [fechaFin, setFechaFin] = useState("")
   const [isActive, setIsActive] = useState(true)
@@ -76,6 +99,25 @@ export function useOfertaForm() {
   ])
   const [activeBannerId, setActiveBannerId] = useState("banner-1")
 
+  // Estados de secciones de productos
+  const [productSections, setProductSections] = useState<ProductSection[]>([
+    {
+      id: "section-1",
+      name: "Productos Destacados",
+      type: "categoria",
+      useBackgroundImage: false,
+      products: [],
+    },
+  ])
+
+  // Estados de sección informativa
+  const [infoSectionEnabled, setInfoSectionEnabled] = useState(false)
+  const [infoItems, setInfoItems] = useState<InfoItem[]>([])
+
+  // Estados de FAQ
+  const [faqEnabled, setFaqEnabled] = useState(false)
+  const [faqItems, setFaqItems] = useState<FaqItem[]>([])
+
   const activeBanner = banners.find((b) => b.id === activeBannerId)
 
   const handleOfertaFieldChange = (field: string, value: string) => {
@@ -93,12 +135,6 @@ export function useOfertaForm() {
         break
       case "descripcion":
         setDescripcion(value)
-        break
-      case "descuento":
-        setDescuento(value)
-        break
-      case "tipoDescuento":
-        setTipoDescuento(value as "porcentaje" | "monto")
         break
       case "fechaInicio":
         setFechaInicio(value)
@@ -137,7 +173,6 @@ export function useOfertaForm() {
 
   const isFormValid = () => {
     if (!titulo.trim()) return false
-    if (!descuento || parseFloat(descuento) <= 0) return false
     if (!fechaInicio || !fechaFin) return false
     if (new Date(fechaInicio) > new Date(fechaFin)) return false
     if (bannersEnabled && banners.some(b => !b.data.name.trim())) return false
@@ -174,8 +209,6 @@ export function useOfertaForm() {
     // Estados de oferta
     titulo,
     descripcion,
-    descuento,
-    tipoDescuento,
     fechaInicio,
     fechaFin,
     isActive,
@@ -188,6 +221,22 @@ export function useOfertaForm() {
     activeBannerId,
     setActiveBannerId,
     activeBanner,
+    
+    // Estados de secciones de productos
+    productSections,
+    setProductSections,
+    
+    // Estados de sección informativa
+    infoSectionEnabled,
+    setInfoSectionEnabled,
+    infoItems,
+    setInfoItems,
+    
+    // Estados de FAQ
+    faqEnabled,
+    setFaqEnabled,
+    faqItems,
+    setFaqItems,
     
     // Handlers
     handleOfertaFieldChange,
