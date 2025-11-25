@@ -70,6 +70,10 @@ function getRealBannerWidth(placement?: string): number {
   if (placement === "hero") {
     return 1920;
   }
+  // Banners de ofertas
+  if (placement?.startsWith("ofertas-")) {
+    return 1261;
+  }
   // Banners Home (intermedios)
   if (placement?.startsWith("home-")) {
     return 1440;
@@ -89,6 +93,10 @@ function getPreviewContainerWidth(placement?: string): number {
   // Hero banner (max-w-2xl)
   if (placement === "hero") {
     return 672;
+  }
+  // Banners de ofertas (max-w-2xl)
+  if (placement?.startsWith("ofertas-")) {
+    return 560;
   }
   // Banners Home (max-w-xl)
   if (placement?.startsWith("home-")) {

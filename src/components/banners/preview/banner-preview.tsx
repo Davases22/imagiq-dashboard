@@ -68,7 +68,17 @@ const getStyles = (placement: string | undefined, device: DeviceType) => {
   }
 
   const isDesktop = device === "desktop";
-  
+
+  // Ofertas banners - aspect ratio personalizado para ofertas
+  if (placement?.startsWith("ofertas-")) {
+    return {
+      aspectRatio: isDesktop ? "aspect-[1261/560]" : "aspect-[414/621]",
+      maxWidth: isDesktop ? "max-w-2xl" : "max-w-sm",
+      mediaClass: "absolute inset-0 w-full h-full object-cover pointer-events-none",
+      minHeight: "",
+    };
+  }
+
   // Hero banner - más grande
   if (placement === "hero") {
     return {
@@ -78,7 +88,7 @@ const getStyles = (placement: string | undefined, device: DeviceType) => {
       minHeight: "",
     };
   }
-  
+
   // Home banners - tamaño intermedio
   if (placement?.startsWith("home-")) {
     return {
@@ -88,7 +98,7 @@ const getStyles = (placement: string | undefined, device: DeviceType) => {
       minHeight: "",
     };
   }
-  
+
   // Otros banners (por defecto)
   return {
     aspectRatio: isDesktop ? "aspect-[16/9]" : "aspect-[9/16]",
