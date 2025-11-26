@@ -8,11 +8,31 @@
  * - TypeScript interfaces para requests/responses
  */
 
-import { BackendCategory, BackendMenu, BackendSubmenu, CreateCategoryRequest, UpdateCategoryRequest, CreateMenuRequest, UpdateMenuRequest, CreateSubmenuRequest, UpdateSubmenuRequest, BackendWhatsAppTemplate } from "@/types";
+import {
+  BackendCategory,
+  BackendMenu,
+  BackendSubmenu,
+  CreateCategoryRequest,
+  UpdateCategoryRequest,
+  CreateMenuRequest,
+  UpdateMenuRequest,
+  CreateSubmenuRequest,
+  UpdateSubmenuRequest,
+  BackendWhatsAppTemplate,
+} from "@/types";
 import { BackendBanner, BannerPaginationData } from "@/types/banner";
-import { ProductColumn, DisplayTypesResponse, FilterOperator, DynamicFilter, FilterOrderConfig } from "@/types/filters";
-import { apiClient as apiClientWithKey, apiClientFormData, getApiKey } from "@/lib/api-client";
-
+import {
+  ProductColumn,
+  DisplayTypesResponse,
+  FilterOperator,
+  DynamicFilter,
+  FilterOrderConfig,
+} from "@/types/filters";
+import {
+  apiClient as apiClientWithKey,
+  apiClientFormData,
+  getApiKey,
+} from "@/lib/api-client";
 
 // API Client configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -37,14 +57,14 @@ export class ApiClient {
     this.baseURL = baseURL;
     this.headers = {
       "Content-Type": "application/json",
-      "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || '',
+      "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "",
     };
   }
 
   // Helper para obtener el token de localStorage
   private getAuthToken(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('imagiq_token');
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("imagiq_token");
     }
     return null;
   }
@@ -56,12 +76,11 @@ export class ApiClient {
     if (token) {
       return {
         ...this.headers,
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       };
     }
     return this.headers;
   }
-
 
   // Generic request method
   private async request<T>(
@@ -109,17 +128,22 @@ export class ApiClient {
 
       // Detectar error 401 con token inválido o expirado y cerrar sesión automáticamente
       if (response.status === 401 && useAuth) {
-        const errorMessage = data?.message || '';
-        if (errorMessage.includes('Invalid or expired token') || errorMessage.includes('token')) {
-          console.warn('[Auth] Token inválido o expirado detectado. Cerrando sesión...');
+        const errorMessage = data?.message || "";
+        if (
+          errorMessage.includes("Invalid or expired token") ||
+          errorMessage.includes("token")
+        ) {
+          console.warn(
+            "[Auth] Token inválido o expirado detectado. Cerrando sesión..."
+          );
 
           // Limpiar localStorage
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('imagiq_token');
-            localStorage.removeItem('imagiq_user');
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("imagiq_token");
+            localStorage.removeItem("imagiq_user");
 
             // Redirigir al login
-            window.location.href = '/login';
+            window.location.href = "/login";
           }
         }
       }
@@ -130,14 +154,20 @@ export class ApiClient {
           url,
           endpoint,
           data,
-          message: data?.message || data?.error || 'Error desconocido del servidor',
+          message:
+            data?.message || data?.error || "Error desconocido del servidor",
         });
       }
 
       return {
         data: data as T,
         success: response.ok,
-        message: typeof data?.message === 'string' ? data.message : (typeof data?.error === 'string' ? data.error : undefined),
+        message:
+          typeof data?.message === "string"
+            ? data.message
+            : typeof data?.error === "string"
+            ? data.error
+            : undefined,
         errors: data?.errors,
       };
     } catch (error) {
@@ -155,39 +185,77 @@ export class ApiClient {
   }
 
   // HTTP methods
-  async get<T>(endpoint: string, useAuth: boolean = false): Promise<ApiResponse<T>> {
+  async get<T>(
+    endpoint: string,
+    useAuth: boolean = false
+  ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { method: "GET" }, useAuth);
   }
 
-  async post<T>(endpoint: string, data?: unknown, useAuth: boolean = false): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: "POST",
-      body: JSON.stringify(data),
-    }, useAuth);
+  async post<T>(
+    endpoint: string,
+    data?: unknown,
+    useAuth: boolean = false
+  ): Promise<ApiResponse<T>> {
+    return this.request<T>(
+      endpoint,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      useAuth
+    );
   }
 
-  async put<T>(endpoint: string, data?: unknown, useAuth: boolean = false): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }, useAuth);
+  async put<T>(
+    endpoint: string,
+    data?: unknown,
+    useAuth: boolean = false
+  ): Promise<ApiResponse<T>> {
+    return this.request<T>(
+      endpoint,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+      useAuth
+    );
   }
 
-  async delete<T>(endpoint: string, data?: unknown, useAuth: boolean = false): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: "DELETE",
-      body: data ? JSON.stringify(data) : undefined,
-    }, useAuth);
+  async delete<T>(
+    endpoint: string,
+    data?: unknown,
+    useAuth: boolean = false
+  ): Promise<ApiResponse<T>> {
+    return this.request<T>(
+      endpoint,
+      {
+        method: "DELETE",
+        body: data ? JSON.stringify(data) : undefined,
+      },
+      useAuth
+    );
   }
 
-  async patch<T>(endpoint: string, data?: unknown, useAuth: boolean = false): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }, useAuth);
+  async patch<T>(
+    endpoint: string,
+    data?: unknown,
+    useAuth: boolean = false
+  ): Promise<ApiResponse<T>> {
+    return this.request<T>(
+      endpoint,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      },
+      useAuth
+    );
   }
 
-  async postFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+  async postFormData<T>(
+    endpoint: string,
+    formData: FormData
+  ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
     const apiKey = getApiKey();
     const config: RequestInit = {
@@ -195,7 +263,7 @@ export class ApiClient {
       body: formData,
       headers: {
         // No incluir Content-Type para que el browser lo establezca automáticamente con boundary
-        ...(apiKey && { 'X-API-Key': apiKey }),
+        ...(apiKey && { "X-API-Key": apiKey }),
       },
     };
 
@@ -219,7 +287,7 @@ export class ApiClient {
       return {
         data: data as T,
         success: response.ok,
-        message: typeof data?.message === 'string' ? data.message : undefined,
+        message: typeof data?.message === "string" ? data.message : undefined,
         errors: data?.errors,
       };
     } catch (error) {
@@ -232,7 +300,10 @@ export class ApiClient {
     }
   }
 
-  async putFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+  async putFormData<T>(
+    endpoint: string,
+    formData: FormData
+  ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
     const apiKey = getApiKey();
     const config: RequestInit = {
@@ -240,7 +311,7 @@ export class ApiClient {
       body: formData,
       headers: {
         // No incluir Content-Type para que el browser lo establezca automáticamente con boundary
-        ...(apiKey && { 'X-API-Key': apiKey }),
+        ...(apiKey && { "X-API-Key": apiKey }),
       },
     };
 
@@ -264,7 +335,7 @@ export class ApiClient {
       return {
         data: data as T,
         success: response.ok,
-        message: typeof data?.message === 'string' ? data.message : undefined,
+        message: typeof data?.message === "string" ? data.message : undefined,
         errors: data?.errors,
       };
     } catch (error) {
@@ -311,9 +382,7 @@ export const productEndpoints = {
       `/api/products/filtered?categoria=${category}`
     ),
   getByMenu: (menu: string) =>
-    apiClient.get<ProductApiResponse>(
-      `/api/products/filtered?menu=${menu}`
-    ),
+    apiClient.get<ProductApiResponse>(`/api/products/filtered?menu=${menu}`),
   getByCodigoMarket: (codigoMarket: string) =>
     apiClient.get<ProductApiResponse2>(
       `/api/products/filtered?codigoMarket=${codigoMarket}`
@@ -321,8 +390,12 @@ export const productEndpoints = {
   search: (query: string) =>
     apiClient.get<ProductApiResponse>(`/api/products/filtered?nombre=${query}`),
   getSummary: () => apiClient.get<ProductSummary>("/api/products/summary"),
-  getColumnNames: () => apiClient.get<ProductColumn[]>("/api/products/columns/metadata"),
-  getDistinctValues: (columnKey: string, params?: { categoria?: string; menu?: string; submenu?: string }) => {
+  getColumnNames: () =>
+    apiClient.get<ProductColumn[]>("/api/products/columns/metadata"),
+  getDistinctValues: (
+    columnKey: string,
+    params?: { categoria?: string; menu?: string; submenu?: string }
+  ) => {
     const searchParams = new URLSearchParams();
     if (params?.categoria) {
       searchParams.append("categoria", params.categoria);
@@ -334,7 +407,9 @@ export const productEndpoints = {
       searchParams.append("submenu", params.submenu);
     }
     const queryString = searchParams.toString();
-    const url = `/api/products/distinct/${columnKey}${queryString ? `?${queryString}` : ""}`;
+    const url = `/api/products/distinct/${columnKey}${
+      queryString ? `?${queryString}` : ""
+    }`;
     return apiClient.get<string[]>(url);
   },
   getDisplayTypes: (columnKey: string, operator?: FilterOperator) => {
@@ -343,116 +418,151 @@ export const productEndpoints = {
       searchParams.append("operator", operator);
     }
     const queryString = searchParams.toString();
-    const url = `/api/products/columns/${columnKey}/display-types${queryString ? `?${queryString}` : ""}`;
+    const url = `/api/products/columns/${columnKey}/display-types${
+      queryString ? `?${queryString}` : ""
+    }`;
     return apiClient.get<DisplayTypesResponse>(url);
   },
   updateMedia: (id: string, data: ProductMediaUpdateData) =>
-    apiClient.put<ProductMediaUpdateResponse>(`/api/products/${id}/media`, data),
+    apiClient.put<ProductMediaUpdateResponse>(
+      `/api/products/${id}/media`,
+      data
+    ),
   getMultimedia: (sku: string) =>
-    apiClient.get<ProductMultimediaData>(`/api/multimedia/producto/${encodeSkuForPath(sku)}`),
+    apiClient.get<ProductMultimediaData>(
+      `/api/multimedia/producto/${encodeSkuForPath(sku)}`
+    ),
 
   // Modificar imagen en posición específica
   updateImageAtPosition: (sku: string, numero: number, imageFile: File) => {
     const formData = new FormData();
-    formData.append('file', imageFile);
+    formData.append("file", imageFile);
 
     const safeSku = encodeSkuForPath(sku);
     const apiKey = getApiKey();
-    return fetch(`${API_BASE_URL}/api/multimedia/producto/${safeSku}/imagen/${numero}`, {
-      method: "PUT",
-      body: formData,
-      headers: {
-        ...(apiKey && { 'X-API-Key': apiKey }),
-      },
-    }).then(async (response) => {
-      const data = await response.json();
-      return {
-        data,
-        success: response.ok,
-        message: typeof data?.message === 'string' ? data.message : (data?.error || "Error desconocido"),
-      };
-    }).catch((error) => ({
-      data: {},
-      success: false,
-      message: error instanceof Error ? error.message : "Request failed",
-    }));
+    return fetch(
+      `${API_BASE_URL}/api/multimedia/producto/${safeSku}/imagen/${numero}`,
+      {
+        method: "PUT",
+        body: formData,
+        headers: {
+          ...(apiKey && { "X-API-Key": apiKey }),
+        },
+      }
+    )
+      .then(async (response) => {
+        const data = await response.json();
+        return {
+          data,
+          success: response.ok,
+          message:
+            typeof data?.message === "string"
+              ? data.message
+              : data?.error || "Error desconocido",
+        };
+      })
+      .catch((error) => ({
+        data: {},
+        success: false,
+        message: error instanceof Error ? error.message : "Request failed",
+      }));
   },
 
   // Agregar una imagen al final
   addImage: (sku: string, imageFile: File) => {
     const formData = new FormData();
-    formData.append('file', imageFile);
+    formData.append("file", imageFile);
 
     const safeSku = encodeSkuForPath(sku);
     const apiKey = getApiKey();
-    return fetch(`${API_BASE_URL}/api/multimedia/producto/${safeSku}/imagen/agregar`, {
-      method: "POST",
-      body: formData,
-      headers: {
-        ...(apiKey && { 'X-API-Key': apiKey }),
-      },
-    }).then(async (response) => {
-      const data = await response.json();
-      return {
-        data,
-        success: response.ok,
-        message: typeof data?.message === 'string' ? data.message : (data?.error || "Error desconocido"),
-      };
-    }).catch((error) => ({
-      data: {},
-      success: false,
-      message: error instanceof Error ? error.message : "Request failed",
-    }));
+    return fetch(
+      `${API_BASE_URL}/api/multimedia/producto/${safeSku}/imagen/agregar`,
+      {
+        method: "POST",
+        body: formData,
+        headers: {
+          ...(apiKey && { "X-API-Key": apiKey }),
+        },
+      }
+    )
+      .then(async (response) => {
+        const data = await response.json();
+        return {
+          data,
+          success: response.ok,
+          message:
+            typeof data?.message === "string"
+              ? data.message
+              : data?.error || "Error desconocido",
+        };
+      })
+      .catch((error) => ({
+        data: {},
+        success: false,
+        message: error instanceof Error ? error.message : "Request failed",
+      }));
   },
 
   // Agregar varias imágenes al final
   addMultipleImages: (sku: string, imageFiles: File[]) => {
     const formData = new FormData();
     imageFiles.forEach((file) => {
-      formData.append('files', file);
+      formData.append("files", file);
     });
 
     const safeSku = encodeSkuForPath(sku);
     const apiKey = getApiKey();
-    return fetch(`${API_BASE_URL}/api/multimedia/producto/${safeSku}/imagenes/agregar-multiples`, {
-      method: "POST",
-      body: formData,
-      headers: {
-        ...(apiKey && { 'X-API-Key': apiKey }),
-      },
-    }).then(async (response) => {
-      const data = await response.json();
-      return {
-        data,
-        success: response.ok,
-        message: typeof data?.message === 'string' ? data.message : (data?.error || "Error desconocido"),
-      };
-    }).catch((error) => ({
-      data: {},
-      success: false,
-      message: error instanceof Error ? error.message : "Request failed",
-    }));
+    return fetch(
+      `${API_BASE_URL}/api/multimedia/producto/${safeSku}/imagenes/agregar-multiples`,
+      {
+        method: "POST",
+        body: formData,
+        headers: {
+          ...(apiKey && { "X-API-Key": apiKey }),
+        },
+      }
+    )
+      .then(async (response) => {
+        const data = await response.json();
+        return {
+          data,
+          success: response.ok,
+          message:
+            typeof data?.message === "string"
+              ? data.message
+              : data?.error || "Error desconocido",
+        };
+      })
+      .catch((error) => ({
+        data: {},
+        success: false,
+        message: error instanceof Error ? error.message : "Request failed",
+      }));
   },
 
   // Subir múltiples imágenes usando multiple_data (preview + detalles)
   // Si previewFile es null, mantiene la preview existente
-  uploadMultipleData: (sku: string, previewFile: File | null, detailFiles: File[]) => {
+  uploadMultipleData: (
+    sku: string,
+    previewFile: File | null,
+    detailFiles: File[]
+  ) => {
     const formData = new FormData();
 
     // Agregar SKU
-    formData.append('sku', sku);
+    formData.append("sku", sku);
 
     // Agregar preview (Blob vacío si no se modifica)
     if (previewFile) {
-      formData.append('file', previewFile);
+      formData.append("file", previewFile);
     } else {
       // Enviar un Blob vacío para indicar que no se modifica la preview
-      formData.append('file', new Blob(), '');
+      formData.append("file", new Blob(), "");
     }
 
     // Agregar imágenes de detalle
     detailFiles.forEach((file) => {
-      formData.append('file', file);
+      formData.append("file", file);
     });
 
     const apiKey = getApiKey();
@@ -460,29 +570,38 @@ export const productEndpoints = {
       method: "POST",
       body: formData,
       headers: {
-        ...(apiKey && { 'X-API-Key': apiKey }),
+        ...(apiKey && { "X-API-Key": apiKey }),
       },
-    }).then(async (response) => {
-      const data = await response.json();
-      return {
-        data,
-        success: response.ok,
-        message: typeof data?.message === 'string' ? data.message : (data?.error || "Error desconocido"),
-      };
-    }).catch((error) => ({
-      data: {},
-      success: false,
-      message: error instanceof Error ? error.message : "Request failed",
-    }));
+    })
+      .then(async (response) => {
+        const data = await response.json();
+        return {
+          data,
+          success: response.ok,
+          message:
+            typeof data?.message === "string"
+              ? data.message
+              : data?.error || "Error desconocido",
+        };
+      })
+      .catch((error) => ({
+        data: {},
+        success: false,
+        message: error instanceof Error ? error.message : "Request failed",
+      }));
   },
 
   // Obtener videos premium
   getPremiumVideos: (sku: string) =>
-    apiClient.get<{ videos: string[] }>(`/api/multimedia/producto/${sku}/premium-videos`),
+    apiClient.get<{ videos: string[] }>(
+      `/api/multimedia/producto/${sku}/premium-videos`
+    ),
 
   // Obtener imágenes premium
   getPremiumImages: (sku: string) =>
-    apiClient.get<{ images: string[] }>(`/api/multimedia/producto/${sku}/premium-images`),
+    apiClient.get<{ images: string[] }>(
+      `/api/multimedia/producto/${sku}/premium-images`
+    ),
 
   // Reordenar imágenes existentes
   reorderImages: (sku: string, imageUrls: string[]) => {
@@ -491,7 +610,7 @@ export const productEndpoints = {
       `/api/multimedia/producto/${safeSku}/reordenar`,
       {
         sku: safeSku,
-        imageUrls
+        imageUrls,
       }
     );
   },
@@ -500,25 +619,33 @@ export const productEndpoints = {
   deleteDetailImages: (sku: string, numeros: number[]) => {
     const safeSku = encodeSkuForPath(sku);
     const apiKey = getApiKey();
-    return fetch(`${API_BASE_URL}/api/multimedia/producto/${safeSku}/imagenes-detalle`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        ...(apiKey && { 'X-API-Key': apiKey }),
-      },
-      body: JSON.stringify({ numeros }),
-    }).then(async (response) => {
-      const data = await response.json();
-      return {
-        data,
-        success: response.ok,
-        message: typeof data?.message === 'string' ? data.message : (data?.error || "Error desconocido"),
-      };
-    }).catch((error) => ({
-      data: {},
-      success: false,
-      message: error instanceof Error ? error.message : "Request failed",
-    }));
+    return fetch(
+      `${API_BASE_URL}/api/multimedia/producto/${safeSku}/imagenes-detalle`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(apiKey && { "X-API-Key": apiKey }),
+        },
+        body: JSON.stringify({ numeros }),
+      }
+    )
+      .then(async (response) => {
+        const data = await response.json();
+        return {
+          data,
+          success: response.ok,
+          message:
+            typeof data?.message === "string"
+              ? data.message
+              : data?.error || "Error desconocido",
+        };
+      })
+      .catch((error) => ({
+        data: {},
+        success: false,
+        message: error instanceof Error ? error.message : "Request failed",
+      }));
   },
 
   // Eliminar imagen preview
@@ -528,20 +655,25 @@ export const productEndpoints = {
     return fetch(`${API_BASE_URL}/api/multimedia/producto/${safeSku}/preview`, {
       method: "DELETE",
       headers: {
-        ...(apiKey && { 'X-API-Key': apiKey }),
+        ...(apiKey && { "X-API-Key": apiKey }),
       },
-    }).then(async (response) => {
-      const data = await response.json();
-      return {
-        data,
-        success: response.ok,
-        message: typeof data?.message === 'string' ? data.message : (data?.error || "Error desconocido"),
-      };
-    }).catch((error) => ({
-      data: {},
-      success: false,
-      message: error instanceof Error ? error.message : "Request failed",
-    }));
+    })
+      .then(async (response) => {
+        const data = await response.json();
+        return {
+          data,
+          success: response.ok,
+          message:
+            typeof data?.message === "string"
+              ? data.message
+              : data?.error || "Error desconocido",
+        };
+      })
+      .catch((error) => ({
+        data: {},
+        success: false,
+        message: error instanceof Error ? error.message : "Request failed",
+      }));
   },
 };
 
@@ -570,7 +702,6 @@ export interface ProductFilterParams {
   sortOrder?: "desc" | "asc";
 }
 
-
 // API Response types
 export interface ProductPaginationData {
   products: ProductApiData[];
@@ -590,7 +721,7 @@ export interface ProductApiResponse {
 }
 
 export interface ProductApiResponse2 {
-   products: ProductApiData[];
+  products: ProductApiData[];
   total: number; // Total de productos encontrados
   page: number; // Página actual
   limit: number; // Límite de productos por página
@@ -671,30 +802,47 @@ export interface ProductMultimediaData {
 
 // Categories API endpoints
 export const categoryEndpoints = {
-  getVisibleCompletas: () => apiClient.get<BackendCategory[]>("/api/categorias/visibles/completas"),
+  getVisibleCompletas: () =>
+    apiClient.get<BackendCategory[]>("/api/categorias/visibles/completas"),
   getDistinct: () => apiClient.get<string[]>("/api/categorias/distinct"),
   create: (data: CreateCategoryRequest) =>
     apiClient.post<BackendCategory>("/api/categorias/visibles", data),
   update: (uuid: string, data: UpdateCategoryRequest) =>
     apiClient.patch<BackendCategory>(`/api/categorias/visibles/${uuid}`, data),
   updateActiveStatus: (uuid: string, activo: boolean) =>
-    apiClient.patch<{ success: boolean; message?: string }>(`/api/categorias/visibles/${uuid}/activo`, { activo }),
+    apiClient.patch<{ success: boolean; message?: string }>(
+      `/api/categorias/visibles/${uuid}/activo`,
+      { activo }
+    ),
   delete: (uuid: string) =>
-    apiClient.delete<{ success: boolean; message?: string }>(`/api/categorias/visibles/${uuid}`),
+    apiClient.delete<{ success: boolean; message?: string }>(
+      `/api/categorias/visibles/${uuid}`
+    ),
   sync: () =>
-    apiClient.post<{ success: boolean; message?: string }>("/api/categorias/sync"),
+    apiClient.post<{ success: boolean; message?: string }>(
+      "/api/categorias/sync"
+    ),
   updateOrder: (categoryIds: string[]) =>
-    apiClient.put<{ success: boolean; message?: string }>("/api/categorias/visibles/order", { categoryIds }),
+    apiClient.put<{ success: boolean; message?: string }>(
+      "/api/categorias/visibles/order",
+      { categoryIds }
+    ),
 };
 
 // Menus API endpoints
 export const menuEndpoints = {
   // GET /api/categorias/visibles/:categoryId/menus
   getByCategory: (categoryId: string) =>
-    apiClient.get<BackendMenu[]>(`/api/categorias/visibles/${categoryId}/menus`),
+    apiClient.get<BackendMenu[]>(
+      `/api/categorias/visibles/${categoryId}/menus`
+    ),
   // GET /api/categorias/distinct/menus?categoria=CATEGORIA_NAME
   getDistinct: (categoryName: string) =>
-    apiClient.get<string[]>(`/api/categorias/distinct/menus?categoria=${encodeURIComponent(categoryName)}`),
+    apiClient.get<string[]>(
+      `/api/categorias/distinct/menus?categoria=${encodeURIComponent(
+        categoryName
+      )}`
+    ),
   // POST /api/menus/visibles
   create: (data: CreateMenuRequest & { categoriasVisiblesId: string }) =>
     apiClient.post<BackendMenu>(`/api/menus/visibles`, data),
@@ -703,13 +851,21 @@ export const menuEndpoints = {
     apiClient.patch<BackendMenu>(`/api/menus/visibles/${menuId}`, data),
   // PATCH /api/menus/visibles/:menuId/activo
   updateActiveStatus: (menuId: string, activo: boolean) =>
-    apiClient.patch<{ success: boolean; message?: string }>(`/api/menus/visibles/${menuId}/activo`, { activo }),
+    apiClient.patch<{ success: boolean; message?: string }>(
+      `/api/menus/visibles/${menuId}/activo`,
+      { activo }
+    ),
   // DELETE /api/menus/visibles/:menuId
   delete: (menuId: string) =>
-    apiClient.delete<{ success: boolean; message?: string }>(`/api/menus/visibles/${menuId}`),
+    apiClient.delete<{ success: boolean; message?: string }>(
+      `/api/menus/visibles/${menuId}`
+    ),
   // PUT /api/menus/visibles/order
   updateOrder: (menuIds: string[]) =>
-    apiClient.put<{ success: boolean; message?: string }>("/api/menus/visibles/order", { menuIds }),
+    apiClient.put<{ success: boolean; message?: string }>(
+      "/api/menus/visibles/order",
+      { menuIds }
+    ),
 };
 
 // Submenus API endpoints
@@ -722,16 +878,27 @@ export const submenuEndpoints = {
     apiClient.post<BackendSubmenu>(`/api/submenus/visibles`, data),
   // PATCH /api/submenus/visibles/:submenuId
   update: (submenuId: string, data: UpdateSubmenuRequest) =>
-    apiClient.patch<BackendSubmenu>(`/api/submenus/visibles/${submenuId}`, data),
+    apiClient.patch<BackendSubmenu>(
+      `/api/submenus/visibles/${submenuId}`,
+      data
+    ),
   // PATCH /api/submenus/visibles/:submenuId/activo
   updateActiveStatus: (submenuId: string, activo: boolean) =>
-    apiClient.patch<{ success: boolean; message?: string }>(`/api/submenus/visibles/${submenuId}/activo`, { activo }),
+    apiClient.patch<{ success: boolean; message?: string }>(
+      `/api/submenus/visibles/${submenuId}/activo`,
+      { activo }
+    ),
   // DELETE /api/submenus/visibles/:submenuId
   delete: (submenuId: string) =>
-    apiClient.delete<{ success: boolean; message?: string }>(`/api/submenus/visibles/${submenuId}`),
+    apiClient.delete<{ success: boolean; message?: string }>(
+      `/api/submenus/visibles/${submenuId}`
+    ),
   // PUT /api/submenus/visibles/order
   updateOrder: (submenuIds: string[]) =>
-    apiClient.put<{ success: boolean; message?: string }>("/api/submenus/visibles/order", { submenuIds }),
+    apiClient.put<{ success: boolean; message?: string }>(
+      "/api/submenus/visibles/order",
+      { submenuIds }
+    ),
 };
 
 // Multimedia API endpoints
@@ -739,8 +906,8 @@ export const multimediaEndpoints = {
   // POST /api/multimedia/menus - Create/upload image for menu (first time)
   createMenuImage: (menuId: string, imageFile: File) => {
     const formData = new FormData();
-    formData.append('menuId', menuId);
-    formData.append('file', imageFile);
+    formData.append("menuId", menuId);
+    formData.append("file", imageFile);
 
     const url = `${API_BASE_URL}/api/multimedia/menus`;
     const apiKey = getApiKey();
@@ -748,55 +915,79 @@ export const multimediaEndpoints = {
       method: "POST",
       body: formData,
       headers: {
-        ...(apiKey && { 'X-API-Key': apiKey }),
+        ...(apiKey && { "X-API-Key": apiKey }),
       },
-    }).then(async (response) => {
-      // Si la respuesta es exitosa (201 Created), considerar como éxito
-      if (response.ok) {
-        try {
-          const data = await response.json();
-          return {
-            data: data as { success: boolean; message?: string; imageUrl?: string },
-            success: true,
-            message: typeof data?.message === 'string' ? data.message : "Imagen subida exitosamente",
-          };
-        } catch (jsonError) {
-          // Si no se puede parsear JSON pero la respuesta es exitosa, considerar como éxito
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: true,
-            message: "Imagen subida exitosamente",
-          };
+    })
+      .then(async (response) => {
+        // Si la respuesta es exitosa (201 Created), considerar como éxito
+        if (response.ok) {
+          try {
+            const data = await response.json();
+            return {
+              data: data as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: true,
+              message:
+                typeof data?.message === "string"
+                  ? data.message
+                  : "Imagen subida exitosamente",
+            };
+          } catch (jsonError) {
+            // Si no se puede parsear JSON pero la respuesta es exitosa, considerar como éxito
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: true,
+              message: "Imagen subida exitosamente",
+            };
+          }
+        } else {
+          // Si la respuesta no es exitosa, intentar obtener el mensaje de error
+          try {
+            const data = await response.json();
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: false,
+              message:
+                typeof data?.message === "string"
+                  ? data.message
+                  : data?.error || "Error al subir la imagen",
+            };
+          } catch (jsonError) {
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: false,
+              message: `Error ${response.status}: ${response.statusText}`,
+            };
+          }
         }
-      } else {
-        // Si la respuesta no es exitosa, intentar obtener el mensaje de error
-        try {
-          const data = await response.json();
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: false,
-            message: typeof data?.message === 'string' ? data.message : (data?.error || "Error al subir la imagen"),
-          };
-        } catch (jsonError) {
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: false,
-            message: `Error ${response.status}: ${response.statusText}`,
-          };
-        }
-      }
-    }).catch((error) => ({
-      data: {} as { success: boolean; message?: string; imageUrl?: string },
-      success: false,
-      message: error instanceof Error ? error.message : "Request failed",
-    }));
+      })
+      .catch((error) => ({
+        data: {} as { success: boolean; message?: string; imageUrl?: string },
+        success: false,
+        message: error instanceof Error ? error.message : "Request failed",
+      }));
   },
 
   // PUT /api/multimedia/menus - Update image for menu (when image already exists)
   updateMenuImage: (menuId: string, imageFile: File) => {
     const formData = new FormData();
-    formData.append('menuId', menuId);
-    formData.append('file', imageFile);
+    formData.append("menuId", menuId);
+    formData.append("file", imageFile);
 
     const url = `${API_BASE_URL}/api/multimedia/menus`;
     const apiKey = getApiKey();
@@ -804,55 +995,79 @@ export const multimediaEndpoints = {
       method: "PUT",
       body: formData,
       headers: {
-        ...(apiKey && { 'X-API-Key': apiKey }),
+        ...(apiKey && { "X-API-Key": apiKey }),
       },
-    }).then(async (response) => {
-      // Si la respuesta es exitosa (200 OK o 201 Created), considerar como éxito
-      if (response.ok) {
-        try {
-          const data = await response.json();
-          return {
-            data: data as { success: boolean; message?: string; imageUrl?: string },
-            success: true,
-            message: typeof data?.message === 'string' ? data.message : "Imagen actualizada exitosamente",
-          };
-        } catch (jsonError) {
-          // Si no se puede parsear JSON pero la respuesta es exitosa, considerar como éxito
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: true,
-            message: "Imagen actualizada exitosamente",
-          };
+    })
+      .then(async (response) => {
+        // Si la respuesta es exitosa (200 OK o 201 Created), considerar como éxito
+        if (response.ok) {
+          try {
+            const data = await response.json();
+            return {
+              data: data as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: true,
+              message:
+                typeof data?.message === "string"
+                  ? data.message
+                  : "Imagen actualizada exitosamente",
+            };
+          } catch (jsonError) {
+            // Si no se puede parsear JSON pero la respuesta es exitosa, considerar como éxito
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: true,
+              message: "Imagen actualizada exitosamente",
+            };
+          }
+        } else {
+          // Si la respuesta no es exitosa, intentar obtener el mensaje de error
+          try {
+            const data = await response.json();
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: false,
+              message:
+                typeof data?.message === "string"
+                  ? data.message
+                  : data?.error || "Error al actualizar la imagen",
+            };
+          } catch (jsonError) {
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: false,
+              message: `Error ${response.status}: ${response.statusText}`,
+            };
+          }
         }
-      } else {
-        // Si la respuesta no es exitosa, intentar obtener el mensaje de error
-        try {
-          const data = await response.json();
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: false,
-            message: typeof data?.message === 'string' ? data.message : (data?.error || "Error al actualizar la imagen"),
-          };
-        } catch (jsonError) {
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: false,
-            message: `Error ${response.status}: ${response.statusText}`,
-          };
-        }
-      }
-    }).catch((error) => ({
-      data: {} as { success: boolean; message?: string; imageUrl?: string },
-      success: false,
-      message: error instanceof Error ? error.message : "Request failed",
-    }));
+      })
+      .catch((error) => ({
+        data: {} as { success: boolean; message?: string; imageUrl?: string },
+        success: false,
+        message: error instanceof Error ? error.message : "Request failed",
+      }));
   },
 
   // POST /api/multimedia/categorias - Create/upload image for category (first time)
   createCategoryImage: (categoryId: string, imageFile: File) => {
     const formData = new FormData();
-    formData.append('categoriaId', categoryId);
-    formData.append('file', imageFile);
+    formData.append("categoriaId", categoryId);
+    formData.append("file", imageFile);
 
     const url = `${API_BASE_URL}/api/multimedia/categorias`;
     const apiKey = getApiKey();
@@ -860,55 +1075,79 @@ export const multimediaEndpoints = {
       method: "POST",
       body: formData,
       headers: {
-        ...(apiKey && { 'X-API-Key': apiKey }),
+        ...(apiKey && { "X-API-Key": apiKey }),
       },
-    }).then(async (response) => {
-      // Si la respuesta es exitosa (201 Created), considerar como éxito
-      if (response.ok) {
-        try {
-          const data = await response.json();
-          return {
-            data: data as { success: boolean; message?: string; imageUrl?: string },
-            success: true,
-            message: typeof data?.message === 'string' ? data.message : "Imagen subida exitosamente",
-          };
-        } catch (jsonError) {
-          // Si no se puede parsear JSON pero la respuesta es exitosa, considerar como éxito
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: true,
-            message: "Imagen subida exitosamente",
-          };
+    })
+      .then(async (response) => {
+        // Si la respuesta es exitosa (201 Created), considerar como éxito
+        if (response.ok) {
+          try {
+            const data = await response.json();
+            return {
+              data: data as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: true,
+              message:
+                typeof data?.message === "string"
+                  ? data.message
+                  : "Imagen subida exitosamente",
+            };
+          } catch (jsonError) {
+            // Si no se puede parsear JSON pero la respuesta es exitosa, considerar como éxito
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: true,
+              message: "Imagen subida exitosamente",
+            };
+          }
+        } else {
+          // Si la respuesta no es exitosa, intentar obtener el mensaje de error
+          try {
+            const data = await response.json();
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: false,
+              message:
+                typeof data?.message === "string"
+                  ? data.message
+                  : data?.error || "Error al subir la imagen",
+            };
+          } catch (jsonError) {
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: false,
+              message: `Error ${response.status}: ${response.statusText}`,
+            };
+          }
         }
-      } else {
-        // Si la respuesta no es exitosa, intentar obtener el mensaje de error
-        try {
-          const data = await response.json();
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: false,
-            message: typeof data?.message === 'string' ? data.message : (data?.error || "Error al subir la imagen"),
-          };
-        } catch (jsonError) {
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: false,
-            message: `Error ${response.status}: ${response.statusText}`,
-          };
-        }
-      }
-    }).catch((error) => ({
-      data: {} as { success: boolean; message?: string; imageUrl?: string },
-      success: false,
-      message: error instanceof Error ? error.message : "Request failed",
-    }));
+      })
+      .catch((error) => ({
+        data: {} as { success: boolean; message?: string; imageUrl?: string },
+        success: false,
+        message: error instanceof Error ? error.message : "Request failed",
+      }));
   },
 
   // PUT /api/multimedia/categorias - Update image for category (when image already exists)
   updateCategoryImage: (categoryId: string, imageFile: File) => {
     const formData = new FormData();
-    formData.append('categoriaId', categoryId);
-    formData.append('file', imageFile);
+    formData.append("categoriaId", categoryId);
+    formData.append("file", imageFile);
 
     const url = `${API_BASE_URL}/api/multimedia/categorias`;
     const apiKey = getApiKey();
@@ -916,48 +1155,72 @@ export const multimediaEndpoints = {
       method: "PUT",
       body: formData,
       headers: {
-        ...(apiKey && { 'X-API-Key': apiKey }),
+        ...(apiKey && { "X-API-Key": apiKey }),
       },
-    }).then(async (response) => {
-      // Si la respuesta es exitosa (200 OK o 201 Created), considerar como éxito
-      if (response.ok) {
-        try {
-          const data = await response.json();
-          return {
-            data: data as { success: boolean; message?: string; imageUrl?: string },
-            success: true,
-            message: typeof data?.message === 'string' ? data.message : "Imagen actualizada exitosamente",
-          };
-        } catch (jsonError) {
-          // Si no se puede parsear JSON pero la respuesta es exitosa, considerar como éxito
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: true,
-            message: "Imagen actualizada exitosamente",
-          };
+    })
+      .then(async (response) => {
+        // Si la respuesta es exitosa (200 OK o 201 Created), considerar como éxito
+        if (response.ok) {
+          try {
+            const data = await response.json();
+            return {
+              data: data as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: true,
+              message:
+                typeof data?.message === "string"
+                  ? data.message
+                  : "Imagen actualizada exitosamente",
+            };
+          } catch (jsonError) {
+            // Si no se puede parsear JSON pero la respuesta es exitosa, considerar como éxito
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: true,
+              message: "Imagen actualizada exitosamente",
+            };
+          }
+        } else {
+          // Si la respuesta no es exitosa, intentar obtener el mensaje de error
+          try {
+            const data = await response.json();
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: false,
+              message:
+                typeof data?.message === "string"
+                  ? data.message
+                  : data?.error || "Error al actualizar la imagen",
+            };
+          } catch (jsonError) {
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: false,
+              message: `Error ${response.status}: ${response.statusText}`,
+            };
+          }
         }
-      } else {
-        // Si la respuesta no es exitosa, intentar obtener el mensaje de error
-        try {
-          const data = await response.json();
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: false,
-            message: typeof data?.message === 'string' ? data.message : (data?.error || "Error al actualizar la imagen"),
-          };
-        } catch (jsonError) {
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: false,
-            message: `Error ${response.status}: ${response.statusText}`,
-          };
-        }
-      }
-    }).catch((error) => ({
-      data: {} as { success: boolean; message?: string; imageUrl?: string },
-      success: false,
-      message: error instanceof Error ? error.message : "Request failed",
-    }));
+      })
+      .catch((error) => ({
+        data: {} as { success: boolean; message?: string; imageUrl?: string },
+        success: false,
+        message: error instanceof Error ? error.message : "Request failed",
+      }));
   },
 
   // DELETE /api/multimedia/menus/:id - Delete menu image
@@ -977,8 +1240,8 @@ export const multimediaEndpoints = {
   // POST /api/multimedia/submenus - Create/upload image for submenu (first time)
   createSubmenuImage: (submenuId: string, imageFile: File) => {
     const formData = new FormData();
-    formData.append('submenuId', submenuId);
-    formData.append('file', imageFile);
+    formData.append("submenuId", submenuId);
+    formData.append("file", imageFile);
 
     const url = `${API_BASE_URL}/api/multimedia/submenus`;
     const apiKey = getApiKey();
@@ -986,55 +1249,79 @@ export const multimediaEndpoints = {
       method: "POST",
       body: formData,
       headers: {
-        ...(apiKey && { 'X-API-Key': apiKey }),
+        ...(apiKey && { "X-API-Key": apiKey }),
       },
-    }).then(async (response) => {
-      // Si la respuesta es exitosa (201 Created), considerar como éxito
-      if (response.ok) {
-        try {
-          const data = await response.json();
-          return {
-            data: data as { success: boolean; message?: string; imageUrl?: string },
-            success: true,
-            message: typeof data?.message === 'string' ? data.message : "Imagen subida exitosamente",
-          };
-        } catch (jsonError) {
-          // Si no se puede parsear JSON pero la respuesta es exitosa, considerar como éxito
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: true,
-            message: "Imagen subida exitosamente",
-          };
+    })
+      .then(async (response) => {
+        // Si la respuesta es exitosa (201 Created), considerar como éxito
+        if (response.ok) {
+          try {
+            const data = await response.json();
+            return {
+              data: data as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: true,
+              message:
+                typeof data?.message === "string"
+                  ? data.message
+                  : "Imagen subida exitosamente",
+            };
+          } catch (jsonError) {
+            // Si no se puede parsear JSON pero la respuesta es exitosa, considerar como éxito
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: true,
+              message: "Imagen subida exitosamente",
+            };
+          }
+        } else {
+          // Si la respuesta no es exitosa, intentar obtener el mensaje de error
+          try {
+            const data = await response.json();
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: false,
+              message:
+                typeof data?.message === "string"
+                  ? data.message
+                  : data?.error || "Error al subir la imagen",
+            };
+          } catch (jsonError) {
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: false,
+              message: `Error ${response.status}: ${response.statusText}`,
+            };
+          }
         }
-      } else {
-        // Si la respuesta no es exitosa, intentar obtener el mensaje de error
-        try {
-          const data = await response.json();
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: false,
-            message: typeof data?.message === 'string' ? data.message : (data?.error || "Error al subir la imagen"),
-          };
-        } catch (jsonError) {
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: false,
-            message: `Error ${response.status}: ${response.statusText}`,
-          };
-        }
-      }
-    }).catch((error) => ({
-      data: {} as { success: boolean; message?: string; imageUrl?: string },
-      success: false,
-      message: error instanceof Error ? error.message : "Request failed",
-    }));
+      })
+      .catch((error) => ({
+        data: {} as { success: boolean; message?: string; imageUrl?: string },
+        success: false,
+        message: error instanceof Error ? error.message : "Request failed",
+      }));
   },
 
   // PUT /api/multimedia/submenus - Update image for submenu (when image already exists)
   updateSubmenuImage: (submenuId: string, imageFile: File) => {
     const formData = new FormData();
-    formData.append('submenuId', submenuId);
-    formData.append('file', imageFile);
+    formData.append("submenuId", submenuId);
+    formData.append("file", imageFile);
 
     const url = `${API_BASE_URL}/api/multimedia/submenus`;
     const apiKey = getApiKey();
@@ -1042,48 +1329,72 @@ export const multimediaEndpoints = {
       method: "PUT",
       body: formData,
       headers: {
-        ...(apiKey && { 'X-API-Key': apiKey }),
+        ...(apiKey && { "X-API-Key": apiKey }),
       },
-    }).then(async (response) => {
-      // Si la respuesta es exitosa (200 OK o 201 Created), considerar como éxito
-      if (response.ok) {
-        try {
-          const data = await response.json();
-          return {
-            data: data as { success: boolean; message?: string; imageUrl?: string },
-            success: true,
-            message: typeof data?.message === 'string' ? data.message : "Imagen actualizada exitosamente",
-          };
-        } catch (jsonError) {
-          // Si no se puede parsear JSON pero la respuesta es exitosa, considerar como éxito
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: true,
-            message: "Imagen actualizada exitosamente",
-          };
+    })
+      .then(async (response) => {
+        // Si la respuesta es exitosa (200 OK o 201 Created), considerar como éxito
+        if (response.ok) {
+          try {
+            const data = await response.json();
+            return {
+              data: data as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: true,
+              message:
+                typeof data?.message === "string"
+                  ? data.message
+                  : "Imagen actualizada exitosamente",
+            };
+          } catch (jsonError) {
+            // Si no se puede parsear JSON pero la respuesta es exitosa, considerar como éxito
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: true,
+              message: "Imagen actualizada exitosamente",
+            };
+          }
+        } else {
+          // Si la respuesta no es exitosa, intentar obtener el mensaje de error
+          try {
+            const data = await response.json();
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: false,
+              message:
+                typeof data?.message === "string"
+                  ? data.message
+                  : data?.error || "Error al actualizar la imagen",
+            };
+          } catch (jsonError) {
+            return {
+              data: {} as {
+                success: boolean;
+                message?: string;
+                imageUrl?: string;
+              },
+              success: false,
+              message: `Error ${response.status}: ${response.statusText}`,
+            };
+          }
         }
-      } else {
-        // Si la respuesta no es exitosa, intentar obtener el mensaje de error
-        try {
-          const data = await response.json();
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: false,
-            message: typeof data?.message === 'string' ? data.message : (data?.error || "Error al actualizar la imagen"),
-          };
-        } catch (jsonError) {
-          return {
-            data: {} as { success: boolean; message?: string; imageUrl?: string },
-            success: false,
-            message: `Error ${response.status}: ${response.statusText}`,
-          };
-        }
-      }
-    }).catch((error) => ({
-      data: {} as { success: boolean; message?: string; imageUrl?: string },
-      success: false,
-      message: error instanceof Error ? error.message : "Request failed",
-    }));
+      })
+      .catch((error) => ({
+        data: {} as { success: boolean; message?: string; imageUrl?: string },
+        success: false,
+        message: error instanceof Error ? error.message : "Request failed",
+      }));
   },
 
   // DELETE /api/multimedia/submenus/:id - Delete submenu image
@@ -1097,7 +1408,10 @@ export const multimediaEndpoints = {
 // WhatsApp Templates API endpoints
 export const whatsappTemplateEndpoints = {
   getAll: async () => {
-    const response = await apiClient.get<BackendWhatsAppTemplate[] | { data: BackendWhatsAppTemplate[]; total?: number }>("/api/messaging/templates");
+    const response = await apiClient.get<
+      | BackendWhatsAppTemplate[]
+      | { data: BackendWhatsAppTemplate[]; total?: number }
+    >("/api/messaging/templates");
 
     // Handle both response formats: direct array or wrapped in { data: [...] }
     if (response.success && response.data) {
@@ -1110,7 +1424,10 @@ export const whatsappTemplateEndpoints = {
       }
 
       // If wrapped in { data: [...] }
-      const wrappedData = response.data as { data: BackendWhatsAppTemplate[]; total?: number };
+      const wrappedData = response.data as {
+        data: BackendWhatsAppTemplate[];
+        total?: number;
+      };
       if (wrappedData.data && Array.isArray(wrappedData.data)) {
         return {
           ...response,
@@ -1124,46 +1441,54 @@ export const whatsappTemplateEndpoints = {
       data: [] as BackendWhatsAppTemplate[],
     };
   },
-  getById: (id: string) => apiClient.get<BackendWhatsAppTemplate>(`/api/messaging/templates/${id}`),
+  getById: (id: string) =>
+    apiClient.get<BackendWhatsAppTemplate>(`/api/messaging/templates/${id}`),
   create: (payload: {
     name: string;
-    category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
+    category: "MARKETING" | "UTILITY" | "AUTHENTICATION";
     language: string;
     components: Array<any>;
-  }) => apiClient.post<{ id: string; success: boolean; message?: string }>(
-    "/api/messaging/templates",
-    payload
-  ),
-  cleanDuplicates: () => apiClient.post<{ success: boolean; message?: string; removed?: number }>(
-    "/api/messaging/templates/clean-duplicates"
-  ),
-  delete: (templateName: string) => apiClient.delete<{ success: boolean; message?: string }>(
-    `/api/messaging/templates/${templateName}`
-  ),
+  }) =>
+    apiClient.post<{ id: string; success: boolean; message?: string }>(
+      "/api/messaging/templates",
+      payload
+    ),
+  cleanDuplicates: () =>
+    apiClient.post<{ success: boolean; message?: string; removed?: number }>(
+      "/api/messaging/templates/clean-duplicates"
+    ),
+  delete: (templateName: string) =>
+    apiClient.delete<{ success: boolean; message?: string }>(
+      `/api/messaging/templates/${templateName}`
+    ),
 };
 
 // Banner API endpoints
 export const bannerEndpoints = {
   getAll: (params: { page: number; limit: number }) => {
     const searchParams = new URLSearchParams();
-    searchParams.append('page', String(params.page));
-    searchParams.append('limit', String(params.limit));
+    searchParams.append("page", String(params.page));
+    searchParams.append("limit", String(params.limit));
     const url = `/api/multimedia/banners?${searchParams.toString()}`;
     return apiClient.get<BannerPaginationData>(url);
   },
 
   getByPlacement: (placement: string) =>
-    apiClient.get<BackendBanner[]>(`/api/multimedia/banners/placement/${placement}`),
+    apiClient.get<BackendBanner[]>(
+      `/api/multimedia/banners/placement/${placement}`
+    ),
 
   create: (formData: FormData) =>
-    apiClient.postFormData<BackendBanner>('/api/multimedia/banners', formData),
+    apiClient.postFormData<BackendBanner>("/api/multimedia/banners", formData),
 
   // Update usa el mismo endpoint POST pero con el campo 'id' en el FormData
   update: (formData: FormData) =>
-    apiClient.postFormData<BackendBanner>('/api/multimedia/banners', formData),
+    apiClient.postFormData<BackendBanner>("/api/multimedia/banners", formData),
 
   delete: (id: string) =>
-    apiClient.delete<{ success: boolean; message?: string }>(`/api/multimedia/banners/${id}`),
+    apiClient.delete<{ success: boolean; message?: string }>(
+      `/api/multimedia/banners/${id}`
+    ),
 };
 
 // Product Notifications API endpoints
@@ -1201,14 +1526,30 @@ export interface GroupedNotificationsResponse {
 }
 
 export const productNotificationEndpoints = {
-  getAll: () => apiClient.get<ProductNotification[]>("/api/products/notifications"),
-  getGrouped: () => apiClient.get<GroupedNotificationsResponse>("/api/messaging/notifications/grouped"),
-  create: (data: { productId: string; clientEmail?: string; clientPhone?: string }) =>
-    apiClient.post<{ success: boolean; message?: string }>("/api/products/notifications", data),
+  getAll: () =>
+    apiClient.get<ProductNotification[]>("/api/products/notifications"),
+  getGrouped: () =>
+    apiClient.get<GroupedNotificationsResponse>(
+      "/api/messaging/notifications/grouped"
+    ),
+  create: (data: {
+    productId: string;
+    clientEmail?: string;
+    clientPhone?: string;
+  }) =>
+    apiClient.post<{ success: boolean; message?: string }>(
+      "/api/products/notifications",
+      data
+    ),
   delete: (id: string) =>
-    apiClient.delete<{ success: boolean; message?: string }>(`/api/products/notifications/${id}`),
+    apiClient.delete<{ success: boolean; message?: string }>(
+      `/api/products/notifications/${id}`
+    ),
   markAsNotified: (id: string) =>
-    apiClient.patch<{ success: boolean; message?: string }>(`/api/products/notifications/${id}`, { notified: true }),
+    apiClient.patch<{ success: boolean; message?: string }>(
+      `/api/products/notifications/${id}`,
+      { notified: true }
+    ),
 };
 
 // Filter API endpoints
@@ -1242,13 +1583,32 @@ interface DeleteBulkRequest {
 export const filterEndpoints = {
   getAll: () => apiClient.get<DynamicFilter[]>("/api/filters"),
   getById: (id: string) => apiClient.get<DynamicFilter>(`/api/filters/${id}`),
-  create: (data: CreateFilterRequest) => apiClient.post<DynamicFilter>("/api/filters", data),
-  update: (id: string, data: UpdateFilterRequest) => apiClient.put<DynamicFilter>(`/api/filters/${id}`, data),
-  updatePartial: (id: string, data: Partial<UpdateFilterRequest>) => apiClient.patch<DynamicFilter>(`/api/filters/${id}`, data),
-  delete: (id: string) => apiClient.delete<{ success: boolean; message?: string }>(`/api/filters/${id}`),
-  deleteBulk: (data: DeleteBulkRequest) => apiClient.delete<{ success: boolean; message?: string; data?: { deletedCount: number } }>("/api/filters/bulk", data),
-  updateOrder: (data: UpdateOrderRequest) => apiClient.put<{ success: boolean; message?: string; data?: { updatedFilters: Array<{ filterId: string; order: FilterOrderConfig }> } }>("/api/filters/order", data),
-  updateFilterOrder: (id: string, order: FilterOrderConfig) => apiClient.patch<DynamicFilter>(`/api/filters/${id}/order`, { order }),
+  create: (data: CreateFilterRequest) =>
+    apiClient.post<DynamicFilter>("/api/filters", data),
+  update: (id: string, data: UpdateFilterRequest) =>
+    apiClient.put<DynamicFilter>(`/api/filters/${id}`, data),
+  updatePartial: (id: string, data: Partial<UpdateFilterRequest>) =>
+    apiClient.patch<DynamicFilter>(`/api/filters/${id}`, data),
+  delete: (id: string) =>
+    apiClient.delete<{ success: boolean; message?: string }>(
+      `/api/filters/${id}`
+    ),
+  deleteBulk: (data: DeleteBulkRequest) =>
+    apiClient.delete<{
+      success: boolean;
+      message?: string;
+      data?: { deletedCount: number };
+    }>("/api/filters/bulk", data),
+  updateOrder: (data: UpdateOrderRequest) =>
+    apiClient.put<{
+      success: boolean;
+      message?: string;
+      data?: {
+        updatedFilters: Array<{ filterId: string; order: FilterOrderConfig }>;
+      };
+    }>("/api/filters/order", data),
+  updateFilterOrder: (id: string, order: FilterOrderConfig) =>
+    apiClient.patch<DynamicFilter>(`/api/filters/${id}/order`, { order }),
 };
 
 // User API endpoints
@@ -1319,18 +1679,31 @@ export interface UserSummaryResponse {
 }
 
 export const userEndpoints = {
-  getAll: () =>
-    apiClient.get<BackendUser[]>("/api/admin/users", true),
+  getAll: () => apiClient.get<BackendUser[]>("/api/admin/users", true),
   getById: (userId: string) =>
-    apiClient.get<UserWithPermissions>(`/api/admin/users/permisos/${userId}`, true),
+    apiClient.get<UserWithPermissions>(
+      `/api/admin/users/permisos/${userId}`,
+      true
+    ),
   getSummary: () =>
     apiClient.get<UserSummaryResponse>("/api/admin/users/summary", true),
   create: (data: CreateUserRequest) =>
     apiClient.post<CreateUserResponse>("/api/admin/users/add", data, true),
   update: (userId: string, data: UpdateUserRequest) =>
-    apiClient.put<{ success: boolean; message?: string }>("/api/admin/users/update", { id: userId, updateData: data }, true),
-  updatePermissions: (payload: { userId: string; permisos: Array<{ recurso: string; accion: string; permitido: boolean }> }) =>
-    apiClient.post<{ success: boolean; message?: string }>("/api/admin/users/permisos", payload, true),
+    apiClient.put<{ success: boolean; message?: string }>(
+      "/api/admin/users/update",
+      { id: userId, updateData: data },
+      true
+    ),
+  updatePermissions: (payload: {
+    userId: string;
+    permisos: Array<{ recurso: string; accion: string; permitido: boolean }>;
+  }) =>
+    apiClient.post<{ success: boolean; message?: string }>(
+      "/api/admin/users/permisos",
+      payload,
+      true
+    ),
 };
 
 export interface BackendTienda {
@@ -1352,6 +1725,78 @@ export interface BackendTienda {
 }
 
 export const tiendasEndpoints = {
+  getAll: () => apiClient.get<BackendTienda[]>("/api/stores"),
+};
+
+// ============ OFERTAS DESTACADAS ============
+export interface OfertaDestacada {
+  uuid: string;
+  producto_id: string;
+  orden: number;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateOfertaDestacadaDto {
+  producto_id: string;
+  orden?: number;
+  activo?: boolean;
+}
+
+export interface UpdateOfertaDestacadaDto {
+  orden?: number;
+  activo?: boolean;
+}
+
+export interface UpdateOrderDto {
+  items: Array<{
+    uuid: string;
+    orden: number;
+  }>;
+}
+
+export interface OfertasDestacadasStats {
+  total: number;
+  activas: number;
+}
+
+export const ofertasDestacadasEndpoints = {
+  // Obtener todas (para dashboard)
   getAll: () =>
-    apiClient.get<BackendTienda[]>("/api/stores"),
+    apiClient.get<OfertaDestacada[]>("/api/multimedia/ofertas-destacadas"),
+
+  // Obtener solo activas (para frontend público)
+  getActive: () =>
+    apiClient.get<OfertaDestacada[]>(
+      "/api/multimedia/ofertas-destacadas/activas"
+    ),
+
+  // Crear nueva oferta
+  create: (data: CreateOfertaDestacadaDto) =>
+    apiClient.post<OfertaDestacada>("/api/multimedia/ofertas-destacadas", data),
+
+  // Actualizar oferta
+  update: (uuid: string, data: UpdateOfertaDestacadaDto) =>
+    apiClient.put<OfertaDestacada>(
+      `/api/multimedia/ofertas-destacadas/${uuid}`,
+      data
+    ),
+
+  // Eliminar oferta
+  delete: (uuid: string) =>
+    apiClient.delete<void>(`/api/multimedia/ofertas-destacadas/${uuid}`),
+
+  // Actualizar orden (drag & drop)
+  reorder: (data: UpdateOrderDto) =>
+    apiClient.put<OfertaDestacada[]>(
+      "/api/multimedia/ofertas-destacadas/reorder",
+      data
+    ),
+
+  // Obtener estadísticas
+  getStats: () =>
+    apiClient.get<OfertasDestacadasStats>(
+      "/api/multimedia/ofertas-destacadas/stats"
+    ),
 };
