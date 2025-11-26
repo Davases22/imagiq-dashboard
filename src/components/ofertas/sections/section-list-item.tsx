@@ -39,6 +39,7 @@ export function SectionListItem({
       </div>
       {canDelete && (
         <Button
+          type="button"
           variant="ghost"
           size="sm"
           onClick={(e) => {

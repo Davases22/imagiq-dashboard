@@ -97,6 +97,7 @@ export function ProductSelector({ section, onProductsChange }: ProductSelectorPr
           />
           {searchQuery && (
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
@@ -222,6 +223,7 @@ export function ProductSelector({ section, onProductsChange }: ProductSelectorPr
                         )}
                       </div>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
                         onClick={() => handleRemoveProduct(product!.id)}

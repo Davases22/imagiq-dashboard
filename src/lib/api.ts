@@ -28,6 +28,7 @@ import {
   DynamicFilter,
   FilterOrderConfig,
 } from "@/types/filters";
+import type { Page, PagePaginationData, PageExpanded, CreateCompletePageRequest, CreateCompletePageResponse } from "@/types/page";
 import {
   apiClient as apiClientWithKey,
   apiClientFormData,
@@ -1811,3 +1812,180 @@ export const ofertasDestacadasEndpoints = {
       "/api/products/ofertas-destacadas/stats"
     ),
 };
+
+// Pages API endpoints
+export const pageEndpoints = {
+  // Listar todas las páginas con paginación
+  getAll: (params: { page: number; limit: number; status?: string }) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append("page", String(params.page));
+    searchParams.append("limit", String(params.limit));
+    if (params.status) searchParams.append("status", params.status);
+    const url = `/api/multimedia/pages?${searchParams.toString()}`;
+    return apiClient.get<PagePaginationData>(url);
+  },
+
+  // Obtener página por ID con relaciones expandidas
+  getById: (id: string, expand?: string[]) => {
+    const searchParams = new URLSearchParams();
+    if (expand && expand.length > 0) {
+      searchParams.append("expand", expand.join(","));
+    }
+    const url = `/api/multimedia/pages/${id}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+    return apiClient.get<{ success: boolean; data: PageExpanded }>(url);
+  },
+
+  // Obtener página por slug (público)
+  getBySlug: (slug: string, expand?: string[]) => {
+    const searchParams = new URLSearchParams();
+    if (expand && expand.length > 0) {
+      searchParams.append("expand", expand.join(","));
+    }
+    const url = `/api/multimedia/pages/slug/${slug}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+    return apiClient.get<{ success: boolean; data: PageExpanded }>(url);
+  },
+
+  // Crear página completa con banners y FAQs (transaccional)
+  createComplete: (data: CreateCompletePageRequest) => {
+    const formData = new FormData();
+    
+    console.log("Construyendo FormData:", {
+      page_keys: Object.keys(data.page),
+      new_banners_count: data.new_banners.length,
+      banner_files_count: data.banner_files.length,
+    });
+    
+    // 1. Agregar datos de la página como JSON string
+    formData.append("page", JSON.stringify(data.page));
+    
+    // 2. Agregar new_banners como JSON string (sin archivos)
+    formData.append("new_banners", JSON.stringify(data.new_banners));
+    
+    // 3. Agregar existing_banner_ids como JSON string
+    formData.append("existing_banner_ids", JSON.stringify(data.existing_banner_ids));
+    
+    // 4. Agregar new_faqs como JSON string
+    formData.append("new_faqs", JSON.stringify(data.new_faqs));
+    
+    // 5. Agregar existing_faq_ids como JSON string
+    formData.append("existing_faq_ids", JSON.stringify(data.existing_faq_ids));
+    
+    // 6. Agregar archivos de banners
+    // Formato: banner_0_desktop_image, banner_0_mobile_image, etc.
+    data.banner_files.forEach((files, index) => {
+      if (files.desktop_image) {
+        console.log(`Agregando banner_${index}_desktop_image:`, files.desktop_image.name);
+        formData.append(`banner_${index}_desktop_image`, files.desktop_image, files.desktop_image.name);
+      }
+      if (files.mobile_image) {
+        console.log(`Agregando banner_${index}_mobile_image:`, files.mobile_image.name);
+        formData.append(`banner_${index}_mobile_image`, files.mobile_image, files.mobile_image.name);
+      }
+      if (files.desktop_video) {
+        formData.append(`banner_${index}_desktop_video`, files.desktop_video, files.desktop_video.name);
+      }
+      if (files.mobile_video) {
+        formData.append(`banner_${index}_mobile_video`, files.mobile_video, files.mobile_video.name);
+      }
+    });
+    
+    // Usar apiClientFormData directamente (función raw de fetch)
+    return apiClientFormData("/api/multimedia/pages/complete", {
+      method: "POST",
+      body: formData,
+    }).then(async (response) => {
+      console.log("Response status:", response.status, response.statusText);
+      
+      // Considerar éxito: 200, 201, 204
+      if (response.ok) {
+        // Si es 204 No Content, retornar éxito sin parsear body
+        if (response.status === 204) {
+          return {
+            success: true,
+            data: { 
+              page: {} as Page, 
+              created_banner_ids: [], 
+              created_faq_ids: [] 
+            },
+            message: "Página creada exitosamente"
+          } as CreateCompletePageResponse;
+        }
+        
+        // Intentar parsear JSON
+        try {
+          const data = await response.json();
+          console.log("Response data:", data);
+          
+          // Si no tiene success pero tiene data, asumir éxito
+          if (!data.success && data.data) {
+            data.success = true;
+          }
+          
+          return data as CreateCompletePageResponse;
+        } catch (e) {
+          console.warn("Response OK pero no es JSON válido");
+          // Si la respuesta es OK pero no es JSON, asumir éxito
+          return {
+            success: true,
+            data: { 
+              page: {} as Page, 
+              created_banner_ids: [], 
+              created_faq_ids: [] 
+            },
+            message: "Página creada exitosamente"
+          } as CreateCompletePageResponse;
+        }
+      }
+      
+      // Si response.ok es false, es un error
+      let errorMessage = `HTTP Error ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+        console.error("Backend error details:", errorData);
+      } catch (e) {
+        console.error("Could not parse error response");
+      }
+      throw new Error(errorMessage);
+    });
+  },
+
+  // Actualizar página completa
+  update: (id: string, data: Partial<Page>) =>
+    apiClient.put<{ success: boolean; data: Page }>(
+      `/api/multimedia/pages/${id}`,
+      data
+    ),
+
+  // Actualizar campos específicos
+  patch: (id: string, data: Partial<Page>) =>
+    apiClient.patch<{ success: boolean; data: Page }>(
+      `/api/multimedia/pages/${id}`,
+      data
+    ),
+
+  // Eliminar página
+  delete: (id: string) =>
+    apiClient.delete<{ success: boolean; message: string }>(
+      `/api/multimedia/pages/${id}`
+    ),
+
+  // Obtener páginas públicas activas
+  getPublic: (params: { page: number; limit: number }) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append("page", String(params.page));
+    searchParams.append("limit", String(params.limit));
+    const url = `/api/multimedia/pages/public?${searchParams.toString()}`;
+    return apiClient.get<PagePaginationData>(url);
+  },
+
+  // Obtener estadísticas
+  getStats: () =>
+    apiClient.get<{
+      total: number;
+      by_status: Record<string, number>;
+      total_views: number;
+      most_viewed: Page[];
+    }>("/api/multimedia/pages/stats"),
+};
+
