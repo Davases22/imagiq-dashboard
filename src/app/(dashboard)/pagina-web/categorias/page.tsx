@@ -1,13 +1,19 @@
-  "use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +21,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -23,9 +29,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Switch } from "@/components/ui/switch"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+} from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Edit,
   Image as ImageIcon,
@@ -37,22 +48,24 @@ import {
   RefreshCw,
   Save,
   X,
-} from "lucide-react"
-import { WebsiteCategory } from "@/types"
-import { useCategories } from "@/features/categories/useCategories"
-import { multimediaEndpoints } from "@/lib/api"
-import { toast } from "sonner"
+} from "lucide-react";
+import { WebsiteCategory } from "@/types";
+import { useCategories } from "@/features/categories/useCategories";
+import { multimediaEndpoints } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function CategoriasPage() {
-  const router = useRouter()
+  const router = useRouter();
   // Mantener estas variables para futuras funcionalidades
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState<WebsiteCategory | null>(null)
-  const [draggedCategory, setDraggedCategory] = useState<WebsiteCategory | null>(null)
-  const [hasOrderChanged, setHasOrderChanged] = useState(false)
-  const [localCategories, setLocalCategories] = useState<WebsiteCategory[]>([])
-  const [orderError, setOrderError] = useState<string | null>(null)
-  
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] =
+    useState<WebsiteCategory | null>(null);
+  const [draggedCategory, setDraggedCategory] =
+    useState<WebsiteCategory | null>(null);
+  const [hasOrderChanged, setHasOrderChanged] = useState(false);
+  const [localCategories, setLocalCategories] = useState<WebsiteCategory[]>([]);
+  const [orderError, setOrderError] = useState<string | null>(null);
+
   // Hook para manejar categorías del backend
   const {
     categories: websiteCategories,
@@ -66,66 +79,76 @@ export default function CategoriasPage() {
     syncingCategories,
     updateCategoriesOrder,
     updatingOrder,
-    refreshCategories
-  } = useCategories()
+    refreshCategories,
+  } = useCategories();
 
   // Sincronizar el estado local con las categorías del hook
   useEffect(() => {
-    setLocalCategories(websiteCategories)
-  }, [websiteCategories])
+    setLocalCategories(websiteCategories);
+  }, [websiteCategories]);
 
   // Estado del formulario del modal de editar
-  const [editCategoryName, setEditCategoryName] = useState<string>("")
-  const [editNombreVisible, setEditNombreVisible] = useState<string>("")
-  const [editDescription, setEditDescription] = useState<string>("")
-  const [editImage, setEditImage] = useState<string>("")
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>("")
-  const [hasExistingImage, setHasExistingImage] = useState<boolean>(false)
-  const [imageToDelete, setImageToDelete] = useState<boolean>(false)
+  const [editCategoryName, setEditCategoryName] = useState<string>("");
+  const [editNombreVisible, setEditNombreVisible] = useState<string>("");
+  const [editDescription, setEditDescription] = useState<string>("");
+  const [editImage, setEditImage] = useState<string>("");
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>("");
+  const [hasExistingImage, setHasExistingImage] = useState<boolean>(false);
+  const [imageToDelete, setImageToDelete] = useState<boolean>(false);
 
   // Función para manejar la edición de categoría
   const handleEditCategory = async () => {
     if (!selectedCategory || !editCategoryName || !editNombreVisible) {
-      toast.error("Por favor completa todos los campos requeridos")
-      return
+      toast.error("Por favor completa todos los campos requeridos");
+      return;
     }
 
     try {
-      let imageUrl = editImage
+      let imageUrl = editImage;
 
       // 1. Si se marcó para eliminar la imagen
       if (imageToDelete && hasExistingImage) {
-        toast.info("Eliminando imagen...")
-        const deleteResponse = await multimediaEndpoints.deleteCategoryImage(selectedCategory.id)
+        toast.info("Eliminando imagen...");
+        const deleteResponse = await multimediaEndpoints.deleteCategoryImage(
+          selectedCategory.id
+        );
 
         if (deleteResponse.success) {
-          imageUrl = "" // Usar cadena vacía en lugar de URL de ejemplo
-          toast.success("Imagen eliminada exitosamente")
+          imageUrl = ""; // Usar cadena vacía en lugar de URL de ejemplo
+          toast.success("Imagen eliminada exitosamente");
         } else {
-          toast.error(deleteResponse.message || "Error al eliminar la imagen")
-          return
+          toast.error(deleteResponse.message || "Error al eliminar la imagen");
+          return;
         }
       }
       // 2. Si se seleccionó una nueva imagen
       else if (selectedImageFile) {
-        toast.info("Subiendo imagen...")
+        toast.info("Subiendo imagen...");
 
         // Decidir entre POST (crear) o PUT (actualizar) según si hay imagen existente
         const uploadResponse = hasExistingImage
-          ? await multimediaEndpoints.updateCategoryImage(selectedCategory.id, selectedImageFile)
-          : await multimediaEndpoints.createCategoryImage(selectedCategory.id, selectedImageFile)
+          ? await multimediaEndpoints.updateCategoryImage(
+              selectedCategory.id,
+              selectedImageFile
+            )
+          : await multimediaEndpoints.createCategoryImage(
+              selectedCategory.id,
+              selectedImageFile
+            );
 
-        console.log("Upload response:", uploadResponse)
+        console.log("Upload response:", uploadResponse);
 
         if (uploadResponse.success) {
           // Si la respuesta incluye imageUrl, usarla; si no, mantener la imagen actual
-          const data = uploadResponse.data as { imageUrl?: string; url?: string } | undefined
-          imageUrl = data?.imageUrl || data?.url || editImage
-          toast.success("Imagen subida exitosamente")
+          const data = uploadResponse.data as
+            | { imageUrl?: string; url?: string }
+            | undefined;
+          imageUrl = data?.imageUrl || data?.url || editImage;
+          toast.success("Imagen subida exitosamente");
         } else {
-          toast.error(uploadResponse.message || "Error al subir la imagen")
-          return
+          toast.error(uploadResponse.message || "Error al subir la imagen");
+          return;
         }
       }
 
@@ -135,177 +158,187 @@ export default function CategoriasPage() {
         nombreVisible: editNombreVisible,
         descripcion: editDescription,
         imagen: imageUrl || "", // Usar cadena vacía en lugar de URL de ejemplo
-      }
+      };
 
-      const success = await updateCategory(selectedCategory.id, categoryData)
+      const success = await updateCategory(selectedCategory.id, categoryData);
 
       if (success) {
-        toast.success("Categoría actualizada correctamente")
+        toast.success("Categoría actualizada correctamente");
 
         // Refrescar las categorías para obtener la imagen actualizada
-        await refreshCategories()
+        await refreshCategories();
 
-        setEditCategoryName("")
-        setEditNombreVisible("")
-        setEditDescription("")
-        setEditImage("")
-        setSelectedImageFile(null)
-        setImagePreviewUrl("")
-        setHasExistingImage(false)
-        setSelectedCategory(null)
-        setIsEditDialogOpen(false)
+        setEditCategoryName("");
+        setEditNombreVisible("");
+        setEditDescription("");
+        setEditImage("");
+        setSelectedImageFile(null);
+        setImagePreviewUrl("");
+        setHasExistingImage(false);
+        setSelectedCategory(null);
+        setIsEditDialogOpen(false);
       } else {
-        toast.error("Error al actualizar la categoría")
+        toast.error("Error al actualizar la categoría");
       }
     } catch (error) {
-      console.error("Error al actualizar categoría:", error)
-      toast.error("Error inesperado al actualizar la categoría")
+      console.error("Error al actualizar categoría:", error);
+      toast.error("Error inesperado al actualizar la categoría");
     }
-  }
+  };
 
   // Función para resetear el formulario de edición al cerrar el modal
   const handleCloseEditModal = () => {
-    setEditCategoryName("")
-    setEditNombreVisible("")
-    setEditDescription("")
-    setEditImage("")
-    setSelectedImageFile(null)
-    setImagePreviewUrl("")
-    setHasExistingImage(false)
-    setImageToDelete(false)
-    setSelectedCategory(null)
-    setIsEditDialogOpen(false)
-  }
+    setEditCategoryName("");
+    setEditNombreVisible("");
+    setEditDescription("");
+    setEditImage("");
+    setSelectedImageFile(null);
+    setImagePreviewUrl("");
+    setHasExistingImage(false);
+    setImageToDelete(false);
+    setSelectedCategory(null);
+    setIsEditDialogOpen(false);
+  };
 
   // Función para manejar el cambio de estado del modal de edición
   const handleEditModalOpenChange = (open: boolean) => {
     if (!open) {
-      handleCloseEditModal()
+      handleCloseEditModal();
     }
-  }
+  };
 
   // Función para abrir el modal de edición con los datos de la categoría
   const handleOpenEditModal = (category: WebsiteCategory) => {
-    setSelectedCategory(category)
-    setEditCategoryName(category.name)
-    setEditNombreVisible(category.nombreVisible || "")
-    setEditDescription(category.description || "")
-    setEditImage(category.image || "")
-    setSelectedImageFile(null)
-    setImageToDelete(false)
+    setSelectedCategory(category);
+    setEditCategoryName(category.name);
+    setEditNombreVisible(category.nombreVisible || "");
+    setEditDescription(category.description || "");
+    setEditImage(category.image || "");
+    setSelectedImageFile(null);
+    setImageToDelete(false);
 
     // Verificar si tiene imagen existente y configurar preview
-    const hasImage = !!(category.image && category.image !== "https://example.com/mock-image.jpg")
-    setHasExistingImage(hasImage)
-    setImagePreviewUrl(hasImage && category.image ? category.image : "")
+    const hasImage = !!(
+      category.image && category.image !== "https://example.com/mock-image.jpg"
+    );
+    setHasExistingImage(hasImage);
+    setImagePreviewUrl(hasImage && category.image ? category.image : "");
 
-    setIsEditDialogOpen(true)
-  }
+    setIsEditDialogOpen(true);
+  };
 
   // Función para eliminar la imagen actual
   const handleRemoveImage = () => {
-    setImageToDelete(true)
-    setImagePreviewUrl("")
-    setSelectedImageFile(null)
-    toast.info("Imagen marcada para eliminar")
-  }
+    setImageToDelete(true);
+    setImagePreviewUrl("");
+    setSelectedImageFile(null);
+    toast.info("Imagen marcada para eliminar");
+  };
 
   // Función para manejar la selección de archivo de imagen
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0];
     if (file) {
       // Validar que sea una imagen
-      if (!file.type.startsWith('image/')) {
-        toast.error("Por favor selecciona un archivo de imagen válido")
-        return
+      if (!file.type.startsWith("image/")) {
+        toast.error("Por favor selecciona un archivo de imagen válido");
+        return;
       }
 
       // Validar tamaño máximo (5MB)
-      const maxSize = 5 * 1024 * 1024 // 5MB
+      const maxSize = 5 * 1024 * 1024; // 5MB
       if (file.size > maxSize) {
-        toast.error("La imagen no debe superar los 5MB")
-        return
+        toast.error("La imagen no debe superar los 5MB");
+        return;
       }
 
-      setSelectedImageFile(file)
-      setImageToDelete(false) // Cancelar eliminación si se selecciona nueva imagen
+      setSelectedImageFile(file);
+      setImageToDelete(false); // Cancelar eliminación si se selecciona nueva imagen
 
       // Crear URL de preview para la nueva imagen seleccionada
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreviewUrl(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+        setImagePreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
 
-      toast.success(`Imagen "${file.name}" seleccionada`)
+      toast.success(`Imagen "${file.name}" seleccionada`);
     }
-  }
+  };
 
   // Funciones para drag and drop
   const handleDragStart = (e: React.DragEvent, category: WebsiteCategory) => {
-    setDraggedCategory(category)
-    e.dataTransfer.effectAllowed = 'move'
-  }
+    setDraggedCategory(category);
+    e.dataTransfer.effectAllowed = "move";
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
 
   const handleDrop = (e: React.DragEvent, targetCategory: WebsiteCategory) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     if (!draggedCategory || draggedCategory.id === targetCategory.id) {
-      setDraggedCategory(null)
-      return
+      setDraggedCategory(null);
+      return;
     }
 
     // Reordenar las categorías localmente
-    const newCategories = [...localCategories]
-    const draggedIndex = newCategories.findIndex(cat => cat.id === draggedCategory.id)
-    const targetIndex = newCategories.findIndex(cat => cat.id === targetCategory.id)
-    
+    const newCategories = [...localCategories];
+    const draggedIndex = newCategories.findIndex(
+      (cat) => cat.id === draggedCategory.id
+    );
+    const targetIndex = newCategories.findIndex(
+      (cat) => cat.id === targetCategory.id
+    );
+
     // Remover el elemento arrastrado
-    const [removed] = newCategories.splice(draggedIndex, 1)
+    const [removed] = newCategories.splice(draggedIndex, 1);
     // Insertar en la nueva posición
-    newCategories.splice(targetIndex, 0, removed)
-    
+    newCategories.splice(targetIndex, 0, removed);
+
     // Actualizar el estado local
-    setLocalCategories(newCategories)
-    setHasOrderChanged(true)
-    setDraggedCategory(null)
-  }
+    setLocalCategories(newCategories);
+    setHasOrderChanged(true);
+    setDraggedCategory(null);
+  };
 
   const handleDragEnd = () => {
-    setDraggedCategory(null)
-  }
+    setDraggedCategory(null);
+  };
 
   // Función para guardar el nuevo orden
   const handleSaveOrder = async () => {
-    setOrderError(null)
+    setOrderError(null);
     try {
-      const categoryIds = localCategories.map(cat => cat.id)
-      const success = await updateCategoriesOrder(categoryIds)
-      
+      const categoryIds = localCategories.map((cat) => cat.id);
+      const success = await updateCategoriesOrder(categoryIds);
+
       if (success) {
-        setHasOrderChanged(false)
-        // Orden guardado exitosamente 
+        setHasOrderChanged(false);
+        // Orden guardado exitosamente
       } else {
-        setOrderError('Error al guardar el orden. Por favor, intenta nuevamente.')
+        setOrderError(
+          "Error al guardar el orden. Por favor, intenta nuevamente."
+        );
       }
     } catch (error) {
-      console.error('Error al guardar el orden:', error)
-      setOrderError('Error al guardar el orden. Por favor, intenta nuevamente.')
+      console.error("Error al guardar el orden:", error);
+      setOrderError(
+        "Error al guardar el orden. Por favor, intenta nuevamente."
+      );
     }
-  }
+  };
 
   const handleCancelOrder = () => {
     // Restaurar el orden original
-    setLocalCategories(websiteCategories)
-    setHasOrderChanged(false)
-    setDraggedCategory(null)
-    setOrderError(null)
-  }
+    setLocalCategories(websiteCategories);
+    setHasOrderChanged(false);
+    setDraggedCategory(null);
+    setOrderError(null);
+  };
 
   // Mostrar estado de carga
   if (loading) {
@@ -326,7 +359,7 @@ export default function CategoriasPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   // Mostrar error si hay alguno
@@ -343,14 +376,14 @@ export default function CategoriasPage() {
         </div>
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
-            <p className="text-destructive mb-4">{error ?? "Ha ocurrido un error"}</p>
-            <Button onClick={() => window.location.reload()}>
-              Reintentar
-            </Button>
+            <p className="text-destructive mb-4">
+              {error ?? "Ha ocurrido un error"}
+            </p>
+            <Button onClick={() => window.location.reload()}>Reintentar</Button>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -401,8 +434,21 @@ export default function CategoriasPage() {
             onClick={syncCategories}
             disabled={syncingCategories}
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${syncingCategories ? 'animate-spin' : ''}`} />
-            {syncingCategories ? 'Sincronizando...' : 'Sincronizar'}
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${
+                syncingCategories ? "animate-spin" : ""
+              }`}
+            />
+            {syncingCategories ? "Sincronizando..." : "Sincronizar"}
+          </Button>
+          <Button
+            className="cursor-pointer"
+            variant="secondary"
+            onClick={() => {
+              window.location.href = "/pagina-web/ofertas-destacadas";
+            }}
+          >
+            Ofertas
           </Button>
         </div>
 
@@ -414,7 +460,10 @@ export default function CategoriasPage() {
         )}
 
         {/* Modal de Edición */}
-        <Dialog open={isEditDialogOpen} onOpenChange={handleEditModalOpenChange}>
+        <Dialog
+          open={isEditDialogOpen}
+          onOpenChange={handleEditModalOpenChange}
+        >
           <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col [&>button]:cursor-pointer">
             <DialogHeader>
               <DialogTitle>Editar Categoría</DialogTitle>
@@ -424,7 +473,9 @@ export default function CategoriasPage() {
             </DialogHeader>
             <div className="space-y-4 py-4 overflow-y-auto">
               <div className="space-y-2">
-                <Label htmlFor="edit-category-name">Categoría de Productos</Label>
+                <Label htmlFor="edit-category-name">
+                  Categoría de Productos
+                </Label>
                 <Input
                   id="edit-category-name"
                   value={editCategoryName}
@@ -474,8 +525,16 @@ export default function CategoriasPage() {
                       className="w-full h-full object-contain"
                     />
                     <div className="absolute top-2 right-2 flex gap-2">
-                      <Badge variant={hasExistingImage && !selectedImageFile ? "secondary" : "default"}>
-                        {hasExistingImage && !selectedImageFile ? "Imagen actual" : "Nueva imagen"}
+                      <Badge
+                        variant={
+                          hasExistingImage && !selectedImageFile
+                            ? "secondary"
+                            : "default"
+                        }
+                      >
+                        {hasExistingImage && !selectedImageFile
+                          ? "Imagen actual"
+                          : "Nueva imagen"}
                       </Badge>
                       {hasExistingImage && !selectedImageFile && (
                         <Button
@@ -524,10 +583,23 @@ export default function CategoriasPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={handleCloseEditModal} disabled={updatingCategoryData} className="cursor-pointer">
+              <Button
+                variant="outline"
+                onClick={handleCloseEditModal}
+                disabled={updatingCategoryData}
+                className="cursor-pointer"
+              >
                 Cancelar
               </Button>
-              <Button onClick={handleEditCategory} disabled={updatingCategoryData || !editCategoryName || !editNombreVisible} className="cursor-pointer">
+              <Button
+                onClick={handleEditCategory}
+                disabled={
+                  updatingCategoryData ||
+                  !editCategoryName ||
+                  !editNombreVisible
+                }
+                className="cursor-pointer"
+              >
                 {updatingCategoryData ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -546,12 +618,14 @@ export default function CategoriasPage() {
       <div className="grid gap-3 md:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Total Categorías</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Categorías
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{websiteCategories.length}</div>
             <p className="text-xs text-muted-foreground">
-              {websiteCategories.filter(c => c.isActive).length} activas
+              {websiteCategories.filter((c) => c.isActive).length} activas
             </p>
           </CardContent>
         </Card>
@@ -561,7 +635,10 @@ export default function CategoriasPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {websiteCategories.reduce((acc, cat) => acc + cat.menus.length, 0)}
+              {websiteCategories.reduce(
+                (acc, cat) => acc + cat.menus.length,
+                0
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               En todas las categorías
@@ -570,11 +647,16 @@ export default function CategoriasPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Productos Totales</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Productos Totales
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {websiteCategories.reduce((acc, cat) => acc + (cat.productsCount || 0), 0)}
+              {websiteCategories.reduce(
+                (acc, cat) => acc + (cat.productsCount || 0),
+                0
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               Distribuidos en categorías
@@ -587,7 +669,7 @@ export default function CategoriasPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {websiteCategories.filter(c => c.image).length}
+              {websiteCategories.filter((c) => c.image).length}
             </div>
             <p className="text-xs text-muted-foreground">
               Categorías con imagen asignada
@@ -601,7 +683,8 @@ export default function CategoriasPage() {
         <CardHeader>
           <CardTitle>Categorías Configuradas</CardTitle>
           <CardDescription>
-            Arrastra para reordenar las categorías como aparecerán en tu sitio web
+            Arrastra para reordenar las categorías como aparecerán en tu sitio
+            web
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -620,7 +703,7 @@ export default function CategoriasPage() {
             </TableHeader>
             <TableBody>
               {localCategories.map((category) => (
-                <TableRow 
+                <TableRow
                   key={category.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, category)}
@@ -628,7 +711,9 @@ export default function CategoriasPage() {
                   onDrop={(e) => handleDrop(e, category)}
                   onDragEnd={handleDragEnd}
                   className={`cursor-move transition-all duration-200 ${
-                    draggedCategory?.id === category.id ? 'opacity-50 scale-95' : ''
+                    draggedCategory?.id === category.id
+                      ? "opacity-50 scale-95"
+                      : ""
                   }`}
                 >
                   <TableCell>
@@ -647,7 +732,7 @@ export default function CategoriasPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span>{category.nombreVisible || '-'}</span>
+                    <span>{category.nombreVisible || "-"}</span>
                   </TableCell>
                   <TableCell>
                     <TooltipProvider>
@@ -658,11 +743,14 @@ export default function CategoriasPage() {
                             size="sm"
                             className="cursor-pointer hover:bg-primary/10 hover:border-primary/20 transition-colors"
                             onClick={() => {
-                              router.push(`/pagina-web/categorias/${category.id}/menus`)
+                              router.push(
+                                `/pagina-web/categorias/${category.id}/menus`
+                              );
                             }}
                           >
                             <Settings className="h-3 w-3 mr-1" />
-                            {category.menus.length} {category.menus.length === 1 ? 'menú' : 'menús'}
+                            {category.menus.length}{" "}
+                            {category.menus.length === 1 ? "menú" : "menús"}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -678,7 +766,8 @@ export default function CategoriasPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {category.image && category.image !== "https://example.com/mock-image.jpg" ? (
+                    {category.image &&
+                    category.image !== "https://example.com/mock-image.jpg" ? (
                       <Badge variant="secondary" className="gap-1">
                         <ImageIcon className="h-3 w-3" />
                         Asignada
@@ -699,13 +788,15 @@ export default function CategoriasPage() {
                       />
                       {(() => {
                         if (updatingCategory === category.id) {
-                          return <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                          return (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                          );
                         }
                         return category.isActive ? (
                           <Eye className="h-4 w-4 text-green-600" />
                         ) : (
                           <EyeOff className="h-4 w-4 text-muted-foreground" />
-                        )
+                        );
                       })()}
                     </div>
                   </TableCell>
@@ -726,5 +817,5 @@ export default function CategoriasPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
