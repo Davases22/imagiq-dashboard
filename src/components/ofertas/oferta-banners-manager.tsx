@@ -106,7 +106,7 @@ export function OfertaBannersManager({
         <p className="text-sm text-muted-foreground">
           Gestiona los banners del carrusel ({banners.length} banner{banners.length > 1 ? "s" : ""})
         </p>
-        <Button onClick={handleAddBanner} size="sm" variant="outline">
+        <Button type="button" onClick={handleAddBanner} size="sm" variant="outline">
           <Plus className="mr-2 h-4 w-4" />
           Agregar Banner
         </Button>
@@ -121,6 +121,7 @@ export function OfertaBannersManager({
               </TabsTrigger>
               {banners.length > 1 && (
                 <Button
+                  type="button"
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0"

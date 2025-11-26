@@ -68,7 +68,7 @@ export function OfertaInfoSection({
       </CardHeader>
       {enabled && (
         <CardContent className="space-y-4">
-          <Button onClick={handleAddItem} size="sm" variant="outline" className="w-full">
+          <Button type="button" onClick={handleAddItem} size="sm" variant="outline" className="w-full">
             <Plus className="mr-2 h-4 w-4" />
             Agregar Bloque Informativo
           </Button>
@@ -80,6 +80,7 @@ export function OfertaInfoSection({
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium text-sm">Bloque {index + 1}</h4>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteItem(item.id)}

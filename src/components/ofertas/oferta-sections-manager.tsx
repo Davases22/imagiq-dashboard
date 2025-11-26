@@ -85,7 +85,7 @@ export function OfertaSectionsManager({
         <p className="text-sm text-muted-foreground">
           {sections.length} {sections.length === 1 ? "sección" : "secciones"} de productos
         </p>
-        <Button onClick={handleAddSection} size="sm" variant="outline">
+        <Button type="button" onClick={handleAddSection} size="sm" variant="outline">
           <Plus className="mr-2 h-4 w-4" />
           Agregar Sección
         </Button>
