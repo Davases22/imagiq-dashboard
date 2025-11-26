@@ -79,6 +79,7 @@ export interface ProductCardProps {
 export interface ProductFilters {
   category?: string;
   menu?: string;
+  submenu?: string;
   precioMin?: number;
   precioMax?: number;
   color?: string;
@@ -148,6 +149,7 @@ export const useProducts = (
       // Aplicar filtros específicos (pueden sobrescribir el precioMin por defecto)
       if (filters.category) params.categoria = filters.category;
       if (filters.menu) params.menu = filters.menu;
+      if (filters.submenu) params.submenu = filters.submenu;
 
       // Manejar filtros de precio usando precioMin/precioMax
       if (filters.precioMin !== undefined) {
@@ -173,11 +175,8 @@ export const useProducts = (
       }
 
       if (filters.searchQuery) {
-        // Búsqueda general: usar tanto nombre como desDetallada con OR
-        params.nombre = filters.searchQuery;
-        params.desDetallada = filters.searchQuery;
-        params.modelo = filters.searchQuery;
-        params.filterMode = "OR";
+        // Búsqueda general: usar el parámetro query del backend
+        params.query = filters.searchQuery;
       }
 
       // Agregar parámetros de ordenamiento

@@ -10,6 +10,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { SectionTypeSelectors } from "./section-type-selectors"
+import { ProductSelector } from "./product-selector"
 
 interface ProductSection {
   id: string
@@ -20,6 +21,7 @@ interface ProductSection {
   submenuId?: string
   useBackgroundImage: boolean
   backgroundImage?: File | string
+  products: string[]
 }
 
 interface SectionConfigFormProps {
@@ -31,6 +33,7 @@ interface SectionConfigFormProps {
   onSubmenuChange: (submenuId: string) => void
   onBackgroundToggle: (enabled: boolean) => void
   onBackgroundImageChange: (file: File | undefined) => void
+  onProductsChange: (productIds: string[]) => void
 }
 
 export function SectionConfigForm({
@@ -42,6 +45,7 @@ export function SectionConfigForm({
   onSubmenuChange,
   onBackgroundToggle,
   onBackgroundImageChange,
+  onProductsChange,
 }: SectionConfigFormProps) {
   return (
     <div className="space-y-4">
@@ -83,6 +87,14 @@ export function SectionConfigForm({
         onCategoryChange={onCategoryChange}
         onMenuChange={onMenuChange}
         onSubmenuChange={onSubmenuChange}
+      />
+
+      <Separator />
+
+      {/* Selector de productos */}
+      <ProductSelector
+        section={section}
+        onProductsChange={onProductsChange}
       />
 
       <Separator />
