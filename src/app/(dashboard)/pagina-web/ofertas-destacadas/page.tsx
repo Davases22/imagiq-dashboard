@@ -383,7 +383,7 @@ export default function OfertasDestacadasPage() {
           }
           // Validar duplicados
           if (
-            ofertas.some((o: OfertaConProducto) => o.producto_id === productoId)
+            ofertas.some((o: OfertaConProducto) => o.codigo_market === productoId)
           ) {
             toast.error("Este producto ya está en el dropdown de ofertas.");
             return;
