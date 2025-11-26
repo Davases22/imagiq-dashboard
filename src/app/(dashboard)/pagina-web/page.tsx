@@ -37,11 +37,11 @@ export default function PaginaWebPage() {
       available: true,
     },
     {
-      id: "ofertas",
-      title: "Page Ofertas",
-      description: "Gestiona las ofertas especiales y promociones de tu sitio web",
+      id: "landing-pages",
+      title: "Páginas Dinámicas",
+      description: "Gestiona landing pages, ofertas especiales y promociones de tu sitio web",
       icon: Tag,
-      path: "/pagina-web/ofertas",
+      path: "/pagina-web/landing-pages",
       available: true,
     },
     {

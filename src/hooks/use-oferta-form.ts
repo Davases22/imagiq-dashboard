@@ -66,7 +66,12 @@ interface FaqItem {
   answer: string
 }
 
-export function useOfertaForm() {
+interface UseOfertaFormOptions {
+  returnPath?: string
+}
+
+export function useOfertaForm(options: UseOfertaFormOptions = {}) {
+  const { returnPath = "/pagina-web/ofertas" } = options
   const { user } = useAuth()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
@@ -293,12 +298,26 @@ export function useOfertaForm() {
       }
       
       // Log para debug
-      console.log("Enviando datos al backend:", {
-        page: request.page,
+      console.log("📤 Enviando datos al backend:", {
+        page: {
+          ...request.page,
+          sections_count: request.page.sections.length,
+          info_sections_count: request.page.info_sections?.length || 0,
+        },
+        new_banners_count: request.new_banners.length,
         new_banners: request.new_banners,
-        new_faqs: request.new_faqs,
+        new_faqs_count: request.new_faqs.length,
         banner_files_count: request.banner_files.length,
+        existing_banner_ids: request.existing_banner_ids,
+        existing_faq_ids: request.existing_faq_ids,
       })
+      
+      console.log("📋 Detalle de secciones:", request.page.sections)
+      console.log("🖼️ Detalle de banner files:", request.banner_files.map((f, i) => ({
+        index: i,
+        desktop_image: f.desktop_image?.name,
+        mobile_image: f.mobile_image?.name,
+      })))
       
       // 5. Enviar al backend
       const response = await pageEndpoints.createComplete(request)
@@ -320,7 +339,7 @@ export function useOfertaForm() {
       
       if (isSuccess) {
         toast.success("Oferta creada exitosamente")
-        router.push("/pagina-web/ofertas")
+        router.push(returnPath)
       } else {
         console.error("Respuesta considerada como error:", response)
         toast.error(response.message || "Error al crear la oferta")
@@ -348,7 +367,7 @@ export function useOfertaForm() {
   }
 
   const handleCancel = () => {
-    router.push("/pagina-web/ofertas")
+    router.push(returnPath)
   }
 
   return {

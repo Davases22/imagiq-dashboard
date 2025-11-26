@@ -18,7 +18,18 @@ import {
 } from "@/components/ofertas"
 import { useOfertaForm } from "@/hooks/use-oferta-form"
 
-export default function CrearOfertaPage() {
+/**
+ * Página de creación de nueva Landing Page dinámica
+ *
+ * Reutiliza el formulario completo de ofertas que ya soporta:
+ * - Información básica (título, descripción, fechas)
+ * - Banners promocionales con carrusel
+ * - Secciones de productos organizadas
+ * - Sección informativa con links
+ * - FAQs
+ * - Posicionamiento de elementos
+ */
+export default function CrearLandingPagePage() {
   const {
     titulo,
     descripcion,
@@ -50,31 +61,34 @@ export default function CrearOfertaPage() {
     handleCancel,
     saving,
     isFormValid,
-  } = useOfertaForm()
+  } = useOfertaForm({ returnPath: "/pagina-web/landing-pages" })
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={handleCancel}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">Nueva Oferta</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Nueva Landing Page</h1>
           <p className="text-muted-foreground">
-            Crea una nueva oferta con banners promocionales
+            Crea una nueva página dinámica con banners, productos, FAQs y más
           </p>
         </div>
       </div>
 
+      {/* Formulario completo */}
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Formulario - Columna Izquierda */}
+          {/* Columna Izquierda - Formulario */}
           <div className="space-y-6">
+            {/* Información Básica */}
             <Card>
               <CardHeader>
-                <CardTitle>Información de la Oferta</CardTitle>
-                <CardDescription>Detalles principales de la promoción</CardDescription>
+                <CardTitle>Información de la Página</CardTitle>
+                <CardDescription>Detalles principales de la landing page</CardDescription>
               </CardHeader>
               <CardContent>
                 <OfertaBasicFields
@@ -87,11 +101,12 @@ export default function CrearOfertaPage() {
               </CardContent>
             </Card>
 
+            {/* Banners */}
             <Card>
               <CardHeader>
                 <CardTitle>Banners Promocionales</CardTitle>
                 <CardDescription>
-                  Activa y configura banners en carrusel para esta oferta
+                  Activa y configura banners en carrusel para esta página
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -123,6 +138,7 @@ export default function CrearOfertaPage() {
               </CardContent>
             </Card>
 
+            {/* Secciones de Productos */}
             <Card>
               <CardHeader>
                 <CardTitle>Secciones de Productos</CardTitle>
@@ -138,6 +154,7 @@ export default function CrearOfertaPage() {
               </CardContent>
             </Card>
 
+            {/* Sección Informativa */}
             <OfertaInfoSection
               enabled={infoSectionEnabled}
               items={infoItems}
@@ -145,6 +162,7 @@ export default function CrearOfertaPage() {
               onItemsChange={setInfoItems}
             />
 
+            {/* FAQs */}
             <OfertaFaqSection
               enabled={faqEnabled}
               items={faqItems}
@@ -152,6 +170,7 @@ export default function CrearOfertaPage() {
               onItemsChange={setFaqItems}
             />
 
+            {/* Estado */}
             <Card>
               <CardHeader>
                 <CardTitle>Estado</CardTitle>
@@ -159,9 +178,9 @@ export default function CrearOfertaPage() {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="isActive">Oferta Activa</Label>
+                    <Label htmlFor="isActive">Página Activa</Label>
                     <p className="text-xs text-muted-foreground">
-                      Activar o desactivar la oferta
+                      Activar o desactivar la página
                     </p>
                   </div>
                   <Switch id="isActive" checked={isActive} onCheckedChange={setIsActive} />
@@ -169,10 +188,11 @@ export default function CrearOfertaPage() {
               </CardContent>
             </Card>
 
+            {/* Botones de acción */}
             <div className="flex gap-3">
               <Button type="submit" className="flex-1" disabled={!isFormValid || saving}>
                 <Save className="mr-2 h-4 w-4" />
-                {saving ? "Guardando..." : "Crear Oferta"}
+                {saving ? "Guardando..." : "Crear Página"}
               </Button>
               <Button
                 type="button"
@@ -186,8 +206,9 @@ export default function CrearOfertaPage() {
             </div>
           </div>
 
-          {/* Preview - Columna Derecha (Sticky) */}
+          {/* Columna Derecha - Preview (Sticky) */}
           <div className="lg:sticky lg:top-4 lg:self-start space-y-6">
+            {/* Resumen de la página */}
             <OfertaSummaryCard
               fechaInicio={fechaInicio}
               fechaFin={fechaFin}
@@ -195,6 +216,7 @@ export default function CrearOfertaPage() {
               bannersCount={banners.length}
             />
 
+            {/* Resumen de contenido */}
             <OfertaContentSummary
               bannersCount={banners.length}
               sectionsCount={productSections.length}
@@ -204,6 +226,7 @@ export default function CrearOfertaPage() {
               faqEnabled={faqEnabled}
             />
 
+            {/* Preview del banner activo */}
             {bannersEnabled && activeBanner && (
               <OfertaBannerPreviewCard
                 activeBanner={activeBanner}
@@ -217,4 +240,3 @@ export default function CrearOfertaPage() {
     </div>
   )
 }
-
