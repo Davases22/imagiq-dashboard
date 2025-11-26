@@ -272,7 +272,7 @@ export default function OfertasDestacadasPage() {
                 <TableHead className="w-12"></TableHead>
                 <TableHead>Producto</TableHead>
                 <TableHead>Imagen</TableHead>
-                <TableHead>Link</TableHead>
+                <TableHead>Código Market</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -325,11 +325,11 @@ export default function OfertasDestacadasPage() {
                       <Tooltip>
                         <TooltipTrigger>
                           <span className="text-xs text-muted-foreground truncate max-w-[200px] block">
-                            {oferta.link_url || "-"}
+                            {oferta.codigo_market || "-"}
                           </span>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{oferta.link_url || "Sin link"}</p>
+                          <p>{oferta.codigo_market || "Sin código"}</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -391,7 +391,8 @@ export default function OfertasDestacadasPage() {
           try {
             // El backend calcula el orden automáticamente
             const response = await ofertasDestacadasEndpoints.create({
-              producto_id: productoId,
+              codigo_market: productoId,
+              nombre: productoNombre,
               activo: true,
             });
             if (response.success) {

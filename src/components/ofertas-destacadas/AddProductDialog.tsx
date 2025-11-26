@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Plus, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Plus, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -41,28 +41,79 @@ export function AddProductDialog({
   const [searching, setSearching] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [adding, setAdding] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const pageSize = 10;
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+  // Cargar productos automáticamente cuando se abre el diálogo
+  useEffect(() => {
+    if (open) {
+      loadProducts(1, "");
+    } else {
+      // Limpiar estado al cerrar
+      setSearchQuery("");
+      setProducts([]);
+      setCurrentPage(1);
+    }
+  }, [open]);
 
+  const loadProducts = async (page: number, query: string) => {
     setSearching(true);
     try {
-      const response = await productEndpoints.search(searchQuery);
-      // ProductApiResponse: { data: ProductPaginationData, ... }
-      if (
-        response.success &&
-        response.data &&
-        Array.isArray((response.data as any).products)
-      ) {
-        setProducts((response.data as any).products);
+      const params: any = {
+        limit: pageSize,
+        page: page,
+      };
+
+      if (query.trim()) {
+        params.query = query;
+      }
+
+      const response = await productEndpoints.getFilteredSearch(params);
+
+      // Usar la misma lógica que useProducts.ts
+      if (response.success && response.data && response.data.data) {
+        const paginationData = response.data.data;
+
+        if (paginationData && Array.isArray(paginationData.products)) {
+          setProducts(paginationData.products);
+          setTotalProducts(paginationData.total || 0);
+          setTotalPages(paginationData.totalPages || 1);
+          setCurrentPage(paginationData.page || page);
+        } else {
+          setProducts([]);
+          setTotalProducts(0);
+          setTotalPages(1);
+        }
       } else {
         setProducts([]);
+        setTotalProducts(0);
+        setTotalPages(1);
       }
     } catch (error) {
-      console.error("Error buscando productos:", error);
+      console.error("Error cargando productos:", error);
       setProducts([]);
+      setTotalProducts(0);
+      setTotalPages(1);
     } finally {
       setSearching(false);
+    }
+  };
+
+  const handleSearch = () => {
+    loadProducts(1, searchQuery);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      loadProducts(currentPage - 1, searchQuery);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      loadProducts(currentPage + 1, searchQuery);
     }
   };
 
@@ -73,10 +124,7 @@ export function AddProductDialog({
     setAdding(productoId);
     try {
       await onAdd(productoId, productoNombre);
-      // Limpiar búsqueda y cerrar
-      setSearchQuery("");
-      setProducts([]);
-      onClose();
+      // No cerrar el diálogo para permitir agregar más productos
     } catch (error) {
       console.error("Error agregando producto:", error);
     } finally {
@@ -87,6 +135,7 @@ export function AddProductDialog({
   const handleClose = () => {
     setSearchQuery("");
     setProducts([]);
+    setCurrentPage(1);
     onClose();
   };
 
@@ -96,8 +145,7 @@ export function AddProductDialog({
         <DialogHeader>
           <DialogTitle>Agregar Producto a Ofertas</DialogTitle>
           <DialogDescription>
-            Busca y selecciona un producto para agregarlo al dropdown de ofertas
-            destacadas
+            Selecciona uno o más productos para agregarlos al dropdown de ofertas destacadas (máximo 10)
           </DialogDescription>
         </DialogHeader>
 
@@ -106,17 +154,14 @@ export function AddProductDialog({
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar producto por nombre..."
+              placeholder="Buscar producto por nombre o navega con los botones..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               className="pl-10"
             />
           </div>
-          <Button
-            onClick={handleSearch}
-            disabled={searching || !searchQuery.trim()}
-          >
+          <Button onClick={handleSearch} disabled={searching}>
             {searching ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -132,9 +177,7 @@ export function AddProductDialog({
         <ScrollArea className="h-[400px] border rounded-md">
           {products.length === 0 && !searching && (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              {searchQuery
-                ? "No se encontraron productos"
-                : "Busca un producto para comenzar"}
+              No se encontraron productos
             </div>
           )}
 
@@ -210,6 +253,61 @@ export function AddProductDialog({
             })}
           </div>
         </ScrollArea>
+
+        {/* Paginación estilo tabla de productos */}
+        {!searching && products.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t">
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-muted-foreground">
+                Filas por página
+              </span>
+              <span className="text-sm font-medium">{pageSize}</span>
+            </div>
+            <div className="flex items-center gap-6">
+              <span className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => loadProducts(1, searchQuery)}
+                  disabled={currentPage === 1}
+                >
+                  <span className="text-sm">«</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => loadProducts(totalPages, searchQuery)}
+                  disabled={currentPage === totalPages}
+                >
+                  <span className="text-sm">»</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
