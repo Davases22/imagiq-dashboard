@@ -1732,15 +1732,25 @@ export const tiendasEndpoints = {
 // ============ OFERTAS DESTACADAS ============
 export interface OfertaDestacada {
   uuid: string;
-  producto_id: string;
+  codigo_market: string;
+  nombre?: string;
   orden: number;
   activo: boolean;
   created_at: string;
   updated_at: string;
+  producto?: {
+    codigoMarket: string;
+    nombreMarket: string;
+    imagen: string;
+    categoria: string;
+    menu: string;
+    sku: string;
+  };
 }
 
 export interface CreateOfertaDestacadaDto {
-  producto_id: string;
+  codigo_market: string;
+  nombre?: string;
   orden?: number;
   activo?: boolean;
 }
@@ -1763,41 +1773,41 @@ export interface OfertasDestacadasStats {
 }
 
 export const ofertasDestacadasEndpoints = {
-  // Obtener todas (para dashboard)
+  // Obtener todas (para dashboard) - ya trae datos enriquecidos del producto
   getAll: () =>
-    apiClient.get<OfertaDestacada[]>("/api/multimedia/ofertas-destacadas"),
+    apiClient.get<OfertaDestacada[]>("/api/products/ofertas-destacadas/direct"),
 
-  // Obtener solo activas (para frontend público)
+  // Obtener solo activas (para frontend público) - ya trae datos enriquecidos
   getActive: () =>
     apiClient.get<OfertaDestacada[]>(
-      "/api/multimedia/ofertas-destacadas/activas"
+      "/api/products/ofertas-destacadas/activas/direct"
     ),
 
   // Crear nueva oferta
   create: (data: CreateOfertaDestacadaDto) =>
-    apiClient.post<OfertaDestacada>("/api/multimedia/ofertas-destacadas", data),
+    apiClient.post<OfertaDestacada>("/api/products/ofertas-destacadas", data),
 
   // Actualizar oferta
   update: (uuid: string, data: UpdateOfertaDestacadaDto) =>
     apiClient.put<OfertaDestacada>(
-      `/api/multimedia/ofertas-destacadas/${uuid}`,
+      `/api/products/ofertas-destacadas/${uuid}`,
       data
     ),
 
   // Eliminar oferta
   delete: (uuid: string) =>
-    apiClient.delete<void>(`/api/multimedia/ofertas-destacadas/${uuid}`),
+    apiClient.delete<void>(`/api/products/ofertas-destacadas/${uuid}`),
 
   // Actualizar orden (drag & drop)
   reorder: (data: UpdateOrderDto) =>
     apiClient.put<OfertaDestacada[]>(
-      "/api/multimedia/ofertas-destacadas/reorder",
+      "/api/products/ofertas-destacadas/reorder",
       data
     ),
 
   // Obtener estadísticas
   getStats: () =>
     apiClient.get<OfertasDestacadasStats>(
-      "/api/multimedia/ofertas-destacadas/stats"
+      "/api/products/ofertas-destacadas/stats"
     ),
 };

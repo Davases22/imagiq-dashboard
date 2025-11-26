@@ -1,11 +1,7 @@
 import { toast } from "sonner";
 
 import { useState, useEffect } from "react";
-import {
-  ofertasDestacadasEndpoints,
-  OfertaDestacada,
-  productEndpoints,
-} from "@/lib/api";
+import { ofertasDestacadasEndpoints, OfertaDestacada } from "@/lib/api";
 
 interface OfertaConProducto extends OfertaDestacada {
   producto_nombre?: string;
@@ -26,55 +22,28 @@ export function useOfertasDestacadas() {
       setLoading(true);
       const response = await ofertasDestacadasEndpoints.getAll();
 
-      if (response.success && response.data) {
-        // Enriquecer con datos de producto
-        const ofertasConProducto = await Promise.all(
-          response.data.map(async (oferta) => {
-            try {
-              // Usar getByCodigoMarket en lugar de getById
-              const productResponse = await productEndpoints.getByCodigoMarket(
-                oferta.producto_id
-              );
+      // El backend devuelve { success: true, data: [...] }
+      // Y el ApiClient lo wrappea en { data: {...}, success: true }
+      const backendData = (response.data as any)?.data || response.data;
 
-              if (productResponse.success && productResponse.data?.products) {
-                const product = productResponse.data.products[0];
-                if (product) {
-                  const nombreMarket = Array.isArray(product.nombreMarket)
-                    ? product.nombreMarket[0]
-                    : product.nombreMarket;
-                  // Buscar imagen en los mismos campos que el frontend
-                  const imagen =
-                    (product.imagen_final_premium &&
-                      product.imagen_final_premium[0]) ||
-                    (product.imagen_premium &&
-                      product.imagen_premium[0]?.[0]) ||
-                    (product.imagePreviewUrl && product.imagePreviewUrl[0]) ||
-                    (product.urlImagenes && product.urlImagenes[0]) ||
-                    (product.imageDetailsUrls &&
-                      product.imageDetailsUrls[0]?.[0]) ||
-                    "";
-                  const sku = product.sku?.[0] || "";
-                  const link = sku
-                    ? `/productos/${product.categoria}/${product.menu}/${sku}`
-                    : "";
+      if (response.success && backendData && Array.isArray(backendData)) {
+        // El backend ahora trae los datos enriquecidos directamente
+        const ofertasConProducto = backendData.map((oferta: OfertaDestacada) => {
+          const producto = oferta.producto;
 
-                  return {
-                    ...oferta,
-                    producto_nombre: nombreMarket,
-                    producto_imagen: imagen,
-                    link_url: link,
-                  };
-                }
-              }
-            } catch (err) {
-              console.error(
-                `Error al obtener producto ${oferta.producto_id}:`,
-                err
-              );
-            }
-            return oferta;
-          })
-        );
+          // Validar que la imagen sea una URL válida
+          const imagen = producto?.imagen || "";
+          const imagenValida = imagen && imagen.startsWith("http") ? imagen : "";
+
+          return {
+            ...oferta,
+            producto_nombre: producto?.nombreMarket || oferta.nombre || "",
+            producto_imagen: imagenValida,
+            link_url: producto?.sku
+              ? `/productos/${producto.categoria}/${producto.menu}/${producto.sku}`
+              : "",
+          };
+        });
 
         setOfertas(ofertasConProducto);
         setError(null);
