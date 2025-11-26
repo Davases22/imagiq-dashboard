@@ -681,6 +681,7 @@ export const productEndpoints = {
 export interface ProductFilterParams {
   categoria?: string;
   menu?: string;
+  submenu?: string;
   precioMin?: number;
   precioMax?: number;
   conDescuento?: boolean;
