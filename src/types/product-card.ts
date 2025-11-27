@@ -34,7 +34,6 @@ export interface ProductCard {
   description: string | null
   cta_text: string | null
   cta_url: string | null
-  url: string | null
   content_position: ProductCardContentPosition | null
   text_styles: ProductCardTextStyles | null
   status: ProductCardStatus
@@ -51,7 +50,6 @@ export interface CreateProductCardDto {
   description?: string
   cta_text?: string
   cta_url?: string
-  url?: string
   content_position?: ProductCardContentPosition
   text_styles?: ProductCardTextStyles
   status?: ProductCardStatus
@@ -67,7 +65,6 @@ export interface UpdateProductCardDto {
   description?: string
   cta_text?: string
   cta_url?: string
-  url?: string
   content_position?: ProductCardContentPosition
   text_styles?: ProductCardTextStyles
   status?: ProductCardStatus
