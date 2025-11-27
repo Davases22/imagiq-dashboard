@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { BannerTextStyles, BannerPosition } from "@/types/banner"
 import { pageEndpoints } from "@/lib/api"
-import type { CreateCompletePageRequest, NewBanner, PageFAQ, BannerFiles as ApiBannerFiles, ProductSection as BackendProductSection, InfoSection, PageExpanded } from "@/types/page"
+import type { CreateCompletePageRequest, NewBanner, PageFAQ, BannerFiles as ApiBannerFiles, ProductSection, ProductSectionDTO, InfoSection, PageExpanded } from "@/types/page"
 import { useAuth } from "@/contexts/AuthContext"
 
 const DEFAULT_TEXT_STYLES: BannerTextStyles = {
@@ -39,18 +39,6 @@ export interface BannerItem {
   textStyles: BannerTextStyles
   positionDesktop: BannerPosition
   positionMobile: BannerPosition
-}
-
-interface ProductSection {
-  id: string
-  name: string
-  type: "categoria" | "menu" | "submenu"
-  categoryId?: string
-  menuId?: string
-  submenuId?: string
-  useBackgroundImage: boolean
-  backgroundImage?: File | string
-  products: string[]
 }
 
 interface InfoItem {
@@ -118,8 +106,6 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
     {
       id: "section-1",
       name: "Productos Destacados",
-      type: "categoria",
-      useBackgroundImage: false,
       products: [],
     },
   ])
@@ -255,15 +241,9 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         // Cargar secciones de productos
         if (pageData.sections && pageData.sections.length > 0) {
           console.log('📦 Cargando secciones:', pageData.sections.length)
-          setProductSections(pageData.sections.map((s: BackendProductSection) => ({
+          setProductSections(pageData.sections.map((s: ProductSectionDTO) => ({
             id: s.id,
             name: s.name,
-            type: s.type,
-            categoryId: s.category_id,
-            menuId: s.menu_id,
-            submenuId: s.submenu_id,
-            useBackgroundImage: s.use_background_image,
-            backgroundImage: s.background_image_url,
             products: s.product_ids,
           })))
         }
@@ -394,15 +374,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
             id: section.id,
             name: section.name,
             order: index + 1,
-            type: section.type,
-            category_id: section.categoryId,
-            menu_id: section.menuId,
-            submenu_id: section.submenuId,
             product_ids: section.products,
-            use_background_image: section.useBackgroundImage,
-            background_image_url: typeof section.backgroundImage === 'string'
-              ? section.backgroundImage
-              : undefined,
           })),
           products_section_title: productSectionsTitle || undefined,
           products_section_description: productSectionsDescription || undefined,

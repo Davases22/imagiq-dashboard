@@ -7,18 +7,19 @@ import type { BackendBanner } from "./banner";
 // Estado de la página
 export type PageStatus = "draft" | "published" | "scheduled" | "archived";
 
-// Sección de productos
+// Sección de productos (frontend)
 export interface ProductSection {
   id: string;
   name: string;
+  products: string[];
+}
+
+// Sección de productos (backend DTO)
+export interface ProductSectionDTO {
+  id: string;
+  name: string;
   order: number;
-  type: "categoria" | "menu" | "submenu";
-  category_id?: string;
-  menu_id?: string;
-  submenu_id?: string;
   product_ids: string[];
-  use_background_image: boolean;
-  background_image_url?: string;
 }
 
 // Sección informativa
@@ -84,7 +85,7 @@ export interface Page {
   valid_until?: string;
   banner_ids: string[];
   faq_ids: string[];
-  sections: ProductSection[];
+  sections: ProductSectionDTO[];
   products_section_title?: string;
   products_section_description?: string;
   info_sections?: InfoSection[];
@@ -132,7 +133,7 @@ export interface CreateCompletePageRequest {
     valid_from?: string;
     valid_until?: string;
     created_by: string; // Email del usuario que crea la página
-    sections: ProductSection[];
+    sections: ProductSectionDTO[];
     products_section_title?: string;
     products_section_description?: string;
     info_sections?: InfoSection[];

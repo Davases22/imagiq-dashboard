@@ -152,7 +152,12 @@ export function usePageForm(): UsePageFormReturn {
           created_by: user?.email || "unknown@imagiq.com",
           valid_from: data.validFrom,
           valid_until: data.validUntil,
-          sections: data.sections,
+          sections: data.sections.map((section, index) => ({
+            id: section.id,
+            name: section.name,
+            order: index + 1,
+            product_ids: section.products,
+          })),
           info_sections: data.infoSections || [],
           meta_title: data.metaTitle,
           meta_description: data.metaDescription,
