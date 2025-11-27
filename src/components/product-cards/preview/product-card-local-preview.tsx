@@ -69,6 +69,7 @@ export function ProductCardLocalPreview({
         {/* Acciones */}
         <div className="flex gap-2 pt-2">
           <Button
+            type="button"
             variant="outline"
             size="sm"
             onClick={() => onEdit(productCard)}
@@ -78,6 +79,7 @@ export function ProductCardLocalPreview({
             Editar
           </Button>
           <Button
+            type="button"
             variant="outline"
             size="sm"
             onClick={() => onDelete(productCard)}

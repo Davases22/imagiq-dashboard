@@ -109,7 +109,7 @@ export function ProductCardsManager({ pageId }: ProductCardsManagerProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Product Cards</CardTitle>
-            <Button onClick={handleOpenCreate} disabled={isLoading}>
+            <Button type="button" onClick={handleOpenCreate} disabled={isLoading}>
               <Plus className="h-4 w-4 mr-2" />
               Agregar Producto
             </Button>
@@ -126,7 +126,7 @@ export function ProductCardsManager({ pageId }: ProductCardsManagerProps) {
               <p className="text-muted-foreground mb-4">
                 No hay productos agregados todavía
               </p>
-              <Button onClick={handleOpenCreate}>
+              <Button type="button" onClick={handleOpenCreate}>
                 <Plus className="h-4 w-4 mr-2" />
                 Agregar Primer Producto
               </Button>

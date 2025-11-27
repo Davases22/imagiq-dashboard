@@ -130,6 +130,7 @@ export interface FAQ {
 // Request para crear página completa
 export interface CreateCompletePageRequest {
   page: {
+    id?: string; // ID de la página (solo en modo edición)
     slug: string;
     title: string;
     status?: PageStatus;

@@ -245,7 +245,7 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
           <Badge variant="outline">Banner Navbar Mobile</Badge>
-          <Button variant="outline" size="sm" onClick={() => setReloadKey(p => p + 1)} title="Recargar preview">
+          <Button type="button" variant="outline" size="sm" onClick={() => setReloadKey(p => p + 1)} title="Recargar preview">
             <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
@@ -299,7 +299,7 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
           <Badge variant="outline">Vista General</Badge>
-          <Button variant="outline" size="sm" onClick={() => setReloadKey(p => p + 1)} title="Recargar preview">
+          <Button type="button" variant="outline" size="sm" onClick={() => setReloadKey(p => p + 1)} title="Recargar preview">
             <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
@@ -309,17 +309,17 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
   }
 
   return (
-    <div className="space-y-4">
+      <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 p-1 bg-muted rounded-lg flex-1">
           {(["desktop", "mobile"] as const).map((mode) => (
-            <Button key={mode} variant={viewMode === mode ? "default" : "ghost"} size="sm" onClick={() => setViewMode(mode)} className="flex-1">
+            <Button type="button" key={mode} variant={viewMode === mode ? "default" : "ghost"} size="sm" onClick={() => setViewMode(mode)} className="flex-1">
               {mode === "desktop" ? <Monitor className="h-4 w-4 mr-2" /> : <Smartphone className="h-4 w-4 mr-2" />}
               {mode === "desktop" ? "Desktop" : "Mobile"}
             </Button>
           ))}
         </div>
-        <Button variant="outline" size="sm" onClick={() => setReloadKey(p => p + 1)} title="Recargar preview">
+        <Button type="button" variant="outline" size="sm" onClick={() => setReloadKey(p => p + 1)} title="Recargar preview">
           <RotateCcw className="h-4 w-4" />
         </Button>
       </div>
