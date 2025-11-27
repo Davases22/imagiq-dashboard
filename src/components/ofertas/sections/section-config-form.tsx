@@ -10,7 +10,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { SectionTypeSelectors } from "./section-type-selectors"
-import { ProductSelector } from "./product-selector"
+import { ProductCardsManager } from "@/components/product-cards/product-cards-manager"
 
 interface ProductSection {
   id: string
@@ -33,7 +33,6 @@ interface SectionConfigFormProps {
   onSubmenuChange: (submenuId: string) => void
   onBackgroundToggle: (enabled: boolean) => void
   onBackgroundImageChange: (file: File | undefined) => void
-  onProductsChange: (productIds: string[]) => void
 }
 
 export function SectionConfigForm({
@@ -45,7 +44,6 @@ export function SectionConfigForm({
   onSubmenuChange,
   onBackgroundToggle,
   onBackgroundImageChange,
-  onProductsChange,
 }: SectionConfigFormProps) {
   return (
     <div className="space-y-4">
@@ -91,11 +89,14 @@ export function SectionConfigForm({
 
       <Separator />
 
-      {/* Selector de productos */}
-      <ProductSelector
-        section={section}
-        onProductsChange={onProductsChange}
-      />
+      {/* Product Cards Manager */}
+      <div className="space-y-2">
+        <Label>Productos de esta sección</Label>
+        <p className="text-xs text-muted-foreground mb-4">
+          Crea tarjetas de productos personalizadas con imágenes, títulos y descripciones
+        </p>
+        <ProductCardsManager />
+      </div>
 
       <Separator />
 

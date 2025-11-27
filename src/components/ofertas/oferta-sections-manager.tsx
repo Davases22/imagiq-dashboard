@@ -164,7 +164,6 @@ export function OfertaSectionsManager({
               onBackgroundImageChange={(backgroundImage) =>
                 updateSection(activeSection, { backgroundImage })
               }
-              onProductsChange={(products) => updateSection(activeSection, { products })}
             />
           )}
         </>
