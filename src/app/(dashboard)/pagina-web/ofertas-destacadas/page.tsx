@@ -35,7 +35,15 @@ import {
   Plus,
   Save,
   X,
+  Loader2,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { OfertaDestacada, ofertasDestacadasEndpoints } from "@/lib/api";
 import { useOfertasDestacadas } from "@/hooks/useOfertasDestacadas";
 import { AddProductDialog } from "@/components/ofertas-destacadas/AddProductDialog";
@@ -62,9 +70,11 @@ export default function OfertasDestacadasPage() {
     toggleOfertaActive,
     deleteOferta,
     updateOfertasOrder,
+    updateNombre,
     updatingOferta,
     deletingOferta,
     updatingOrder,
+    updatingNombre,
     refetch,
   } = useOfertasDestacadas();
 
@@ -273,6 +283,7 @@ export default function OfertasDestacadasPage() {
                 <TableHead>Producto</TableHead>
                 <TableHead>Imagen</TableHead>
                 <TableHead>Código Market</TableHead>
+                <TableHead>Nombre</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -302,7 +313,9 @@ export default function OfertasDestacadasPage() {
                     </Button>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{oferta.producto_nombre}</div>
+                    <div className="font-medium">
+                      {oferta.nombre || oferta.nombre_modelo || oferta.nombre_market || oferta.producto_nombre || "-"}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {oferta.producto_imagen ? (
@@ -333,6 +346,84 @@ export default function OfertasDestacadasPage() {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {updatingNombre === oferta.uuid ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">Actualizando...</span>
+                        </div>
+                      ) : (
+                        <Select
+                          value={
+                            // Determinar qué tipo de nombre está seleccionado actualmente
+                            // Si no hay nombre, usar modelo por defecto
+                            // Comparar el nombre actual con nombre_modelo primero (más específico)
+                            !oferta.nombre && oferta.nombre_modelo
+                              ? "modelo"
+                              : oferta.nombre_modelo && 
+                                oferta.nombre === oferta.nombre_modelo
+                              ? "modelo"
+                              : "market"
+                          }
+                          onValueChange={(value: "market" | "modelo") => {
+                            // Solo actualizar si el valor es diferente al actual
+                            const currentType =
+                              !oferta.nombre && oferta.nombre_modelo
+                                ? "modelo"
+                                : oferta.nombre_modelo && 
+                                  oferta.nombre === oferta.nombre_modelo
+                                ? "modelo"
+                                : "market";
+                            if (value !== currentType) {
+                              updateNombre(oferta.uuid, value);
+                            }
+                          }}
+                          disabled={updatingNombre === oferta.uuid || (!oferta.nombre_market && !oferta.nombre_modelo)}
+                        >
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Tipo de nombre" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem 
+                              value="market" 
+                              disabled={!oferta.nombre_market}
+                            >
+                              Nombre de Market
+                            </SelectItem>
+                            <SelectItem 
+                              value="modelo" 
+                              disabled={!oferta.nombre_modelo}
+                            >
+                              Nombre de Modelo
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <span className="text-sm font-medium truncate max-w-[150px] block">
+                              {oferta.nombre || oferta.nombre_modelo || oferta.nombre_market || oferta.producto_nombre || "-"}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="space-y-1">
+                              <p className="font-semibold">
+                                {oferta.nombre || oferta.nombre_modelo || oferta.nombre_market || oferta.producto_nombre || "Sin nombre"}
+                              </p>
+                              {oferta.nombre_market && (
+                                <p className="text-xs">Market: {oferta.nombre_market}</p>
+                              )}
+                              {oferta.nombre_modelo && (
+                                <p className="text-xs">Modelo: {oferta.nombre_modelo}</p>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -396,8 +487,21 @@ export default function OfertasDestacadasPage() {
               activo: true,
             });
             if (response.success) {
+              // Después de crear, establecer nombre_modelo por defecto si está disponible
+              const nuevaOferta = response.data as OfertaDestacada;
+              if (nuevaOferta?.nombre_modelo && nuevaOferta.uuid) {
+                try {
+                  // Cambiar a nombre de modelo por defecto
+                  await updateNombre(nuevaOferta.uuid, "modelo");
+                } catch (error) {
+                  // Si falla, no es crítico - la oferta ya se creó
+                  console.warn("No se pudo establecer nombre_modelo por defecto:", error);
+                }
+              }
               toast.success(`${productoNombre} agregado correctamente`);
               await refetch();
+              // Cerrar el modal después de agregar exitosamente
+              setIsAddDialogOpen(false);
             } else {
               toast.error("Error al agregar el producto");
             }
