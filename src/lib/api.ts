@@ -29,6 +29,7 @@ import {
   FilterOrderConfig,
 } from "@/types/filters";
 import type { Page, PagePaginationData, PageExpanded, CreateCompletePageRequest, CreateCompletePageResponse } from "@/types/page";
+import type { ProductCard, UpdateProductCardDto } from "@/types/product-card";
 import {
   apiClient as apiClientWithKey,
   apiClientFormData,
@@ -1994,5 +1995,54 @@ export const pageEndpoints = {
       total_views: number;
       most_viewed: Page[];
     }>("/api/multimedia/pages/stats"),
+};
+
+// Product Cards API endpoints
+export const productCardEndpoints = {
+  // Obtener todas las product cards
+  getAll: () =>
+    apiClient.get<ProductCard[]>("/api/multimedia/product-cards"),
+
+  // Obtener una product card por ID
+  getById: (id: string) =>
+    apiClient.get<ProductCard>(`/api/multimedia/product-cards/${id}`),
+
+  // Obtener product cards por IDs
+  getByIds: (ids: string[]) => {
+    const idsParam = ids.join(",");
+    return apiClient.get<ProductCard[]>(
+      `/api/multimedia/product-cards/by-ids?ids=${idsParam}`
+    );
+  },
+
+  // Obtener product cards de una página específica
+  getByPageId: (pageId: string) =>
+    apiClient.get<ProductCard[]>(
+      `/api/multimedia/product-cards/by-page/${pageId}`
+    ),
+
+  // Crear product card con imagen
+  create: (formData: FormData) =>
+    apiClient.postFormData<ProductCard>(
+      "/api/multimedia/product-cards",
+      formData
+    ),
+
+  // Actualizar product card (con o sin imagen)
+  update: (id: string, formData: FormData) =>
+    apiClient.putFormData<ProductCard>(
+      `/api/multimedia/product-cards/${id}`,
+      formData
+    ),
+
+  // Actualizar solo datos (sin imagen)
+  updateData: (id: string, data: UpdateProductCardDto) =>
+    apiClient.put<ProductCard>(`/api/multimedia/product-cards/${id}`, data),
+
+  // Eliminar product card
+  delete: (id: string) =>
+    apiClient.delete<{ success: boolean; message: string }>(
+      `/api/multimedia/product-cards/${id}`
+    ),
 };
 
