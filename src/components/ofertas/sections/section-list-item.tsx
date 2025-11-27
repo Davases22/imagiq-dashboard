@@ -4,7 +4,6 @@ import { GripVertical, Trash2 } from "lucide-react"
 interface ProductSection {
   id: string
   name: string
-  type: "categoria" | "menu" | "submenu"
   products: string[]
 }
 
@@ -33,8 +32,8 @@ export function SectionListItem({
       <GripVertical className="h-4 w-4 text-muted-foreground" />
       <div className="flex-1">
         <p className="font-medium text-sm">{section.name}</p>
-        <p className="text-xs text-muted-foreground capitalize">
-          {section.type} • {section.products.length} productos
+        <p className="text-xs text-muted-foreground">
+          {section.products.length} {section.products.length === 1 ? 'producto' : 'productos'}
         </p>
       </div>
       {canDelete && (

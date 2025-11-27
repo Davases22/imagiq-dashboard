@@ -11,12 +11,6 @@ import { SectionConfigForm } from "./sections/section-config-form"
 interface ProductSection {
   id: string
   name: string
-  type: "categoria" | "menu" | "submenu"
-  categoryId?: string
-  menuId?: string
-  submenuId?: string
-  useBackgroundImage: boolean
-  backgroundImage?: File | string
   products: string[]
 }
 
@@ -43,8 +37,6 @@ export function OfertaSectionsManager({
     const newSection: ProductSection = {
       id: `section-${Date.now()}`,
       name: `Sección ${sections.length + 1}`,
-      type: "categoria",
-      useBackgroundImage: false,
       products: [],
     }
     onSectionsChange([...sections, newSection])
@@ -64,27 +56,6 @@ export function OfertaSectionsManager({
       s.id === sectionId ? { ...s, ...updates } : s
     )
     onSectionsChange(updated)
-  }
-
-  const handleTypeChange = (type: ProductSection["type"]) => {
-    updateSection(activeSection, {
-      type,
-      categoryId: undefined,
-      menuId: undefined,
-      submenuId: undefined,
-    })
-  }
-
-  const handleCategoryChange = (categoryId: string) => {
-    updateSection(activeSection, {
-      categoryId,
-      menuId: undefined,
-      submenuId: undefined,
-    })
-  }
-
-  const handleMenuChange = (menuId: string) => {
-    updateSection(activeSection, { menuId, submenuId: undefined })
   }
 
   const activeSectionData = sections.find((s) => s.id === activeSection)
@@ -154,16 +125,6 @@ export function OfertaSectionsManager({
             <SectionConfigForm
               section={activeSectionData}
               onNameChange={(name) => updateSection(activeSection, { name })}
-              onTypeChange={handleTypeChange}
-              onCategoryChange={handleCategoryChange}
-              onMenuChange={handleMenuChange}
-              onSubmenuChange={(submenuId) => updateSection(activeSection, { submenuId })}
-              onBackgroundToggle={(useBackgroundImage) =>
-                updateSection(activeSection, { useBackgroundImage })
-              }
-              onBackgroundImageChange={(backgroundImage) =>
-                updateSection(activeSection, { backgroundImage })
-              }
             />
           )}
         </>

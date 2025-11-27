@@ -10,4 +10,3 @@ export { OfertaContentSummary } from "./oferta-content-summary"
 // Subcomponentes de secciones
 export { SectionListItem } from "./sections/section-list-item"
 export { SectionConfigForm } from "./sections/section-config-form"
-export { SectionTypeSelectors } from "./sections/section-type-selectors"
