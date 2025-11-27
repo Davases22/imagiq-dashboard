@@ -36,7 +36,7 @@ export function ProductCardsManager({ pageId }: ProductCardsManagerProps) {
     createProductCard,
     updateProductCard,
     deleteProductCard,
-  } = useProductCards({ pageId })
+  } = useProductCards({ pageId, autoFetch: !!pageId })
 
   const handleCreate = async (formData: FormData) => {
     if (pageId) {

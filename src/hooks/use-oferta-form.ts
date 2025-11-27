@@ -2,9 +2,11 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { BannerTextStyles, BannerPosition } from "@/types/banner"
-import { pageEndpoints } from "@/lib/api"
+import { pageEndpoints, productCardEndpoints } from "@/lib/api"
 import type { CreateCompletePageRequest, NewBanner, PageFAQ, BannerFiles as ApiBannerFiles, ProductSection, ProductSectionDTO, InfoSection, PageExpanded } from "@/types/page"
+import type { ProductCard } from "@/types/product-card"
 import { useAuth } from "@/contexts/AuthContext"
+import { useProductCardsContext } from "@/contexts/ProductCardsContext"
 
 const DEFAULT_TEXT_STYLES: BannerTextStyles = {
   title: { fontSize: "clamp(2rem, 5vw, 4rem)", fontWeight: "700", lineHeight: "1.2" },
@@ -23,6 +25,10 @@ interface BannerData {
   color_font: string
   coordinates: string
   coordinates_mobile: string
+  desktop_image_url?: string
+  mobile_image_url?: string
+  desktop_video_url?: string
+  mobile_video_url?: string
 }
 
 interface BannerFiles {
@@ -63,6 +69,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
   const { pageId, returnPath = "/pagina-web/ofertas" } = options
   const { user } = useAuth()
   const router = useRouter()
+  const { productCards, clearAll, loadExistingCards } = useProductCardsContext()
   const [saving, setSaving] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(!!pageId)
@@ -186,46 +193,39 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
     const loadPageData = async () => {
       try {
         setLoading(true)
-        console.log('🔍 Cargando página con ID:', pageId)
-        const response = await pageEndpoints.getById(pageId, ['banners', 'faqs'])
-        console.log('📦 Respuesta completa del API:', JSON.stringify(response, null, 2))
+        const response = await pageEndpoints.getById(pageId, ['banners', 'faqs', 'product_cards'])
 
         // Verificar si la respuesta tiene la estructura esperada
-        if (!response) {
-          console.error('❌ Respuesta vacía del API')
+        if (!response || !response.data) {
+          console.error('❌ Error cargando página: Respuesta vacía del API')
           toast.error('No se pudo cargar la página')
           return
         }
 
-        // La respuesta puede tener diferentes estructuras, vamos a manejar ambas
-        let pageData: PageExpanded | null = null
-
-        // Caso 1: response.data.data (estructura wrapper doble)
-        if (response.data?.data) {
+        // Determinar dónde están los datos
+        let pageData: PageExpanded
+        
+        // Si response.data tiene la propiedad 'data', los datos están ahí
+        if ('data' in response.data && response.data.data) {
           pageData = response.data.data
-          console.log('✅ Datos encontrados en response.data.data')
         }
-        // Caso 2: response.data (puede tener success y data como propiedades)
-        else if (response.data && typeof response.data === 'object') {
-          // Si tiene propiedad 'data', es un wrapper
-          if ('data' in response.data) {
-            pageData = (response.data as { data: PageExpanded }).data
-            console.log('✅ Datos encontrados en response.data.data (wrapper)')
-          }
-          // Si tiene 'slug' y 'title', es PageExpanded directo
-          else if ('slug' in response.data && 'title' in response.data) {
-            pageData = response.data as unknown as PageExpanded
-            console.log('✅ Datos encontrados en response.data (directo)')
-          }
+        // Si response.data tiene 'success' y 'data', es un wrapper
+        else if ('success' in response.data && 'data' in response.data) {
+          pageData = (response.data as any).data
         }
-
-        if (!pageData) {
-          console.error('❌ No se encontraron datos en la respuesta:', response)
-          toast.error('No se encontraron datos de la página')
+        // Si response.data tiene directamente las propiedades de Page
+        else if ('id' in response.data && 'slug' in response.data) {
+          pageData = response.data as any
+        }
+        // Si response.data ES el objeto PageExpanded directo
+        else if (typeof response.data === 'object' && response.data !== null) {
+          pageData = response.data as any
+        }
+        else {
+          console.error('❌ Error cargando página: Estructura de respuesta inválida')
+          toast.error('Estructura de respuesta inválida')
           return
         }
-
-        console.log('📄 Datos de la página a cargar:', pageData)
 
         // Cargar datos básicos
         setTitulo(pageData.title ?? '')
@@ -240,17 +240,15 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
 
         // Cargar secciones de productos
         if (pageData.sections && pageData.sections.length > 0) {
-          console.log('📦 Cargando secciones:', pageData.sections.length)
           setProductSections(pageData.sections.map((s: ProductSectionDTO) => ({
             id: s.id,
             name: s.name,
-            products: s.product_ids,
+            products: s.product_card_ids || s.product_ids || [],
           })))
         }
 
         // Cargar info sections si existen
         if (pageData.info_sections && pageData.info_sections.length > 0) {
-          console.log('ℹ️ Cargando info sections:', pageData.info_sections.length)
           setInfoSectionEnabled(true)
           setInfoItems(pageData.info_sections.map((info: InfoSection) => ({
             id: info.id || crypto.randomUUID(),
@@ -261,19 +259,79 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
 
         // Cargar banners si existen
         if (pageData.banners && pageData.banners.length > 0) {
-          console.log('🎨 Cargando banners:', pageData.banners.length)
           setBannersEnabled(true)
-          // TODO: Mapear banners del backend al formato del formulario
+          
+          // Mapear banners del backend al formato del formulario
+          const mappedBanners = pageData.banners.map((banner, index) => ({
+            id: banner.id,
+            data: {
+              id: banner.id,
+              name: banner.name,
+              placement: banner.placement,
+              link_url: banner.link_url || '',
+              title: banner.title || '',
+              description: banner.description || '',
+              cta: banner.cta || '',
+              color_font: banner.color_font || '#000000',
+              coordinates: banner.coordinates || '',
+              coordinates_mobile: banner.coordinates_mobile || '',
+              desktop_image_url: banner.desktop_image_url || undefined,
+              mobile_image_url: banner.mobile_image_url || undefined,
+              desktop_video_url: banner.desktop_video_url || undefined,
+              mobile_video_url: banner.mobile_video_url || undefined,
+            },
+            files: {}, // Los archivos ya existen en el servidor
+            textStyles: typeof banner.text_styles === 'string' 
+              ? JSON.parse(banner.text_styles) 
+              : banner.text_styles || DEFAULT_TEXT_STYLES,
+            positionDesktop: banner.position_desktop || { x: 10, y: 50 },
+            positionMobile: banner.position_mobile || { x: 10, y: 50 },
+          }))
+          
+          setBanners(mappedBanners)
+          if (mappedBanners.length > 0) {
+            setActiveBannerId(mappedBanners[0].id)
+          }
+        } else if (pageData.banner_ids && pageData.banner_ids.length > 0) {
+          // FALLBACK: Si no vinieron expandidos, el backend debe expandirlos
+          // TODO: Implementar carga de banners por IDs si el backend no los expande
+        }
+
+        // Cargar product cards al contexto si existen
+        if (pageData.product_cards && pageData.product_cards.length > 0) {
+          // Limpiar contexto antes de cargar (en modo edición)
+          clearAll()
+          
+          // Agrupar product cards por sección
+          const cardsBySection = new Map<string, ProductCard[]>()
+          
+          for (const card of pageData.product_cards) {
+            // Buscar en qué sección está este product card
+            const section = pageData.sections.find(s => 
+              (s.product_card_ids || s.product_ids || []).includes(card.id)
+            )
+            
+            if (section) {
+              if (!cardsBySection.has(section.id)) {
+                cardsBySection.set(section.id, [])
+              }
+              cardsBySection.get(section.id)!.push(card)
+            }
+          }
+          
+          // Cargar cada grupo de cards al contexto
+          cardsBySection.forEach((cards, sectionId) => {
+            loadExistingCards(cards, sectionId)
+          })
         }
 
         // Cargar FAQs si existen
         if (pageData.faqs && pageData.faqs.length > 0) {
-          console.log('❓ Cargando FAQs:', pageData.faqs.length)
           setFaqEnabled(true)
-          setFaqItems(pageData.faqs.map((faq: any) => ({
-            id: faq.id || crypto.randomUUID(),
-            question: faq.pregunta || faq.question || '',
-            answer: faq.respuesta || faq.answer || '',
+          setFaqItems(pageData.faqs.map((faq) => ({
+            id: faq.id,
+            question: faq.pregunta,
+            answer: faq.respuesta,
           })))
         }
 
@@ -294,7 +352,6 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
 
     // Prevenir múltiples submissions
     if (isSubmitting || saving) {
-      console.log("Submit bloqueado: Ya hay una petición en proceso")
       return
     }
 
@@ -374,7 +431,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
             id: section.id,
             name: section.name,
             order: index + 1,
-            product_ids: section.products,
+            product_card_ids: section.products,
           })),
           products_section_title: productSectionsTitle || undefined,
           products_section_description: productSectionsDescription || undefined,
@@ -392,39 +449,85 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         banner_files: bannerFiles,
       }
       
-      // Log para debug
-      console.log("📤 Enviando datos al backend:", {
-        page: {
-          ...request.page,
-          sections_count: request.page.sections.length,
-          info_sections_count: request.page.info_sections?.length || 0,
-        },
-        new_banners_count: request.new_banners.length,
-        new_banners: request.new_banners,
-        new_faqs_count: request.new_faqs.length,
-        banner_files_count: request.banner_files.length,
-        existing_banner_ids: request.existing_banner_ids,
-        existing_faq_ids: request.existing_faq_ids,
-      })
-      
-      console.log("📋 Detalle de secciones:", request.page.sections)
-      console.log("🖼️ Detalle de banner files:", request.banner_files.map((f, i) => ({
-        index: i,
-        desktop_image: f.desktop_image?.name,
-        mobile_image: f.mobile_image?.name,
-      })))
-      
-      // 5. Enviar al backend
+      // 5. Enviar al backend para crear la página
       const response = await pageEndpoints.createComplete(request)
       
-      console.log("Respuesta del backend:", response)
-      
-      // El backend puede retornar en dos formatos:
-      // 1. Formato completo: { success: true, data: { page, created_banner_ids, created_faq_ids }, message }
-      // 2. Formato directo: el objeto Page directamente (sin wrapper)
-      
-      // Detectar si es formato directo (tiene 'id' y 'slug' directamente)
+      // Extraer el ID de la página creada
       const isDirectPageResponse = response && 'id' in response && 'slug' in response
+      let createdPageId: string | null = null
+      if (isDirectPageResponse) {
+        createdPageId = (response as any).id
+      } else if (response.data?.page?.id) {
+        createdPageId = response.data.page.id
+      }
+      
+      if (!createdPageId) {
+        throw new Error("No se pudo obtener el ID de la página creada")
+      }
+      
+      // 6. Crear product cards si existen
+      if (productCards.length > 0) {
+        // Mapa para relacionar tempId con ID real
+        const cardIdMap = new Map<string, string>()
+        
+        // Crear cada product card
+        for (const card of productCards) {
+          try {
+            const formData = new FormData()
+            formData.append("page_id", createdPageId)
+            formData.append("title", card.title)
+            if (card.subtitle) formData.append("subtitle", card.subtitle)
+            if (card.description) formData.append("description", card.description)
+            if (card.cta_text) formData.append("cta_text", card.cta_text)
+            if (card.cta_url) formData.append("cta_url", card.cta_url)
+            if (card.image) formData.append("image", card.image)
+            if (card.image_url) formData.append("image_url", card.image_url)
+            
+            const createdCard = await productCardEndpoints.create(formData)
+            const realCardId = createdCard.data?.id || (createdCard as any).id
+            
+            if (realCardId) {
+              cardIdMap.set(card.tempId, realCardId)
+            }
+          } catch (error) {
+            console.error(`❌ Error creando product card "${card.title}":`, error)
+            // Continuar con las demás aunque una falle
+          }
+        }
+        
+        // 7. Actualizar secciones con los IDs reales de product cards
+        if (cardIdMap.size > 0) {
+          const updatedSections = productSections.map(section => {
+            // Obtener los product cards de esta sección del contexto
+            const sectionCards = productCards.filter(card => card.sectionId === section.id)
+            
+            // Mapear los IDs temporales a IDs reales
+            const realIds = sectionCards
+              .map(card => cardIdMap.get(card.tempId))
+              .filter(id => id !== undefined) as string[]
+            
+            return {
+              id: section.id,
+              name: section.name,
+              order: productSections.indexOf(section) + 1,
+              product_card_ids: realIds,
+            }
+          })
+          
+          // Actualizar la página con las secciones correctas
+          try {
+            await pageEndpoints.update(createdPageId, {
+              sections: updatedSections,
+            })
+          } catch (error) {
+            console.error("❌ Error actualizando secciones:", error)
+            toast.warning("Página creada pero hubo un problema al relacionar los productos")
+          }
+        }
+        
+        // Limpiar el contexto de product cards
+        clearAll()
+      }
       
       // Validar éxito
       const isSuccess = 
@@ -436,7 +539,6 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         toast.success("Oferta creada exitosamente")
         router.push(returnPath)
       } else {
-        console.error("Respuesta considerada como error:", response)
         toast.error(response.message || "Error al crear la oferta")
       }
     } catch (error) {

@@ -3,6 +3,7 @@
  */
 
 import type { BackendBanner } from "./banner";
+import type { ProductCard } from "./product-card";
 
 // Estado de la página
 export type PageStatus = "draft" | "published" | "scheduled" | "archived";
@@ -19,7 +20,8 @@ export interface ProductSectionDTO {
   id: string;
   name: string;
   order: number;
-  product_ids: string[];
+  product_ids?: string[]; // Deprecated: usar product_card_ids
+  product_card_ids: string[]; // IDs de product cards personalizados
 }
 
 // Sección informativa
@@ -108,6 +110,7 @@ export interface Page {
 export interface PageExpanded extends Page {
   banners?: BackendBanner[];
   faqs?: FAQ[];
+  product_cards?: ProductCard[];
 }
 
 // FAQ completo (desde BD)
