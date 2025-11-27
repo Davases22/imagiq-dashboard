@@ -18,6 +18,10 @@ interface BannerData {
   color_font: string
   coordinates: string
   coordinates_mobile: string
+  desktop_image_url?: string
+  mobile_image_url?: string
+  desktop_video_url?: string
+  mobile_video_url?: string
 }
 
 interface BannerFiles {
@@ -115,7 +119,7 @@ export function OfertaBannersManager({
       <Tabs value={activeBannerId} onValueChange={onActiveBannerChange} className="w-full">
         <TabsList className="w-full flex-wrap h-auto gap-2">
           {banners.map((banner, index) => (
-            <div key={banner.id} className="flex items-center gap-1">
+            <div key={banner.id} className="flex items-center gap-2">
               <TabsTrigger value={banner.id}>
                 Banner {index + 1}
               </TabsTrigger>
@@ -146,6 +150,12 @@ export function OfertaBannersManager({
             <h4 className="font-medium mb-4">Medios del Banner</h4>
             <BannerMediaUpload
               files={activeBanner.files}
+              existingUrls={{
+                desktop_image_url: activeBanner.data.desktop_image_url,
+                desktop_video_url: activeBanner.data.desktop_video_url,
+                mobile_image_url: activeBanner.data.mobile_image_url,
+                mobile_video_url: activeBanner.data.mobile_video_url,
+              }}
               placement={activeBanner.data.placement}
               onFileChange={handleFileChange}
             />

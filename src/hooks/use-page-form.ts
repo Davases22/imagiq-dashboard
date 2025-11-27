@@ -156,7 +156,8 @@ export function usePageForm(): UsePageFormReturn {
             id: section.id,
             name: section.name,
             order: index + 1,
-            product_ids: section.products,
+            product_card_ids: section.products, // Usar product_card_ids (nuevo)
+            product_ids: section.products, // Mantener product_ids para compatibilidad
           })),
           info_sections: data.infoSections || [],
           meta_title: data.metaTitle,

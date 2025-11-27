@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { LandingPageForm } from "@/components/landing-pages"
+import { ProductCardsProvider } from "@/contexts/ProductCardsContext"
 
 /**
  * Página de edición de Landing Page
@@ -38,7 +39,9 @@ export default function EditarLandingPagePage({
       </div>
 
       {/* Formulario unificado */}
-      <LandingPageForm mode="edit" pageId={id} onCancel={handleCancel} />
+      <ProductCardsProvider>
+        <LandingPageForm mode="edit" pageId={id} onCancel={handleCancel} />
+      </ProductCardsProvider>
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { LandingPageForm } from "@/components/landing-pages"
+import { ProductCardsProvider } from "@/contexts/ProductCardsContext"
 
 /**
  * Página de creación de nueva Landing Page dinámica
@@ -33,7 +34,9 @@ export default function CrearLandingPagePage() {
       </div>
 
       {/* Formulario unificado */}
-      <LandingPageForm mode="create" onCancel={handleCancel} />
+      <ProductCardsProvider>
+        <LandingPageForm mode="create" onCancel={handleCancel} />
+      </ProductCardsProvider>
     </div>
   )
 }
