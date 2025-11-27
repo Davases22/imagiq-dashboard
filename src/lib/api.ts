@@ -1733,7 +1733,9 @@ export const tiendasEndpoints = {
 export interface OfertaDestacada {
   uuid: string;
   codigo_market: string;
-  nombre?: string;
+  nombre?: string | null; // Nombre que se muestra (puede ser market o modelo)
+  nombre_market?: string | null; // Nombre de market (siempre disponible)
+  nombre_modelo?: string | null; // Nombre de modelo (siempre disponible)
   orden: number;
   activo: boolean;
   created_at: string;
@@ -1760,12 +1762,10 @@ export interface UpdateOfertaDestacadaDto {
   activo?: boolean;
 }
 
-export interface UpdateOrderDto {
-  items: Array<{
-    uuid: string;
-    orden: number;
-  }>;
-}
+export type UpdateOrderDto = Array<{
+  uuid: string;
+  orden: number;
+}>;
 
 export interface OfertasDestacadasStats {
   total: number;
@@ -1797,6 +1797,13 @@ export const ofertasDestacadasEndpoints = {
   // Eliminar oferta
   delete: (uuid: string) =>
     apiClient.delete<void>(`/api/products/ofertas-destacadas/${uuid}`),
+
+  // Actualizar nombre de oferta
+  updateNombre: (uuid: string, tipoNombre: "market" | "modelo") =>
+    apiClient.put<OfertaDestacada>(
+      `/api/products/ofertas-destacadas/${uuid}/nombre`,
+      { tipo_nombre: tipoNombre }
+    ),
 
   // Actualizar orden (drag & drop)
   reorder: (data: UpdateOrderDto) =>
