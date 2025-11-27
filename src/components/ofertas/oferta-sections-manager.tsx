@@ -1,5 +1,8 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Plus } from "lucide-react"
 import { SectionListItem } from "./sections/section-list-item"
@@ -18,11 +21,19 @@ interface ProductSection {
 }
 
 interface OfertaSectionsManagerProps {
+  title?: string
+  description?: string
+  onTitleChange?: (title: string) => void
+  onDescriptionChange?: (description: string) => void
   sections: ProductSection[]
   onSectionsChange: (sections: ProductSection[]) => void
 }
 
 export function OfertaSectionsManager({
+  title = "",
+  description = "",
+  onTitleChange,
+  onDescriptionChange,
   sections,
   onSectionsChange,
 }: OfertaSectionsManagerProps) {
@@ -80,6 +91,35 @@ export function OfertaSectionsManager({
 
   return (
     <div className="space-y-4">
+      {/* Título y descripción general de la sección de productos */}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="products-section-title">
+            Título de la sección de productos (opcional)
+          </Label>
+          <Input
+            id="products-section-title"
+            placeholder="Ej: Productos en Oferta"
+            value={title}
+            onChange={(e) => onTitleChange?.(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="products-section-description">
+            Descripción de la sección (opcional)
+          </Label>
+          <Textarea
+            id="products-section-description"
+            placeholder="Ej: Aprovecha estos increíbles descuentos..."
+            rows={3}
+            value={description}
+            onChange={(e) => onDescriptionChange?.(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <Separator />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
