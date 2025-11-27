@@ -1,16 +1,21 @@
 "use client"
 
-import { useCallback } from "react"
+import { use, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { LandingPageForm } from "@/components/landing-pages"
 
 /**
- * Página de creación de nueva Landing Page dinámica
+ * Página de edición de Landing Page
  */
-export default function CrearLandingPagePage() {
+export default function EditarLandingPagePage({ 
+  params 
+}: { 
+  params: Promise<{ id: string }> 
+}) {
   const router = useRouter()
+  const { id } = use(params)
 
   const handleCancel = useCallback(() => {
     router.push("/pagina-web/landing-pages")
@@ -25,15 +30,15 @@ export default function CrearLandingPagePage() {
           Volver
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">Nueva Landing Page</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Editar Landing Page</h1>
           <p className="text-muted-foreground">
-            Crea una nueva página dinámica con banners, productos, FAQs y más
+            Modifica la configuración de tu página dinámica
           </p>
         </div>
       </div>
 
       {/* Formulario unificado */}
-      <LandingPageForm mode="create" onCancel={handleCancel} />
+      <LandingPageForm mode="edit" pageId={id} onCancel={handleCancel} />
     </div>
   )
 }

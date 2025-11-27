@@ -1,9 +1,9 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { BannerTextStyles, BannerPosition } from "@/types/banner"
 import { pageEndpoints } from "@/lib/api"
-import type { CreateCompletePageRequest, NewBanner, PageFAQ, BannerFiles as ApiBannerFiles } from "@/types/page"
+import type { CreateCompletePageRequest, NewBanner, PageFAQ, BannerFiles as ApiBannerFiles, ProductSection as BackendProductSection, InfoSection, PageExpanded } from "@/types/page"
 import { useAuth } from "@/contexts/AuthContext"
 
 const DEFAULT_TEXT_STYLES: BannerTextStyles = {
@@ -67,15 +67,17 @@ interface FaqItem {
 }
 
 interface UseOfertaFormOptions {
+  pageId?: string
   returnPath?: string
 }
 
 export function useOfertaForm(options: UseOfertaFormOptions = {}) {
-  const { returnPath = "/pagina-web/ofertas" } = options
+  const { pageId, returnPath = "/pagina-web/ofertas" } = options
   const { user } = useAuth()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(!!pageId)
 
   // Estados de oferta
   const [titulo, setTitulo] = useState("")
@@ -110,6 +112,8 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
   const [activeBannerId, setActiveBannerId] = useState("banner-1")
 
   // Estados de secciones de productos
+  const [productSectionsTitle, setProductSectionsTitle] = useState("")
+  const [productSectionsDescription, setProductSectionsDescription] = useState("")
   const [productSections, setProductSections] = useState<ProductSection[]>([
     {
       id: "section-1",
@@ -189,6 +193,122 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
     return true
   }
 
+  // Cargar datos existentes si estamos en modo edición
+  useEffect(() => {
+    if (!pageId) return
+
+    const loadPageData = async () => {
+      try {
+        setLoading(true)
+        console.log('🔍 Cargando página con ID:', pageId)
+        const response = await pageEndpoints.getById(pageId, ['banners', 'faqs'])
+        console.log('📦 Respuesta completa del API:', JSON.stringify(response, null, 2))
+
+        // Verificar si la respuesta tiene la estructura esperada
+        if (!response) {
+          console.error('❌ Respuesta vacía del API')
+          toast.error('No se pudo cargar la página')
+          return
+        }
+
+        // La respuesta puede tener diferentes estructuras, vamos a manejar ambas
+        let pageData: PageExpanded | null = null
+
+        // Caso 1: response.data.data (estructura wrapper doble)
+        if (response.data?.data) {
+          pageData = response.data.data
+          console.log('✅ Datos encontrados en response.data.data')
+        }
+        // Caso 2: response.data (puede tener success y data como propiedades)
+        else if (response.data && typeof response.data === 'object') {
+          // Si tiene propiedad 'data', es un wrapper
+          if ('data' in response.data) {
+            pageData = (response.data as { data: PageExpanded }).data
+            console.log('✅ Datos encontrados en response.data.data (wrapper)')
+          }
+          // Si tiene 'slug' y 'title', es PageExpanded directo
+          else if ('slug' in response.data && 'title' in response.data) {
+            pageData = response.data as unknown as PageExpanded
+            console.log('✅ Datos encontrados en response.data (directo)')
+          }
+        }
+
+        if (!pageData) {
+          console.error('❌ No se encontraron datos en la respuesta:', response)
+          toast.error('No se encontraron datos de la página')
+          return
+        }
+
+        console.log('📄 Datos de la página a cargar:', pageData)
+
+        // Cargar datos básicos
+        setTitulo(pageData.title ?? '')
+        setDescripcion(pageData.meta_description ?? '')
+        setFechaInicio(pageData.valid_from ?? '')
+        setFechaFin(pageData.valid_until ?? '')
+        setIsActive(pageData.is_active ?? false)
+
+        // Cargar título y descripción de sección de productos
+        setProductSectionsTitle(pageData.products_section_title ?? '')
+        setProductSectionsDescription(pageData.products_section_description ?? '')
+
+        // Cargar secciones de productos
+        if (pageData.sections && pageData.sections.length > 0) {
+          console.log('📦 Cargando secciones:', pageData.sections.length)
+          setProductSections(pageData.sections.map((s: BackendProductSection) => ({
+            id: s.id,
+            name: s.name,
+            type: s.type,
+            categoryId: s.category_id,
+            menuId: s.menu_id,
+            submenuId: s.submenu_id,
+            useBackgroundImage: s.use_background_image,
+            backgroundImage: s.background_image_url,
+            products: s.product_ids,
+          })))
+        }
+
+        // Cargar info sections si existen
+        if (pageData.info_sections && pageData.info_sections.length > 0) {
+          console.log('ℹ️ Cargando info sections:', pageData.info_sections.length)
+          setInfoSectionEnabled(true)
+          setInfoItems(pageData.info_sections.map((info: InfoSection) => ({
+            id: info.id || crypto.randomUUID(),
+            title: info.title,
+            linkUrl: '', // InfoSection del backend no tiene linkUrl
+          })))
+        }
+
+        // Cargar banners si existen
+        if (pageData.banners && pageData.banners.length > 0) {
+          console.log('🎨 Cargando banners:', pageData.banners.length)
+          setBannersEnabled(true)
+          // TODO: Mapear banners del backend al formato del formulario
+        }
+
+        // Cargar FAQs si existen
+        if (pageData.faqs && pageData.faqs.length > 0) {
+          console.log('❓ Cargando FAQs:', pageData.faqs.length)
+          setFaqEnabled(true)
+          setFaqItems(pageData.faqs.map((faq: any) => ({
+            id: faq.id || crypto.randomUUID(),
+            question: faq.pregunta || faq.question || '',
+            answer: faq.respuesta || faq.answer || '',
+          })))
+        }
+
+        toast.success('Página cargada correctamente')
+      } catch (error) {
+        console.error('💥 Error cargando página:', error)
+        toast.error('Error al cargar los datos de la página')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadPageData()
+  }, [pageId])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -263,6 +383,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
       // 4. Construir request
       const request: CreateCompletePageRequest = {
         page: {
+          ...(pageId && { id: pageId }), // Incluir id solo si estamos editando
           slug,
           title: titulo,
           status: "published",
@@ -279,10 +400,12 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
             submenu_id: section.submenuId,
             product_ids: section.products,
             use_background_image: section.useBackgroundImage,
-            background_image_url: typeof section.backgroundImage === 'string' 
-              ? section.backgroundImage 
+            background_image_url: typeof section.backgroundImage === 'string'
+              ? section.backgroundImage
               : undefined,
           })),
+          products_section_title: productSectionsTitle || undefined,
+          products_section_description: productSectionsDescription || undefined,
           info_sections: infoSections,
           meta_title: titulo,
           meta_description: descripcion,
@@ -388,6 +511,10 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
     activeBanner,
     
     // Estados de secciones de productos
+    productSectionsTitle,
+    setProductSectionsTitle,
+    productSectionsDescription,
+    setProductSectionsDescription,
     productSections,
     setProductSections,
     
@@ -412,6 +539,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
     handleCancel,
     
     // Estado del formulario
+    loading,
     saving,
     isFormValid: isFormValid(),
   }

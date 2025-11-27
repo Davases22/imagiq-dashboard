@@ -85,6 +85,8 @@ export interface Page {
   banner_ids: string[];
   faq_ids: string[];
   sections: ProductSection[];
+  products_section_title?: string;
+  products_section_description?: string;
   info_sections?: InfoSection[];
   meta_title?: string;
   meta_description?: string;
@@ -131,6 +133,8 @@ export interface CreateCompletePageRequest {
     valid_until?: string;
     created_by: string; // Email del usuario que crea la página
     sections: ProductSection[];
+    products_section_title?: string;
+    products_section_description?: string;
     info_sections?: InfoSection[];
     meta_title?: string;
     meta_description?: string;
