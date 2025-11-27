@@ -80,8 +80,9 @@ export function ProductCardFormDialog({
     setImagePreview(productCard?.image_url || null)
   }
 
-  const handleSubmitForm = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmitForm = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    e?.stopPropagation()
 
     if (!title.trim()) {
       toast.error("El título es requerido")
@@ -106,7 +107,7 @@ export function ProductCardFormDialog({
 
     const result = await onSubmit(formData)
 
-    if (result) {
+    if (result !== null) {
       onOpenChange(false)
     }
   }
@@ -122,7 +123,7 @@ export function ProductCardFormDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmitForm} className="space-y-4">
+        <div className="space-y-4">
           <ProductCardImageUpload
             imagePreview={imagePreview}
             onImageChange={handleImageChange}
@@ -154,7 +155,7 @@ export function ProductCardFormDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="button" onClick={() => handleSubmitForm()} disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -165,7 +166,7 @@ export function ProductCardFormDialog({
               )}
             </Button>
           </DialogFooter>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   )

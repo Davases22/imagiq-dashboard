@@ -230,8 +230,17 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         // Cargar datos básicos
         setTitulo(pageData.title ?? '')
         setDescripcion(pageData.meta_description ?? '')
-        setFechaInicio(pageData.valid_from ?? '')
-        setFechaFin(pageData.valid_until ?? '')
+        
+        // Convertir fechas ISO a formato YYYY-MM-DD para inputs tipo date
+        if (pageData.valid_from) {
+          const date = new Date(pageData.valid_from)
+          setFechaInicio(date.toISOString().split('T')[0])
+        }
+        if (pageData.valid_until) {
+          const date = new Date(pageData.valid_until)
+          setFechaFin(date.toISOString().split('T')[0])
+        }
+        
         setIsActive(pageData.is_active ?? false)
 
         // Cargar título y descripción de sección de productos
@@ -366,46 +375,80 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
       // Generar slug desde el título
       const slug = titulo.trim().toLowerCase().replace(/\s+/g, '-')
       
-      // 1. Preparar banners nuevos y archivos
+      // 1. Preparar banners: separar nuevos de existentes
       const newBanners: NewBanner[] = []
+      const existingBannerIds: string[] = []
       const bannerFiles: ApiBannerFiles[] = []
       
       if (bannersEnabled) {
         banners.forEach((banner) => {
-          newBanners.push({
-            name: banner.data.name,
-            placement: banner.data.placement,
-            status: "active",
-            title: banner.data.title,
-            description: banner.data.description,
-            cta: banner.data.cta,
-            color_font: banner.data.color_font,
-            link_url: banner.data.link_url,
-            coordinates: banner.data.coordinates,
-            coordinates_mobile: banner.data.coordinates_mobile,
-            position_desktop: banner.positionDesktop,
-            position_mobile: banner.positionMobile,
-          })
+          // Si el banner tiene un ID que no es temporal (no empieza con "banner-"), es existente
+          const isExistingBanner = pageId && banner.data.id && !banner.data.id.startsWith('banner-')
           
-          bannerFiles.push({
-            desktop_image: banner.files.desktop_image,
-            mobile_image: banner.files.mobile_image,
-            desktop_video: banner.files.desktop_video,
-            mobile_video: banner.files.mobile_video,
-          })
+          if (isExistingBanner) {
+            // Banner existente: solo guardar su ID
+            existingBannerIds.push(banner.data.id)
+            
+            // Solo agregar archivos si hay cambios (nuevos archivos seleccionados)
+            const hasNewFiles = !!(banner.files.desktop_image || banner.files.mobile_image || 
+                                   banner.files.desktop_video || banner.files.mobile_video)
+            
+            if (hasNewFiles) {
+              bannerFiles.push({
+                desktop_image: banner.files.desktop_image,
+                mobile_image: banner.files.mobile_image,
+                desktop_video: banner.files.desktop_video,
+                mobile_video: banner.files.mobile_video,
+              })
+            }
+          } else {
+            // Banner nuevo: agregar a newBanners
+            newBanners.push({
+              name: banner.data.name,
+              placement: banner.data.placement,
+              status: "active",
+              title: banner.data.title,
+              description: banner.data.description,
+              cta: banner.data.cta,
+              color_font: banner.data.color_font,
+              link_url: banner.data.link_url,
+              coordinates: banner.data.coordinates,
+              coordinates_mobile: banner.data.coordinates_mobile,
+              position_desktop: banner.positionDesktop,
+              position_mobile: banner.positionMobile,
+            })
+            
+            bannerFiles.push({
+              desktop_image: banner.files.desktop_image,
+              mobile_image: banner.files.mobile_image,
+              desktop_video: banner.files.desktop_video,
+              mobile_video: banner.files.mobile_video,
+            })
+          }
         })
       }
       
-      // 2. Preparar FAQs
-      const newFaqs: PageFAQ[] = faqEnabled
-        ? faqItems.map((faq, index) => ({
-            pregunta: faq.question,
-            respuesta: faq.answer,
-            activo: true,
-            categoria: "Ofertas",
-            prioridad: index + 1,
-          }))
-        : []
+      // 2. Preparar FAQs: separar nuevos de existentes
+      const newFaqs: PageFAQ[] = []
+      const existingFaqIds: string[] = []
+      
+      if (faqEnabled) {
+        faqItems.forEach((faq, index) => {
+          // Si el FAQ tiene ID, es existente
+          if (pageId && faq.id && !faq.id.startsWith('faq-')) {
+            existingFaqIds.push(faq.id)
+          } else {
+            // FAQ nuevo
+            newFaqs.push({
+              pregunta: faq.question,
+              respuesta: faq.answer,
+              activo: true,
+              categoria: "Ofertas",
+              prioridad: index + 1,
+            })
+          }
+        })
+      }
       
       // 3. Preparar secciones de info
       const infoSections = infoSectionEnabled
@@ -433,8 +476,8 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
             order: index + 1,
             product_card_ids: section.products,
           })),
-          products_section_title: productSectionsTitle || undefined,
-          products_section_description: productSectionsDescription || undefined,
+          products_section_title: productSectionsTitle.trim() || undefined,
+          products_section_description: productSectionsDescription.trim() || undefined,
           info_sections: infoSections,
           meta_title: titulo,
           meta_description: descripcion,
@@ -443,13 +486,22 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
           is_active: isActive,
         },
         new_banners: newBanners,
-        existing_banner_ids: [],
+        existing_banner_ids: existingBannerIds,
         new_faqs: newFaqs,
-        existing_faq_ids: [],
+        existing_faq_ids: existingFaqIds,
         banner_files: bannerFiles,
       }
       
-      // 5. Enviar al backend para crear la página
+      // Log para verificar que se están enviando los campos
+      console.log("📤 Enviando request:", {
+        pageId,
+        products_section_title: request.page.products_section_title,
+        products_section_description: request.page.products_section_description,
+        sections_count: request.page.sections.length,
+      })
+      
+      // 5. Enviar al backend
+      // En modo edición, el backend debería actualizar la página existente si se envía el ID
       const response = await pageEndpoints.createComplete(request)
       
       // Extraer el ID de la página creada

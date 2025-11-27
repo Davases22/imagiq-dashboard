@@ -80,6 +80,7 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         <Button
+          type="button"
           variant="ghost"
           size="sm"
           onClick={() => router.push(backRoute)}
@@ -239,6 +240,7 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
           {/* Botones de acción */}
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <Button
+              type="button"
               variant="outline"
               onClick={() => handleSubmit("draft", (error) => toast.error(error))}
               disabled={isLoading}
@@ -259,6 +261,7 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
               )}
             </Button>
             <Button
+              type="button"
               onClick={() => handleSubmit("active", (error) => toast.error(error))}
               disabled={isLoading}
               className="flex-1"
