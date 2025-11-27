@@ -348,82 +348,58 @@ export default function OfertasDestacadasPage() {
                     </TooltipProvider>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      {updatingNombre === oferta.uuid ? (
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Actualizando...</span>
-                        </div>
-                      ) : (
-                        <Select
-                          value={
-                            // Determinar qué tipo de nombre está seleccionado actualmente
-                            // Si no hay nombre, usar modelo por defecto
-                            // Comparar el nombre actual con nombre_modelo primero (más específico)
+                    {updatingNombre === oferta.uuid ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Actualizando...</span>
+                      </div>
+                    ) : (
+                      <Select
+                        value={
+                          // Determinar qué tipo de nombre está seleccionado actualmente
+                          // Si no hay nombre, usar modelo por defecto
+                          // Comparar el nombre actual con nombre_modelo primero (más específico)
+                          !oferta.nombre && oferta.nombre_modelo
+                            ? "modelo"
+                            : oferta.nombre_modelo && 
+                              oferta.nombre === oferta.nombre_modelo
+                            ? "modelo"
+                            : "market"
+                        }
+                        onValueChange={(value: "market" | "modelo") => {
+                          // Solo actualizar si el valor es diferente al actual
+                          const currentType =
                             !oferta.nombre && oferta.nombre_modelo
                               ? "modelo"
                               : oferta.nombre_modelo && 
                                 oferta.nombre === oferta.nombre_modelo
                               ? "modelo"
-                              : "market"
+                              : "market";
+                          if (value !== currentType) {
+                            updateNombre(oferta.uuid, value);
                           }
-                          onValueChange={(value: "market" | "modelo") => {
-                            // Solo actualizar si el valor es diferente al actual
-                            const currentType =
-                              !oferta.nombre && oferta.nombre_modelo
-                                ? "modelo"
-                                : oferta.nombre_modelo && 
-                                  oferta.nombre === oferta.nombre_modelo
-                                ? "modelo"
-                                : "market";
-                            if (value !== currentType) {
-                              updateNombre(oferta.uuid, value);
-                            }
-                          }}
-                          disabled={updatingNombre === oferta.uuid || (!oferta.nombre_market && !oferta.nombre_modelo)}
-                        >
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Tipo de nombre" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem 
-                              value="market" 
-                              disabled={!oferta.nombre_market}
-                            >
-                              Nombre de Market
-                            </SelectItem>
-                            <SelectItem 
-                              value="modelo" 
-                              disabled={!oferta.nombre_modelo}
-                            >
-                              Nombre de Modelo
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <span className="text-sm font-medium truncate max-w-[150px] block">
-                              {oferta.nombre || oferta.nombre_modelo || oferta.nombre_market || oferta.producto_nombre || "-"}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="space-y-1">
-                              <p className="font-semibold">
-                                {oferta.nombre || oferta.nombre_modelo || oferta.nombre_market || oferta.producto_nombre || "Sin nombre"}
-                              </p>
-                              {oferta.nombre_market && (
-                                <p className="text-xs">Market: {oferta.nombre_market}</p>
-                              )}
-                              {oferta.nombre_modelo && (
-                                <p className="text-xs">Modelo: {oferta.nombre_modelo}</p>
-                              )}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
+                        }}
+                        disabled={updatingNombre === oferta.uuid || (!oferta.nombre_market && !oferta.nombre_modelo)}
+                      >
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Tipo de nombre" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem 
+                            value="market" 
+                            disabled={!oferta.nombre_market}
+                          >
+                            Nombre de Market
+                          </SelectItem>
+                          <SelectItem 
+                            value="modelo" 
+                            disabled={!oferta.nombre_modelo}
+                          >
+                            Nombre de Modelo
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
