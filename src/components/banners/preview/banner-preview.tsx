@@ -72,9 +72,10 @@ const getStyles = (placement: string | undefined, device: DeviceType) => {
   const isDesktop = device === "desktop";
 
   // Ofertas banners - aspect ratio personalizado para ofertas
+  // ACTUALIZADO para coincidir con frontend: 9/5 desktop, 27/35 mobile
   if (placement?.startsWith("ofertas-")) {
     return {
-      aspectRatio: isDesktop ? "aspect-[1261/560]" : "aspect-[414/621]",
+      aspectRatio: isDesktop ? "aspect-[9/5]" : "aspect-[27/35]",
       maxWidth: isDesktop ? "max-w-2xl" : "max-w-sm",
       mediaClass: "absolute inset-0 w-full h-full object-cover pointer-events-none",
       minHeight: "",

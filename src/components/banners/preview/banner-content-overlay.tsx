@@ -73,9 +73,10 @@ function getRealBannerWidth(placement?: string): number {
   if (placement === "hero") {
     return 1920;
   }
-  // Banners de ofertas
+  // Banners de ofertas (aspect ratio 9/5)
+  // Con contenedor 672px (max-w-2xl), ancho aprox 1210px
   if (placement?.startsWith("ofertas-")) {
-    return 1261;
+    return 1210;
   }
   // Banners Home (intermedios)
   if (placement?.startsWith("home-")) {
@@ -97,9 +98,9 @@ function getPreviewContainerWidth(placement?: string): number {
   if (placement === "hero") {
     return 672;
   }
-  // Banners de ofertas (max-w-2xl)
+  // Banners de ofertas (max-w-2xl = 672px)
   if (placement?.startsWith("ofertas-")) {
-    return 560;
+    return 672;
   }
   // Banners Home (max-w-xl)
   if (placement?.startsWith("home-")) {

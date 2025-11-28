@@ -6,16 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Save, Loader2 } from "lucide-react"
+import { Save, Loader2 } from "lucide-react"
 import {
   OfertaBasicFields,
   OfertaBannersManager,
-  OfertaSummaryCard,
   OfertaBannerPreviewCard,
   OfertaSectionsManager,
-  OfertaInfoSection,
   OfertaFaqSection,
-  OfertaContentSummary,
 } from "@/components/ofertas"
 import { useOfertaForm } from "@/hooks/use-oferta-form"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -53,10 +50,6 @@ function LandingPageFormComponent({ pageId, mode, onCancel }: LandingPageFormPro
     setProductSectionsDescription,
     productSections,
     setProductSections,
-    infoSectionEnabled,
-    setInfoSectionEnabled,
-    infoItems,
-    setInfoItems,
     faqEnabled,
     setFaqEnabled,
     faqItems,
@@ -66,12 +59,11 @@ function LandingPageFormComponent({ pageId, mode, onCancel }: LandingPageFormPro
     handlePositionDesktopChange,
     handlePositionMobileChange,
     handleSubmit,
-    handleCancel,
     saving,
     isFormValid,
-  } = useOfertaForm({ 
+  } = useOfertaForm({
     pageId,
-    returnPath: "/pagina-web/landing-pages" 
+    returnPath: "/pagina-web/landing-pages"
   })
 
   const isEditMode = mode === "edit"
@@ -244,25 +236,7 @@ function LandingPageFormComponent({ pageId, mode, onCancel }: LandingPageFormPro
         </div>
 
         {/* Columna Derecha - Preview (Sticky) */}
-        <div className="lg:sticky lg:top-4 lg:self-start space-y-6">
-          {/* Resumen de la página */}
-          <OfertaSummaryCard
-            fechaInicio={fechaInicio}
-            fechaFin={fechaFin}
-            bannersEnabled={bannersEnabled}
-            bannersCount={banners.length}
-          />
-
-          {/* Resumen de contenido */}
-          <OfertaContentSummary
-            bannersCount={banners.length}
-            sectionsCount={productSections.length}
-            infoItemsCount={infoItems.length}
-            faqItemsCount={faqItems.length}
-            infoEnabled={infoSectionEnabled}
-            faqEnabled={faqEnabled}
-          />
-
+        <div className="lg:sticky lg:top-20 lg:self-start space-y-6">
           {/* Preview del banner activo */}
           {bannersEnabled && activeBanner && (
             <OfertaBannerPreviewCard
