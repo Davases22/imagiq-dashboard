@@ -430,17 +430,38 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
               coordinates_mobile: banner.data.coordinates_mobile,
             })
 
-            // Solo agregar archivos si hay cambios (nuevos archivos seleccionados)
+            // ✅ Agregar archivos con referencia al banner ID (igual que en edición individual)
             const hasNewFiles = !!(banner.files.desktop_image || banner.files.mobile_image ||
                                    banner.files.desktop_video || banner.files.mobile_video)
 
             if (hasNewFiles) {
               bannerFiles.push({
+                banner_id: banner.data.id, // Referencia al banner existente
                 desktop_image: banner.files.desktop_image,
                 mobile_image: banner.files.mobile_image,
                 desktop_video: banner.files.desktop_video,
                 mobile_video: banner.files.mobile_video,
               })
+            }
+
+            // También agregar URLs existentes (igual que en edición individual)
+            if (hasNewFiles) {
+              // Si hay archivos nuevos, también necesitamos las URLs existentes para los que NO se cambien
+              const existingUrls: any = {}
+              if (!banner.files.desktop_image && banner.data.desktop_image_url) {
+                existingUrls.desktop_image_url = banner.data.desktop_image_url
+              }
+              if (!banner.files.mobile_image && banner.data.mobile_image_url) {
+                existingUrls.mobile_image_url = banner.data.mobile_image_url
+              }
+              if (!banner.files.desktop_video && banner.data.desktop_video_url) {
+                existingUrls.desktop_video_url = banner.data.desktop_video_url
+              }
+              if (!banner.files.mobile_video && banner.data.mobile_video_url) {
+                existingUrls.mobile_video_url = banner.data.mobile_video_url
+              }
+              // Agregar las URLs existentes al objeto de archivos
+              Object.assign(bannerFiles[bannerFiles.length - 1], existingUrls)
             }
           } else {
             // Banner nuevo: agregar a newBanners
