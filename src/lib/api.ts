@@ -1871,7 +1871,12 @@ export const pageEndpoints = {
     
     // 3. Agregar existing_banner_ids como JSON string
     formData.append("existing_banner_ids", JSON.stringify(data.existing_banner_ids));
-    
+
+    // 3.5. Agregar banner_updates si existen (para drag & drop y otros cambios en banners existentes)
+    if (data.banner_updates && data.banner_updates.length > 0) {
+      formData.append("banner_updates", JSON.stringify(data.banner_updates));
+    }
+
     // 4. Agregar new_faqs como JSON string
     formData.append("new_faqs", JSON.stringify(data.new_faqs));
     

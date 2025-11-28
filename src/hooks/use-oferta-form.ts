@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { BannerTextStyles, BannerPosition } from "@/types/banner"
 import { pageEndpoints, productCardEndpoints } from "@/lib/api"
-import type { CreateCompletePageRequest, NewBanner, PageFAQ, BannerFiles as ApiBannerFiles, ProductSection, ProductSectionDTO, InfoSection, PageExpanded } from "@/types/page"
+import type { CreateCompletePageRequest, NewBanner, PageFAQ, BannerFiles as ApiBannerFiles, ProductSection, ProductSectionDTO, InfoSection, PageExpanded, BannerUpdate } from "@/types/page"
 import type { ProductCard } from "@/types/product-card"
 import { useAuth } from "@/contexts/AuthContext"
 import { useProductCardsContext } from "@/contexts/ProductCardsContext"
@@ -271,31 +271,57 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
           setBannersEnabled(true)
           
           // Mapear banners del backend al formato del formulario
-          const mappedBanners = pageData.banners.map((banner, index) => ({
-            id: banner.id,
-            data: {
+          const mappedBanners = pageData.banners.map((banner, index) => {
+            // Parsear posiciones si vienen como strings JSON
+            let positionDesktop = { x: 10, y: 50 }
+            let positionMobile = { x: 10, y: 50 }
+
+            if (banner.position_desktop) {
+              try {
+                positionDesktop = typeof banner.position_desktop === 'string'
+                  ? JSON.parse(banner.position_desktop)
+                  : banner.position_desktop
+              } catch (error) {
+                console.error('Error parseando position_desktop:', error)
+              }
+            }
+
+            if (banner.position_mobile) {
+              try {
+                positionMobile = typeof banner.position_mobile === 'string'
+                  ? JSON.parse(banner.position_mobile)
+                  : banner.position_mobile
+              } catch (error) {
+                console.error('Error parseando position_mobile:', error)
+              }
+            }
+
+            return {
               id: banner.id,
-              name: banner.name,
-              placement: banner.placement,
-              link_url: banner.link_url || '',
-              title: banner.title || '',
-              description: banner.description || '',
-              cta: banner.cta || '',
-              color_font: banner.color_font || '#000000',
-              coordinates: banner.coordinates || '',
-              coordinates_mobile: banner.coordinates_mobile || '',
-              desktop_image_url: banner.desktop_image_url || undefined,
-              mobile_image_url: banner.mobile_image_url || undefined,
-              desktop_video_url: banner.desktop_video_url || undefined,
-              mobile_video_url: banner.mobile_video_url || undefined,
-            },
-            files: {}, // Los archivos ya existen en el servidor
-            textStyles: typeof banner.text_styles === 'string' 
-              ? JSON.parse(banner.text_styles) 
-              : banner.text_styles || DEFAULT_TEXT_STYLES,
-            positionDesktop: banner.position_desktop || { x: 10, y: 50 },
-            positionMobile: banner.position_mobile || { x: 10, y: 50 },
-          }))
+              data: {
+                id: banner.id,
+                name: banner.name,
+                placement: banner.placement,
+                link_url: banner.link_url || '',
+                title: banner.title || '',
+                description: banner.description || '',
+                cta: banner.cta || '',
+                color_font: banner.color_font || '#000000',
+                coordinates: banner.coordinates || '',
+                coordinates_mobile: banner.coordinates_mobile || '',
+                desktop_image_url: banner.desktop_image_url || undefined,
+                mobile_image_url: banner.mobile_image_url || undefined,
+                desktop_video_url: banner.desktop_video_url || undefined,
+                mobile_video_url: banner.mobile_video_url || undefined,
+              },
+              files: {}, // Los archivos ya existen en el servidor
+              textStyles: typeof banner.text_styles === 'string'
+                ? JSON.parse(banner.text_styles)
+                : banner.text_styles || DEFAULT_TEXT_STYLES,
+              positionDesktop,
+              positionMobile,
+            }
+          })
           
           setBanners(mappedBanners)
           if (mappedBanners.length > 0) {
@@ -378,21 +404,36 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
       // 1. Preparar banners: separar nuevos de existentes
       const newBanners: NewBanner[] = []
       const existingBannerIds: string[] = []
+      const bannerUpdates: BannerUpdate[] = []
       const bannerFiles: ApiBannerFiles[] = []
-      
+
       if (bannersEnabled) {
         banners.forEach((banner) => {
           // Si el banner tiene un ID que no es temporal (no empieza con "banner-"), es existente
           const isExistingBanner = pageId && banner.data.id && !banner.data.id.startsWith('banner-')
-          
+
           if (isExistingBanner) {
-            // Banner existente: solo guardar su ID
+            // Banner existente: guardar su ID
             existingBannerIds.push(banner.data.id)
-            
+
+            // ✅ ENVIAR ACTUALIZACIONES DE POSICIÓN (esto resuelve el bug del drag & drop)
+            bannerUpdates.push({
+              id: banner.data.id,
+              position_desktop: banner.positionDesktop,
+              position_mobile: banner.positionMobile,
+              title: banner.data.title,
+              description: banner.data.description,
+              cta: banner.data.cta,
+              color_font: banner.data.color_font,
+              link_url: banner.data.link_url,
+              coordinates: banner.data.coordinates,
+              coordinates_mobile: banner.data.coordinates_mobile,
+            })
+
             // Solo agregar archivos si hay cambios (nuevos archivos seleccionados)
-            const hasNewFiles = !!(banner.files.desktop_image || banner.files.mobile_image || 
+            const hasNewFiles = !!(banner.files.desktop_image || banner.files.mobile_image ||
                                    banner.files.desktop_video || banner.files.mobile_video)
-            
+
             if (hasNewFiles) {
               bannerFiles.push({
                 desktop_image: banner.files.desktop_image,
@@ -417,7 +458,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
               position_desktop: banner.positionDesktop,
               position_mobile: banner.positionMobile,
             })
-            
+
             bannerFiles.push({
               desktop_image: banner.files.desktop_image,
               mobile_image: banner.files.mobile_image,
@@ -487,6 +528,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         },
         new_banners: newBanners,
         existing_banner_ids: existingBannerIds,
+        banner_updates: bannerUpdates.length > 0 ? bannerUpdates : undefined, // ✅ Enviar actualizaciones de posición
         new_faqs: newFaqs,
         existing_faq_ids: existingFaqIds,
         banner_files: bannerFiles,
@@ -498,6 +540,10 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         products_section_title: request.page.products_section_title,
         products_section_description: request.page.products_section_description,
         sections_count: request.page.sections.length,
+        new_banners_count: newBanners.length,
+        existing_banner_ids: existingBannerIds,
+        banner_updates_count: bannerUpdates.length,
+        banner_updates: bannerUpdates, // Ver qué se está enviando exactamente
       })
       
       // 5. Enviar al backend

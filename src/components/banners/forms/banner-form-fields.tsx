@@ -31,7 +31,7 @@ export function BannerFormFields({ formData, onFieldChange }: Readonly<BannerFor
           <Input
             id="name"
             placeholder="Ej: Promoción de verano"
-            value={formData.name}
+            value={formData.name || ""}
             onChange={(e) => onFieldChange("name", e.target.value)}
           />
         </div>
@@ -42,7 +42,7 @@ export function BannerFormFields({ formData, onFieldChange }: Readonly<BannerFor
             id="link_url"
             type="url"
             placeholder="https://ejemplo.com/producto"
-            value={formData.link_url}
+            value={formData.link_url || ""}
             onChange={(e) => onFieldChange("link_url", e.target.value)}
           />
         </div>
@@ -52,7 +52,7 @@ export function BannerFormFields({ formData, onFieldChange }: Readonly<BannerFor
           <Input
             id="cta"
             placeholder="¡Compra ahora!"
-            value={formData.cta}
+            value={formData.cta || ""}
             onChange={(e) => onFieldChange("cta", e.target.value)}
           />
         </div>
@@ -64,12 +64,12 @@ export function BannerFormFields({ formData, onFieldChange }: Readonly<BannerFor
               <Input
                 id="color_font"
                 type="color"
-                value={formData.color_font}
+                value={formData.color_font || "#000000"}
                 onChange={(e) => onFieldChange("color_font", e.target.value)}
                 className="w-20"
               />
               <Input
-                value={formData.color_font}
+                value={formData.color_font || "#000000"}
                 onChange={(e) => onFieldChange("color_font", e.target.value)}
                 placeholder="#000000"
               />
@@ -83,7 +83,7 @@ export function BannerFormFields({ formData, onFieldChange }: Readonly<BannerFor
         <Input
           id="title"
           placeholder="Título del banner"
-          value={formData.title}
+          value={formData.title || ""}
           onChange={(e) => onFieldChange("title", e.target.value)}
         />
       </div>
@@ -93,7 +93,7 @@ export function BannerFormFields({ formData, onFieldChange }: Readonly<BannerFor
         <Textarea
           id="description"
           placeholder="Descripción del banner (usa Enter para saltos de línea)"
-          value={formData.description}
+          value={formData.description || ""}
           onChange={(e) => onFieldChange("description", e.target.value)}
           onKeyDown={(e) => {
             // Permitir Enter para saltos de línea
