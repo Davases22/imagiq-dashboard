@@ -34,6 +34,7 @@ interface ProductCardsContextType {
   updateProductCard: (tempId: string, card: Partial<LocalProductCard>) => void
   deleteProductCard: (tempId: string) => void
   getCardsBySection: (sectionId: string) => LocalProductCard[]
+  reorderCards: (sectionId: string, reorderedCards: LocalProductCard[]) => void
   clearAll: () => void
   loadExistingCards: (cards: ProductCard[], sectionId: string) => void
 }
@@ -62,6 +63,14 @@ export function ProductCardsProvider({ children }: { children: React.ReactNode }
   const getCardsBySection = useCallback((sectionId: string) => {
     return productCards.filter(card => card.sectionId === sectionId)
   }, [productCards])
+
+  const reorderCards = useCallback((sectionId: string, reorderedCards: LocalProductCard[]) => {
+    setProductCards(prev => {
+      // Mantener cards de otras secciones y reemplazar los de esta sección
+      const otherSectionCards = prev.filter(card => card.sectionId !== sectionId)
+      return [...otherSectionCards, ...reorderedCards]
+    })
+  }, [])
 
   const clearAll = useCallback(() => {
     setProductCards([])
@@ -97,6 +106,7 @@ export function ProductCardsProvider({ children }: { children: React.ReactNode }
         updateProductCard,
         deleteProductCard,
         getCardsBySection,
+        reorderCards,
         clearAll,
         loadExistingCards,
       }}
