@@ -77,7 +77,7 @@ export function ProductCardFormDialog({
 
   const handleRemoveImage = () => {
     setImage(null)
-    setImagePreview(productCard?.image_url || null)
+    setImagePreview(null)
   }
 
   const handleSubmitForm = async (e?: React.FormEvent) => {

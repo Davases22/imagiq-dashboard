@@ -3,7 +3,8 @@
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Upload, X } from "lucide-react"
+import { Upload, X, ImageIcon } from "lucide-react"
+import { useRef } from "react"
 
 interface ProductCardImageUploadProps {
   imagePreview: string | null
@@ -20,6 +21,12 @@ export function ProductCardImageUpload({
   isRequired = false,
   disabled = false,
 }: ProductCardImageUploadProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleChangeClick = () => {
+    fileInputRef.current?.click()
+  }
+
   return (
     <div className="space-y-2">
       <Label htmlFor="image">
@@ -36,22 +43,45 @@ export function ProductCardImageUpload({
             alt="Preview"
             className="w-full aspect-square object-cover rounded-lg border"
           />
-          <Button
-            type="button"
-            variant="destructive"
-            size="icon"
-            className="absolute top-2 right-2"
-            onClick={onRemoveImage}
+          <div className="absolute top-2 right-2 flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              onClick={handleChangeClick}
+              disabled={disabled}
+              title="Cambiar imagen"
+            >
+              <ImageIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              onClick={onRemoveImage}
+              disabled={disabled}
+              title="Eliminar imagen"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <Input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onImageChange}
             disabled={disabled}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          />
         </div>
       ) : (
-        <div className="border-2 border-dashed rounded-lg p-6 text-center">
-          <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-          <Label htmlFor="image-upload" className="cursor-pointer">
-            <span className="text-sm text-primary hover:underline">
+        <div className="relative">
+          <Label
+            htmlFor="image-upload"
+            className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 cursor-pointer hover:bg-accent/50 transition-colors aspect-square max-w-xs mx-auto"
+          >
+            <Upload className="h-10 w-10 mb-3 text-muted-foreground" />
+            <span className="text-sm text-primary hover:underline font-medium">
               Click para seleccionar imagen
             </span>
           </Label>

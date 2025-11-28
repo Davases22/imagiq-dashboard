@@ -9,6 +9,21 @@ import { useProductCardsContext, type LocalProductCard } from "@/contexts/Produc
 import { ProductCardFormDialog } from "./forms/product-card-form-dialog"
 import { ProductCardLocalPreview } from "./preview/product-card-local-preview"
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable"
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -28,10 +43,30 @@ export function ProductCardsLocalManager({ sectionId }: ProductCardsLocalManager
   const [editingCard, setEditingCard] = useState<LocalProductCard | null>(null)
   const [deletingCard, setDeletingCard] = useState<LocalProductCard | null>(null)
 
-  const { getCardsBySection, addProductCard, updateProductCard, deleteProductCard } =
+  const { getCardsBySection, addProductCard, updateProductCard, deleteProductCard, reorderCards } =
     useProductCardsContext()
 
   const sectionCards = getCardsBySection(sectionId)
+
+  // Configurar sensores de drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      const oldIndex = sectionCards.findIndex((card) => card.tempId === active.id)
+      const newIndex = sectionCards.findIndex((card) => card.tempId === over.id)
+
+      const reordered = arrayMove(sectionCards, oldIndex, newIndex)
+      reorderCards(sectionId, reordered)
+    }
+  }
 
   const handleCreate = async (formData: FormData) => {
     // Extraer datos del FormData
@@ -70,6 +105,7 @@ export function ProductCardsLocalManager({ sectionId }: ProductCardsLocalManager
 
     updateProductCard(editingCard.tempId, {
       image: image || editingCard.image,
+      image_url: image ? undefined : editingCard.image_url, // Limpiar URL si hay nueva imagen
       title,
       subtitle: subtitle || undefined,
       description: description || undefined,
@@ -126,16 +162,27 @@ export function ProductCardsLocalManager({ sectionId }: ProductCardsLocalManager
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {sectionCards.map((card) => (
-                <ProductCardLocalPreview
-                  key={card.tempId}
-                  productCard={card}
-                  onEdit={handleOpenEdit}
-                  onDelete={setDeletingCard}
-                />
-              ))}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={sectionCards.map((card) => card.tempId)}
+                strategy={rectSortingStrategy}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {sectionCards.map((card) => (
+                    <ProductCardLocalPreview
+                      key={card.tempId}
+                      productCard={card}
+                      onEdit={handleOpenEdit}
+                      onDelete={setDeletingCard}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </CardContent>
       </Card>

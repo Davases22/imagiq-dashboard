@@ -182,13 +182,13 @@ function LandingPageFormComponent({ pageId, mode, onCancel }: LandingPageFormPro
             </CardContent>
           </Card>
 
-          {/* Sección Informativa */}
-          <OfertaInfoSection
+          {/* Sección Informativa - TEMPORALMENTE DESHABILITADA */}
+          {/* <OfertaInfoSection
             enabled={infoSectionEnabled}
             items={infoItems}
             onEnabledChange={setInfoSectionEnabled}
             onItemsChange={setInfoItems}
-          />
+          /> */}
 
           {/* FAQs */}
           <OfertaFaqSection
