@@ -1884,21 +1884,41 @@ export const pageEndpoints = {
     formData.append("existing_faq_ids", JSON.stringify(data.existing_faq_ids));
     
     // 6. Agregar archivos de banners
-    // Formato: banner_0_desktop_image, banner_0_mobile_image, etc.
-    data.banner_files.forEach((files, index) => {
+    // Para nuevos banners: banner_0_desktop_image, banner_1_desktop_image, etc.
+    // Para banners existentes: banner_{ID}_desktop_image donde ID es el UUID del banner
+    data.banner_files.forEach((files: any, index) => {
+      // Si tiene banner_id, es un banner existente - usar el ID del banner
+      const prefix = files.banner_id ? `banner_${files.banner_id}` : `banner_${index}`;
+      
       if (files.desktop_image) {
-        console.log(`Agregando banner_${index}_desktop_image:`, files.desktop_image.name);
-        formData.append(`banner_${index}_desktop_image`, files.desktop_image, files.desktop_image.name);
+        console.log(`Agregando ${prefix}_desktop_image:`, files.desktop_image.name);
+        formData.append(`${prefix}_desktop_image`, files.desktop_image, files.desktop_image.name);
       }
       if (files.mobile_image) {
-        console.log(`Agregando banner_${index}_mobile_image:`, files.mobile_image.name);
-        formData.append(`banner_${index}_mobile_image`, files.mobile_image, files.mobile_image.name);
+        console.log(`Agregando ${prefix}_mobile_image:`, files.mobile_image.name);
+        formData.append(`${prefix}_mobile_image`, files.mobile_image, files.mobile_image.name);
       }
       if (files.desktop_video) {
-        formData.append(`banner_${index}_desktop_video`, files.desktop_video, files.desktop_video.name);
+        formData.append(`${prefix}_desktop_video`, files.desktop_video, files.desktop_video.name);
       }
       if (files.mobile_video) {
-        formData.append(`banner_${index}_mobile_video`, files.mobile_video, files.mobile_video.name);
+        formData.append(`${prefix}_mobile_video`, files.mobile_video, files.mobile_video.name);
+      }
+      
+      // Agregar URLs existentes si las hay (solo para banners existentes)
+      if (files.banner_id) {
+        if (files.desktop_image_url) {
+          formData.append(`${prefix}_desktop_image_url`, files.desktop_image_url);
+        }
+        if (files.mobile_image_url) {
+          formData.append(`${prefix}_mobile_image_url`, files.mobile_image_url);
+        }
+        if (files.desktop_video_url) {
+          formData.append(`${prefix}_desktop_video_url`, files.desktop_video_url);
+        }
+        if (files.mobile_video_url) {
+          formData.append(`${prefix}_mobile_video_url`, files.mobile_video_url);
+        }
       }
     });
     

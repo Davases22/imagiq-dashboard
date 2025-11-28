@@ -96,10 +96,16 @@ export interface BannerUpdate {
 
 // Archivos de banner
 export interface BannerFiles {
+  banner_id?: string; // ID del banner existente (para actualizaciones)
   desktop_image?: File;
   mobile_image?: File;
   desktop_video?: File;
   mobile_video?: File;
+  // URLs existentes (para mantener archivos que no se cambien)
+  desktop_image_url?: string;
+  mobile_image_url?: string;
+  desktop_video_url?: string;
+  mobile_video_url?: string;
 }
 
 // Página (backend response)
