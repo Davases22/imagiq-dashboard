@@ -11,6 +11,7 @@ import type { BannerPosition } from "@/types/banner";
 import { gridToPercentage, getDefaultPosition } from "../utils/position-utils";
 
 interface BannerPreviewProps {
+  bannerId?: string;
   desktop_image?: File | string;
   desktop_video?: File | string;
   mobile_image?: File | string;
@@ -33,6 +34,7 @@ interface BannerPreviewProps {
 }
 
 interface BannerContentProps {
+  bannerId?: string;
   image?: File | string;
   video?: File | string;
   title?: string;
@@ -144,7 +146,7 @@ function NavbarMobileBanner({ title, description, cta, linkUrl }: { title?: stri
   );
 }
 
-function BannerContent({ image, video, title, description, cta, colorFont, linkUrl, device, placement, position, onPositionChange, textStyles }: Readonly<BannerContentProps>) {
+function BannerContent({ bannerId, image, video, title, description, cta, colorFont, linkUrl, device, placement, position, onPositionChange, textStyles }: Readonly<BannerContentProps>) {
   const [showContent, setShowContent] = useState(!video);
   const [imageUrl, setImageUrl] = useState<string>();
   const [videoUrl, setVideoUrl] = useState<string>();
@@ -198,6 +200,7 @@ function BannerContent({ image, video, title, description, cta, colorFont, linkU
   const currentPos = position || getDefaultPosition();
   const hasContent = Boolean(title || description || cta || linkUrl);
   const Overlay = onPositionChange ? DraggableBannerOverlay : BannerContentOverlay;
+  const overlayId = `overlay-${bannerId || 'default'}-${device}`;
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
@@ -213,7 +216,7 @@ function BannerContent({ image, video, title, description, cta, colorFont, linkU
                 {Array.from({ length: 81 }, (_, i) => <div key={`g-${Math.floor(i/9)}-${i%9}`} className="border border-dashed border-white/10" />)}
               </div>
             </div>
-            {hasContent && <Overlay id={`overlay-${device}`} title={title} description={description} cta={cta} colorFont={colorFont} linkUrl={linkUrl} position={currentPos} device={device} textStyles={textStyles} placement={placement} />}
+            {hasContent && <Overlay id={overlayId} title={title} description={description} cta={cta} colorFont={colorFont} linkUrl={linkUrl} position={currentPos} device={device} textStyles={textStyles} placement={placement} />}
           </>
         )}
         <div className="absolute top-4 left-4 pointer-events-none">
@@ -233,7 +236,7 @@ function BannerContent({ image, video, title, description, cta, colorFont, linkU
 }
 
 export function BannerPreview(props: Readonly<BannerPreviewProps>) {
-  const { desktop_image, desktop_video, mobile_image, mobile_video, title, description, cta, color_font = "#FFFFFF", link_url, placement,
+  const { bannerId, desktop_image, desktop_video, mobile_image, mobile_video, title, description, cta, color_font = "#FFFFFF", link_url, placement,
     position_desktop, position_mobile, onPositionDesktopChange, onPositionMobileChange, coordinates, coordinatesMobile, text_styles } = props;
 
   const [viewMode, setViewMode] = useState<DeviceType>("desktop");
@@ -277,6 +280,7 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
       <div className={`flex justify-center ${isFlexible ? 'max-w-md mx-auto' : ''}`}>
         <BannerContent
           key={key}
+          bannerId={bannerId}
           image={mode === "desktop" ? desktop_image : mobile_image}
           video={mode === "desktop" ? desktop_video : mobile_video}
           title={title}

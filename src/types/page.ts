@@ -69,6 +69,31 @@ export interface NewBanner {
   };
 }
 
+// Actualización de banner existente
+export interface BannerUpdate {
+  id: string;
+  position_desktop?: {
+    x: number;
+    y: number;
+    imageWidth?: number;
+    imageHeight?: number;
+  };
+  position_mobile?: {
+    x: number;
+    y: number;
+    imageWidth?: number;
+    imageHeight?: number;
+  };
+  // Campos opcionales que también pueden actualizarse
+  title?: string;
+  description?: string;
+  cta?: string;
+  color_font?: string;
+  link_url?: string;
+  coordinates?: string;
+  coordinates_mobile?: string;
+}
+
 // Archivos de banner
 export interface BannerFiles {
   desktop_image?: File;
@@ -153,6 +178,7 @@ export interface CreateCompletePageRequest {
   };
   new_banners: NewBanner[];
   existing_banner_ids: string[];
+  banner_updates?: BannerUpdate[]; // Actualizaciones de banners existentes (ej: posiciones drag & drop)
   new_faqs: PageFAQ[];
   existing_faq_ids: string[];
   banner_files: BannerFiles[]; // Array de archivos por banner
