@@ -83,8 +83,8 @@ export default function OfertasDestacadasPage() {
   }, [ofertas]);
 
   const handleAddOferta = () => {
-    if (ofertas.length >= 10) {
-      toast.error("Solo puedes tener máximo 10 ofertas destacadas");
+    if (ofertas.length >= 12) {
+      toast.error("Solo puedes tener máximo 12 ofertas destacadas");
       return;
     }
     setIsAddDialogOpen(true);
@@ -208,7 +208,7 @@ export default function OfertasDestacadasPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             Gestiona los productos destacados del dropdown de ofertas (máximo
-            10)
+            12)
           </p>
         </div>
         <div className="flex gap-2">
@@ -245,7 +245,7 @@ export default function OfertasDestacadasPage() {
           <Button
             className="cursor-pointer"
             onClick={handleAddOferta}
-            disabled={ofertas.length >= 10}
+            disabled={ofertas.length >= 12}
           >
             <Plus className="mr-2 h-4 w-4" />
             Agregar Producto
@@ -259,7 +259,7 @@ export default function OfertasDestacadasPage() {
             <CardTitle className="text-sm font-medium">Total Ofertas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{ofertas.length} / 10</div>
+            <div className="text-2xl font-bold">{ofertas.length} / 12</div>
             <p className="text-xs text-muted-foreground">
               {ofertas.filter((o: OfertaConProducto) => o.activo).length}{" "}
               activas
@@ -283,6 +283,7 @@ export default function OfertasDestacadasPage() {
                 <TableHead>Producto</TableHead>
                 <TableHead>Imagen</TableHead>
                 <TableHead>Código Market</TableHead>
+                <TableHead>Categoría</TableHead>
                 <TableHead>Nombre</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
@@ -346,6 +347,17 @@ export default function OfertasDestacadasPage() {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
+                  </TableCell>
+                  <TableCell>
+                    {oferta.categoria ? (
+                      <Badge variant="secondary">
+                        {oferta.categoria.nombreVisible || oferta.categoria.nombre}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-muted-foreground">
+                        Sin categoría
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     {updatingNombre === oferta.uuid ? (
@@ -442,12 +454,14 @@ export default function OfertasDestacadasPage() {
       <AddProductDialog
         open={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
-        onAdd={async (productoId: string, productoNombre: string) => {
-          // Validar máximo 10 productos
-          if (ofertas.length >= 10) {
-            toast.error("Solo puedes tener hasta 10 productos destacados.");
+        ofertasExistentes={ofertas}
+        onAdd={async (productoId: string, productoNombre: string, categoriaId?: string) => {
+          // Validar máximo 12 productos
+          if (ofertas.length >= 12) {
+            toast.error("Solo puedes tener hasta 12 productos destacados.");
             return;
           }
+
           // Validar duplicados
           if (
             ofertas.some((o: OfertaConProducto) => o.codigo_market === productoId)
@@ -455,12 +469,31 @@ export default function OfertasDestacadasPage() {
             toast.error("Este producto ya está en el dropdown de ofertas.");
             return;
           }
+
+          // ✅ IMPORTANTE: Validar máximo 3 productos por categoría usando el ID de la BD
+          if (categoriaId) {
+            // Contar productos que tienen esta categoría asignada
+            const productosEnCategoria = ofertas.filter(
+              (o: OfertaConProducto) => o.categoria_id === categoriaId
+            );
+
+            if (productosEnCategoria.length >= 3) {
+              // Obtener nombre de la categoría para el mensaje
+              const categoriaNombre = productosEnCategoria[0]?.categoria?.nombreVisible ||
+                                      productosEnCategoria[0]?.categoria?.nombre ||
+                                      "esta categoría";
+              toast.error(`Máximo 3 productos por categoría. "${categoriaNombre}" ya tiene ${productosEnCategoria.length} productos.`);
+              return;
+            }
+          }
+
           try {
             // El backend calcula el orden automáticamente
             const response = await ofertasDestacadasEndpoints.create({
               codigo_market: productoId,
               nombre: productoNombre,
               activo: true,
+              categoria_id: categoriaId, // ✅ Pasar categoría seleccionada
             });
             if (response.success) {
               // Después de crear, establecer nombre_modelo por defecto si está disponible
@@ -479,7 +512,13 @@ export default function OfertasDestacadasPage() {
               // Cerrar el modal después de agregar exitosamente
               setIsAddDialogOpen(false);
             } else {
-              toast.error("Error al agregar el producto");
+              // Mostrar mensaje específico del backend si existe (ej: límite de 3 por categoría)
+              const backendMessage =
+                (response.data as any)?.message || response.message;
+              toast.error(
+                backendMessage ||
+                  "Error al agregar el producto"
+              );
             }
           } catch (error) {
             console.error("Error:", error);
