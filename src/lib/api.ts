@@ -1740,6 +1740,15 @@ export interface OfertaDestacada {
   nombre_modelo?: string | null; // Nombre de modelo (siempre disponible)
   orden: number;
   activo: boolean;
+  categoria_id?: string | null; // ✅ NUEVO: ID de la categoría asociada
+  categoria?: {
+    uuid: string;
+    nombre: string;
+    nombreVisible: string;
+    descripcion: string;
+    imagen: string;
+    activo: boolean;
+  } | null; // ✅ NUEVO: Datos de la categoría
   created_at: string;
   updated_at: string;
   producto?: {
@@ -1757,11 +1766,13 @@ export interface CreateOfertaDestacadaDto {
   nombre?: string;
   orden?: number;
   activo?: boolean;
+  categoria_id?: string; // ✅ NUEVO: ID de la categoría
 }
 
 export interface UpdateOfertaDestacadaDto {
   orden?: number;
   activo?: boolean;
+  categoria_id?: string; // ✅ NUEVO: ID de la categoría
 }
 
 export type UpdateOrderDto = Array<{

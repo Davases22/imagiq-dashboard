@@ -13,7 +13,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { productEndpoints } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { productEndpoints, categoryEndpoints } from "@/lib/api";
+import type { BackendCategory } from "@/types";
 import Image from "next/image";
 
 interface Product {
@@ -29,13 +38,15 @@ interface Product {
 interface AddProductDialogProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (productoId: string, productoNombre: string) => Promise<void>;
+  onAdd: (productoId: string, productoNombre: string, categoriaId?: string) => Promise<void>;
+  ofertasExistentes?: Array<{ categoria_id?: string | null; codigo_market: string }>;
 }
 
 export function AddProductDialog({
   open,
   onClose,
   onAdd,
+  ofertasExistentes = [],
 }: AddProductDialogProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -44,19 +55,38 @@ export function AddProductDialog({
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [categorias, setCategorias] = useState<BackendCategory[]>([]);
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>("sin-categoria");
+  const [loadingCategorias, setLoadingCategorias] = useState(false);
   const pageSize = 10;
 
-  // Cargar productos automáticamente cuando se abre el diálogo
+  // Cargar categorías cuando se abre el diálogo
   useEffect(() => {
     if (open) {
+      loadCategorias();
       loadProducts(1, "");
     } else {
       // Limpiar estado al cerrar
       setSearchQuery("");
       setProducts([]);
       setCurrentPage(1);
+      setCategoriaSeleccionada("sin-categoria");
     }
   }, [open]);
+
+  const loadCategorias = async () => {
+    setLoadingCategorias(true);
+    try {
+      const response = await categoryEndpoints.getVisibleCompletas();
+      if (response.success && response.data) {
+        setCategorias(response.data);
+      }
+    } catch (error) {
+      console.error("Error cargando categorías:", error);
+    } finally {
+      setLoadingCategorias(false);
+    }
+  };
 
   const loadProducts = async (page: number, query: string) => {
     setSearching(true);
@@ -123,7 +153,10 @@ export function AddProductDialog({
   ) => {
     setAdding(productoId);
     try {
-      await onAdd(productoId, productoNombre);
+      // Determinar categoría: si es "sin-categoria", enviar undefined
+      const categoriaId = categoriaSeleccionada === "sin-categoria" ? undefined : categoriaSeleccionada || undefined;
+
+      await onAdd(productoId, productoNombre, categoriaId);
       // No cerrar el diálogo para permitir agregar más productos
     } catch (error) {
       console.error("Error agregando producto:", error);
@@ -136,6 +169,7 @@ export function AddProductDialog({
     setSearchQuery("");
     setProducts([]);
     setCurrentPage(1);
+    setCategoriaSeleccionada("sin-categoria");
     onClose();
   };
 
@@ -145,9 +179,49 @@ export function AddProductDialog({
         <DialogHeader>
           <DialogTitle>Agregar Producto a Ofertas</DialogTitle>
           <DialogDescription>
-            Selecciona uno o más productos para agregarlos al dropdown de ofertas destacadas (máximo 10)
+            Selecciona uno o más productos para agregarlos al dropdown de ofertas destacadas (máximo 12 productos / 3 por categoría)
           </DialogDescription>
         </DialogHeader>
+
+        {/* Selector de Categoría */}
+        <div className="space-y-2">
+          <Label htmlFor="categoria">Categoría (Máximo 3 productos por categoría)</Label>
+          <Select
+            value={categoriaSeleccionada}
+            onValueChange={setCategoriaSeleccionada}
+            disabled={loadingCategorias}
+          >
+            <SelectTrigger id="categoria">
+              <SelectValue placeholder="Selecciona una categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sin-categoria">Sin categoría</SelectItem>
+              {categorias
+                .filter((cat) => cat.activo)
+                .map((categoria) => {
+                  // Contar productos en esta categoría
+                  const productosEnCategoria = ofertasExistentes.filter(
+                    (o) => o.categoria_id === categoria.uuid
+                  ).length;
+                  const estaLlena = productosEnCategoria >= 3;
+
+                  return (
+                    <SelectItem
+                      key={categoria.uuid}
+                      value={categoria.uuid}
+                      disabled={estaLlena}
+                    >
+                      {categoria.nombreVisible || categoria.nombre} ({productosEnCategoria}/3)
+                      {estaLlena && " - Llena"}
+                    </SelectItem>
+                  );
+                })}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Cada categoría puede tener máximo 3 productos
+          </p>
+        </div>
 
         {/* Buscador */}
         <div className="flex gap-2">
