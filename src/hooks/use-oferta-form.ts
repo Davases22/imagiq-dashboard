@@ -421,6 +421,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
               id: banner.data.id,
               position_desktop: banner.positionDesktop,
               position_mobile: banner.positionMobile,
+              text_styles: banner.textStyles as unknown as Record<string, unknown>,
               title: banner.data.title,
               description: banner.data.description,
               cta: banner.data.cta,

@@ -149,7 +149,7 @@ export function OfertaBannersManager({
           <div>
             <h4 className="font-medium mb-2">Medios del Banner</h4>
             <p className="text-sm text-muted-foreground mb-4">
-              Dimensiones recomendadas: Desktop <strong>1260×621px</strong> | Mobile <strong>414×621px</strong>
+              Dimensiones recomendadas: Desktop <strong>1260×310px</strong> | Mobile <strong>414×310px</strong>
             </p>
             <BannerMediaUpload
               files={activeBanner.files}
