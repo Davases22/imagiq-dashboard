@@ -92,6 +92,7 @@ export interface BannerUpdate {
   link_url?: string;
   coordinates?: string;
   coordinates_mobile?: string;
+  text_styles?: Record<string, unknown>;
 }
 
 // Archivos de banner
