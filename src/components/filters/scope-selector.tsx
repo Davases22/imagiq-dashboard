@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -89,6 +89,36 @@ export function ScopeSelector({
   const collapseAll = () => {
     setExpandedCategories(new Set());
     setExpandedMenus(new Set());
+  };
+
+  // Check if all categories and menus are expanded
+  const isAllExpanded = useMemo(() => {
+    if (categories.length === 0) return false;
+    
+    const allCategoryIds = new Set<string>();
+    const allMenuIds = new Set<string>();
+    
+    categories.forEach((category) => {
+      allCategoryIds.add(category.id);
+      category.menus.forEach((menu) => {
+        allMenuIds.add(menu.id);
+      });
+    });
+    
+    const allCategoriesExpanded = allCategoryIds.size > 0 && 
+      Array.from(allCategoryIds).every(id => expandedCategories.has(id));
+    const allMenusExpanded = allMenuIds.size > 0 && 
+      Array.from(allMenuIds).every(id => expandedMenus.has(id));
+    
+    return allCategoriesExpanded && allMenusExpanded;
+  }, [categories, expandedCategories, expandedMenus]);
+
+  const toggleExpandCollapse = () => {
+    if (isAllExpanded) {
+      collapseAll();
+    } else {
+      expandAll();
+    }
   };
 
   const handleCategoryToggle = (categoryId: string, checked: boolean) => {
@@ -327,22 +357,21 @@ export function ScopeSelector({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={expandAll}
+                  onClick={toggleExpandCollapse}
                   disabled={disabled}
-                  title="Desplegar todas las categorías y menús"
+                  title={isAllExpanded ? "Plegar todas las categorías y menús" : "Desplegar todas las categorías y menús"}
                 >
-                  <ChevronDown className="h-4 w-4 mr-1" />
-                  Desplegar todo
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={collapseAll}
-                  disabled={disabled}
-                  title="Plegar todas las categorías y menús"
-                >
-                  <ChevronRight className="h-4 w-4 mr-1" />
-                  Plegar todo
+                  {isAllExpanded ? (
+                    <>
+                      <ChevronRight className="h-4 w-4 mr-1" />
+                      Plegar todo
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4 mr-1" />
+                      Desplegar todo
+                    </>
+                  )}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
