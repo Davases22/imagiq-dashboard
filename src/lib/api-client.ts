@@ -5,14 +5,14 @@
  * con autenticación API Key automática.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 
 // Advertencia en desarrollo si no está configurada la API Key
-if (!API_KEY && process.env.NODE_ENV === 'development') {
+if (!API_KEY && process.env.NODE_ENV === "development") {
   console.warn(
-    '⚠️ NEXT_PUBLIC_API_KEY no está configurada. Las peticiones al API fallarán.\n' +
-    'Agrega NEXT_PUBLIC_API_KEY a tu archivo .env.local'
+    "⚠️ NEXT_PUBLIC_API_KEY no está configurada. Las peticiones al API fallarán.\n" +
+      "Agrega NEXT_PUBLIC_API_KEY a tu archivo .env.local"
   );
 }
 
@@ -35,8 +35,8 @@ export async function apiClient(
 
   // Combinar headers: API Key + headers personalizados
   const headers = new Headers({
-    'Content-Type': 'application/json',
-    ...(API_KEY && { 'X-API-Key': API_KEY }),
+    "Content-Type": "application/json",
+    ...(API_KEY && { "X-API-Key": API_KEY }),
     ...options.headers,
   });
 
@@ -49,13 +49,15 @@ export async function apiClient(
     // Manejar errores específicos
     if (!response.ok) {
       if (response.status === 401) {
-        const error = new Error('API Key inválida o faltante');
-        console.error('🔐 Error de autenticación:', error.message);
+        const error = new Error("API Key inválida o faltante");
+        console.error("🔐 Error de autenticación:", error.message);
         throw error;
       }
       if (response.status === 429) {
-        const error = new Error('Demasiadas peticiones. Por favor intenta más tarde.');
-        console.error('⚠️ Rate limit excedido:', error.message);
+        const error = new Error(
+          "Demasiadas peticiones. Por favor intenta más tarde."
+        );
+        console.error("⚠️ Rate limit excedido:", error.message);
         throw error;
       }
       throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
@@ -64,7 +66,7 @@ export async function apiClient(
     return response;
   } catch (error) {
     if (error instanceof Error) {
-      console.error('❌ API Client Error:', error.message, { endpoint, url });
+      console.error("❌ API Client Error:", error.message, { endpoint, url });
     }
     throw error;
   }
@@ -86,7 +88,7 @@ export async function apiClientFormData(
 
   // Headers sin Content-Type (para FormData)
   const headers = new Headers({
-    ...(API_KEY && { 'X-API-Key': API_KEY }),
+    ...(API_KEY && { "X-API-Key": API_KEY }),
     ...options.headers,
   });
 
@@ -98,13 +100,15 @@ export async function apiClientFormData(
 
     if (!response.ok) {
       if (response.status === 401) {
-        const error = new Error('API Key inválida o faltante');
-        console.error('🔐 Error de autenticación:', error.message);
+        const error = new Error("API Key inválida o faltante");
+        console.error("🔐 Error de autenticación:", error.message);
         throw error;
       }
       if (response.status === 429) {
-        const error = new Error('Demasiadas peticiones. Por favor intenta más tarde.');
-        console.error('⚠️ Rate limit excedido:', error.message);
+        const error = new Error(
+          "Demasiadas peticiones. Por favor intenta más tarde."
+        );
+        console.error("⚠️ Rate limit excedido:", error.message);
         throw error;
       }
       throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
@@ -113,7 +117,7 @@ export async function apiClientFormData(
     return response;
   } catch (error) {
     if (error instanceof Error) {
-      console.error('❌ API Client Error:', error.message, { endpoint, url });
+      console.error("❌ API Client Error:", error.message, { endpoint, url });
     }
     throw error;
   }
@@ -123,13 +127,18 @@ export async function apiClientFormData(
  * Helper para peticiones GET con tipado TypeScript
  *
  * @param endpoint - Ruta relativa del API
+ * @param options - Opciones adicionales (headers, etc.)
  * @returns Promise con datos parseados
  *
  * @example
  * const products = await apiGet<Product[]>('/api/products?limit=10');
+ * const data = await apiGet<Data>('/api/data', { headers: { Authorization: 'Bearer token' } });
  */
-export async function apiGet<T = unknown>(endpoint: string): Promise<T> {
-  const response = await apiClient(endpoint, { method: 'GET' });
+export async function apiGet<T = unknown>(
+  endpoint: string,
+  options: Omit<RequestInit, "method" | "body"> = {}
+): Promise<T> {
+  const response = await apiClient(endpoint, { ...options, method: "GET" });
   return response.json();
 }
 
@@ -148,7 +157,7 @@ export async function apiPost<T = unknown>(
   data: unknown
 ): Promise<T> {
   const response = await apiClient(endpoint, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify(data),
   });
   return response.json();
@@ -169,7 +178,7 @@ export async function apiPut<T = unknown>(
   data: unknown
 ): Promise<T> {
   const response = await apiClient(endpoint, {
-    method: 'PUT',
+    method: "PUT",
     body: JSON.stringify(data),
   });
   return response.json();
@@ -190,7 +199,7 @@ export async function apiPatch<T = unknown>(
   data: unknown
 ): Promise<T> {
   const response = await apiClient(endpoint, {
-    method: 'PATCH',
+    method: "PATCH",
     body: JSON.stringify(data),
   });
   return response.json();
@@ -206,7 +215,7 @@ export async function apiPatch<T = unknown>(
  * await apiDelete('/api/products/123');
  */
 export async function apiDelete<T = unknown>(endpoint: string): Promise<T> {
-  const response = await apiClient(endpoint, { method: 'DELETE' });
+  const response = await apiClient(endpoint, { method: "DELETE" });
 
   // Algunas APIs de DELETE retornan 204 No Content
   if (response.status === 204) {

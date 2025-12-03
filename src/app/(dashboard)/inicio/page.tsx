@@ -1,62 +1,75 @@
-import { MetricCard } from "@/components/dashboard/metric-card"
-import { RecentActivity } from "@/components/dashboard/recent-activity"
-import { OverviewChart } from "@/components/charts/overview-chart"
-import { CategoryChart } from "@/components/charts/category-chart"
-import { BrandIcon } from "@/components/icons/BrandIcon"
-import { IconTest } from "@/components/icons/IconTest"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+"use client";
+import { CategoryChart } from "@/components/charts/category-chart";
+import { OverviewChart } from "@/components/charts/overview-chart";
+import { MetricCard } from "@/components/dashboard/metric-card";
+import { RecentActivity } from "@/components/dashboard/recent-activity";
+import { BrandIcon } from "@/components/icons/BrandIcon";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
 import {
-  DollarSign,
-  ShoppingCart,
-  Users,
-  TrendingUp,
-  Package,
-  CreditCard
-} from "lucide-react"
-import {
-  mockDashboardMetrics,
-  mockSalesData,
   mockCategoryData,
+  mockDashboardMetrics,
   mockPaymentMethodData,
   mockTopProducts,
-  mockRecentActivity,
-} from "@/lib/mock-data"
+} from "@/lib/mock-data";
+import { DashboardMetrics } from "@/types/dasboard";
+import {
+  CreditCard,
+  DollarSign,
+  Package,
+  ShoppingCart,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function InicioPage() {
+  const { getMetrics } = useDashboardMetrics();
+  const [metrics, setMetrics] = useState<DashboardMetrics>();
+
+  useEffect(() => {
+    async function fetchMetrics() {
+      const data = await getMetrics();
+      setMetrics(data);
+    }
+    fetchMetrics();
+  }, []);
   return (
     <div className="space-y-3">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Vista general de tu e-commerce
-        </p>
+        <p className="text-muted-foreground">Vista general de tu e-commerce</p>
       </div>
 
       {/* Metric Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Ventas Totales"
-          value={`$${mockDashboardMetrics.totalSales.toLocaleString()}`}
+          value={`${Intl.NumberFormat("es-CO", {
+            currency: "COP",
+            style: "currency",
+            maximumFractionDigits: 0,
+          }).format(metrics?.sales.current_sales ?? 0)}`}
           description="Total de ingresos este mes"
           icon={DollarSign}
           trend={{
-            value: mockDashboardMetrics.salesGrowth,
-            label: "desde el mes pasado"
+            value: Number(metrics?.sales?.percent_difference ?? 0),
+            label: "desde el mes pasado",
           }}
         />
         <MetricCard
           title="Órdenes"
-          value={mockDashboardMetrics.totalOrders}
+          value={metrics?.sales.current_count ?? 0}
           description="Órdenes procesadas este mes"
           icon={ShoppingCart}
           trend={{
-            value: mockDashboardMetrics.ordersGrowth,
-            label: "desde el mes pasado"
+            value: Number(metrics?.sales?.percent_difference ?? 0),
+            label: "desde el mes pasado",
           }}
         />
         <MetricCard
           title="Clientes"
-          value={mockDashboardMetrics.totalCustomers}
+          value={metrics?.newUsers.current_count ?? 0}
           description="Total de clientes registrados"
           icon={Users}
         />
@@ -68,20 +81,20 @@ export default function InicioPage() {
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
         {/* Sales Overview Chart */}
-        <Card className="col-span-4">
+        <Card className="col-span-1 lg:col-span-4">
           <CardHeader>
             <CardTitle>Ventas Mensuales</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
-            <OverviewChart data={mockSalesData} />
+            <OverviewChart data={metrics?.monthlySales ?? []} />
           </CardContent>
         </Card>
 
         {/* Recent Activity */}
-        <Card className="col-span-3">
-          <RecentActivity activities={mockRecentActivity} />
+        <Card className="col-span-1 lg:col-span-3">
+          <RecentActivity activities={metrics?.ordenes ?? []} />
         </Card>
       </div>
 
@@ -95,7 +108,10 @@ export default function InicioPage() {
             <CategoryChart data={mockCategoryData} />
             <div className="mt-4 space-y-2">
               {mockCategoryData.map((category, index) => (
-                <div key={category.name} className="flex items-center justify-between">
+                <div
+                  key={category.name}
+                  className="flex items-center justify-between"
+                >
                   <div className="flex items-center gap-2">
                     <div
                       className="w-3 h-3 rounded-full"
@@ -107,7 +123,7 @@ export default function InicioPage() {
                           "hsl(100, 65%, 45%)", // Verde amarillento
                           "hsl(180, 55%, 45%)", // Verde agua
                           "hsl(var(--muted-foreground))", // Fallback
-                        ][index % 6]
+                        ][index % 6],
                       }}
                     />
                     <span className="text-sm">{category.name}</span>
@@ -134,8 +150,11 @@ export default function InicioPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockTopProducts.map((product, index) => (
-                <div key={product.name} className="flex items-center justify-between">
+              {metrics?.topProducts.map((product, index) => (
+                <div
+                  key={product.desdetallada}
+                  className="flex items-center justify-between"
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
                       <span className="text-sm font-medium text-muted-foreground">
@@ -143,14 +162,20 @@ export default function InicioPage() {
                       </span>
                     </div>
                     <div>
-                      <p className="text-sm font-medium">{product.name}</p>
+                      <p className="text-sm font-medium">
+                        {product.desdetallada}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {product.sales} ventas
+                        {product.total_vendidos} ventas
                       </p>
                     </div>
                   </div>
                   <p className="text-sm font-medium">
-                    ${product.revenue.toLocaleString()}
+                    {Intl.NumberFormat("es-CO", {
+                      currency: "COP",
+                      style: "currency",
+                      maximumFractionDigits: 0,
+                    }).format(product.ingresos_generados)}
                   </p>
                 </div>
               ))}
@@ -168,19 +193,30 @@ export default function InicioPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockPaymentMethodData.map((method) => (
-                <div key={method.name} className="flex items-center justify-between">
+              {metrics?.paymentMethods.map((method) => (
+                <div
+                  key={method.nombre}
+                  className="flex items-center justify-between"
+                >
                   <div className="flex items-center gap-3">
-                    <BrandIcon brand={method.name} size={20} className="text-muted-foreground" />
+                    <BrandIcon
+                      brand={method.nombre}
+                      size={20}
+                      className="text-muted-foreground"
+                    />
                     <div>
-                      <p className="text-sm font-medium">{method.name}</p>
+                      <p className="text-sm font-medium">{method.nombre}</p>
                       <p className="text-xs text-muted-foreground">
-                        {method.value}% del total
+                        {method.percent}% del total
                       </p>
                     </div>
                   </div>
                   <p className="text-sm font-medium">
-                    ${method.amount.toLocaleString()}
+                    {Intl.NumberFormat("es-CO", {
+                      currency: "COP",
+                      style: "currency",
+                      maximumFractionDigits: 0,
+                    }).format(method.valor_vendido)}
                   </p>
                 </div>
               ))}
@@ -189,5 +225,5 @@ export default function InicioPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
