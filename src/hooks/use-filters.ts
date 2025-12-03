@@ -63,6 +63,7 @@ interface UseFiltersReturn {
   refreshFilters: () => Promise<void>;
   createFilter: (data: CreateFilterData) => Promise<DynamicFilter | null>;
   updateFilter: (id: string, data: Partial<CreateFilterData>) => Promise<DynamicFilter | null>;
+  toggleFilterStatus: (id: string, isActive: boolean) => Promise<boolean>;
   deleteFilter: (id: string) => Promise<boolean>;
   deleteBulk: (filterIds: string[]) => Promise<boolean>;
 }
@@ -218,6 +219,47 @@ export function useFilters(): UseFiltersReturn {
     }
   }, []);
 
+  // Toggle filter status (uses PATCH endpoint)
+  const toggleFilterStatus = useCallback(async (id: string, isActive: boolean): Promise<boolean> => {
+    try {
+      const response = await filterEndpoints.updatePartial(id, { isActive });
+      
+      if (response.success && response.data) {
+        // Handle nested response structure
+        let filterData: DynamicFilter | null = null;
+        const responseData = response.data as FilterResponse;
+        
+        if ('id' in responseData || 'sectionName' in responseData) {
+          filterData = responseData as DynamicFilter;
+        } else if (isNestedFilterResponse(responseData)) {
+          filterData = responseData.data;
+        }
+        
+        if (filterData) {
+          const updatedFilter = parseFilterDates(filterData);
+          setFilters((prev) => prev.map((f) => (f.id === id ? updatedFilter : f)));
+          toast.success(response.message || `Filtro ${isActive ? 'activado' : 'desactivado'} correctamente`);
+          return true;
+        } else {
+          const errorMsg = "Error al procesar la respuesta del servidor";
+          toast.error(errorMsg);
+          console.error("Invalid response structure:", response);
+          return false;
+        }
+      } else {
+        const errorMsg = response.message || "Error al actualizar el estado del filtro";
+        toast.error(errorMsg);
+        console.error("Toggle status failed:", response);
+        return false;
+      }
+    } catch (err) {
+      const errorMsg = "Error de conexión al actualizar el estado del filtro";
+      toast.error(errorMsg);
+      console.error("Error toggling filter status:", err);
+      return false;
+    }
+  }, []);
+
   // Delete filter
   const deleteFilter = useCallback(async (id: string): Promise<boolean> => {
     try {
@@ -283,6 +325,7 @@ export function useFilters(): UseFiltersReturn {
     refreshFilters,
     createFilter,
     updateFilter,
+    toggleFilterStatus,
     deleteFilter,
     deleteBulk,
   };
