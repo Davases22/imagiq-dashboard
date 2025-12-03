@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -50,19 +50,48 @@ export function DisplayTypeSelector({
     operator,
   });
 
+  // Filter out "single-select" and "multi-select" as they are not available
+  // These display types are commented out/disabled and should not appear in the selector
+  // Check both value and label to catch different formats (e.g., "single-select", "singleSelect", "Single Select", etc.)
+  const availableTypes = useMemo(() => {
+    return (displayTypes?.availableTypes || []).filter((type) => {
+      const valueLower = type.value.toLowerCase().replace(/[-\s]/g, "");
+      const labelLower = type.label.toLowerCase().replace(/[-\s]/g, "");
+      const isSingleSelect = 
+        valueLower.includes("singleselect") || 
+        labelLower.includes("singleselect") ||
+        type.value === "single-select" ||
+        type.value === "singleSelect";
+      const isMultiSelect = 
+        valueLower.includes("multiselect") || 
+        labelLower.includes("multiselect") ||
+        type.value === "multi-select" ||
+        type.value === "multiSelect";
+      return !isSingleSelect && !isMultiSelect;
+    });
+  }, [displayTypes?.availableTypes]);
+
   // Update to defaultType when displayTypes change and current value is not available
   useEffect(() => {
-    if (displayTypes && displayTypes.availableTypes.length > 0) {
-      const isCurrentValueAvailable = displayTypes.availableTypes.some(
+    if (availableTypes.length > 0) {
+      const isCurrentValueAvailable = availableTypes.some(
         (type) => type.value === value
       );
-      if (!isCurrentValueAvailable && displayTypes.defaultType) {
-        onValueChange(displayTypes.defaultType);
+      if (!isCurrentValueAvailable) {
+        // Find a valid default type from filtered types
+        const defaultType = displayTypes?.defaultType;
+        const defaultTypeIsAvailable = availableTypes.some(
+          (type) => type.value === defaultType
+        );
+        if (defaultTypeIsAvailable && defaultType) {
+          onValueChange(defaultType);
+        } else if (availableTypes.length > 0) {
+          // Use first available type if default is not available
+          onValueChange(availableTypes[0].value);
+        }
       }
     }
-  }, [displayTypes, value, onValueChange]);
-
-  const availableTypes = displayTypes?.availableTypes || [];
+  }, [displayTypes, value, onValueChange, availableTypes]);
   const selectedType = availableTypes.find((type) => type.value === value);
   const Icon = getIconComponent(selectedType?.icon);
 
