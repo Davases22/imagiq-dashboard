@@ -84,14 +84,14 @@ const mapScopeToApiParams = (
     }
   }
 
-  // Map menu IDs to names
+  // Map menu IDs to names (use name, not nombreVisible, as backend expects name)
   if (scope.menus.length > 0) {
     const menuNames = scope.menus
       .map((menuId) => {
         for (const category of categories) {
           const menu = category.menus.find((m) => m.id === menuId);
           if (menu) {
-            return menu.nombreVisible || menu.name;
+            return menu.name;
           }
         }
         return null;
@@ -103,7 +103,7 @@ const mapScopeToApiParams = (
     }
   }
 
-  // Map submenu IDs to names
+  // Map submenu IDs to names (use name, not nombreVisible, as backend expects name)
   if (scope.submenus.length > 0) {
     const submenuNames = scope.submenus
       .map((submenuId) => {
@@ -111,7 +111,7 @@ const mapScopeToApiParams = (
           for (const menu of category.menus) {
             const submenu = menu.submenus.find((s) => s.id === submenuId);
             if (submenu) {
-              return submenu.nombreVisible || submenu.name;
+              return submenu.name;
             }
           }
         }
