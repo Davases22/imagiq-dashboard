@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { GripVertical, Edit, Trash2, Copy, Filter, Plus, ChevronDown, ChevronRight, Search, X, Eye } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FilterOperator, FilterDisplayType } from "@/types/filters";
@@ -62,7 +63,7 @@ export default function FiltrosPage() {
   const searchParams = useSearchParams();
   const { categories, loading: categoriesLoading } = useCategories();
   const { columns } = useProductColumns();
-  const { filters, isLoading: filtersLoading, deleteFilter, deleteBulk, createFilter, refreshFilters } = useFilters();
+  const { filters, isLoading: filtersLoading, deleteFilter, deleteBulk, createFilter, refreshFilters, toggleFilterStatus } = useFilters();
   const { updateOrder } = useFilterOrder();
   const [deletingFilter, setDeletingFilter] = useState<DynamicFilter | null>(null);
   const [deletingFilters, setDeletingFilters] = useState<DynamicFilter[]>([]);
@@ -75,6 +76,7 @@ export default function FiltrosPage() {
   const [draggedFilter, setDraggedFilter] = useState<{ filter: DynamicFilter; scopeType: 'category' | 'menu' | 'submenu'; scopeId: string } | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
+  const [updatingStatusFilters, setUpdatingStatusFilters] = useState<Set<string>>(new Set());
   
   // Get active tab from URL query parameter, default to "agrupada"
   const activeTab = searchParams.get("vista") || "agrupada";
@@ -318,6 +320,30 @@ export default function FiltrosPage() {
     const newFilter = await createFilter(duplicated);
     if (newFilter) {
       // Filter will be automatically updated via useFilters hook
+    }
+  };
+
+  const handleToggleStatus = async (filter: DynamicFilter, newStatus: boolean) => {
+    // Prevent multiple rapid clicks
+    if (updatingStatusFilters.has(filter.id)) {
+      return;
+    }
+
+    // Add filter to updating set
+    setUpdatingStatusFilters((prev) => new Set(prev).add(filter.id));
+
+    try {
+      await toggleFilterStatus(filter.id, newStatus);
+      // Filter will be automatically updated via useFilters hook
+    } finally {
+      // Remove filter from updating set after a short delay to prevent rapid toggling
+      setTimeout(() => {
+        setUpdatingStatusFilters((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(filter.id);
+          return newSet;
+        });
+      }, 300);
     }
   };
 
@@ -931,15 +957,16 @@ export default function FiltrosPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {filter.isActive ? (
-                              <Badge variant="default" className="text-xs">
-                                Activo
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs">
-                                Inactivo
-                              </Badge>
-                            )}
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={filter.isActive}
+                                onCheckedChange={(checked) => handleToggleStatus(filter, checked)}
+                                disabled={filtersLoading || updatingStatusFilters.has(filter.id)}
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {filter.isActive ? "Activo" : "Inactivo"}
+                              </span>
+                            </div>
                           </TableCell>
                           <TableCell className="max-w-xs">
                             <span className="text-xs text-muted-foreground truncate block" title={scopeDisplay}>
