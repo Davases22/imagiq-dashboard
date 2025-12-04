@@ -135,7 +135,7 @@ export default function OrdenesPage() {
     const timeoutId = setTimeout(() => {
       console.log("Debounce completado, buscando:", searchQuery);
       setDebouncedSearch(searchQuery);
-    }, 500);
+    }, 300);
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery, debouncedSearch]);
