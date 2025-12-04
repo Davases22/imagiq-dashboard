@@ -1,192 +1,233 @@
-"use client"
+"use client";
 
-import { useState, useMemo } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DataTable } from "@/components/tables/data-table"
-import { ordersColumns } from "@/components/tables/columns/orders-columns"
-import { OrderStatsCards } from "@/components/orders/order-stats-cards"
-import { OrderStatusChart } from "@/components/orders/order-status-chart"
-import { OrderDetailDialog } from "@/components/orders/order-detail-dialog"
-import { mockOrders } from "@/lib/mock-data/orders"
-import { Order, OrderStatus, PaymentStatus, FulfillmentStatus } from "@/types"
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DataTable } from "@/components/tables/data-table";
+import { apiOrdersColumns } from "@/components/tables/columns/api-orders-columns";
+import { OrderMetricsCards } from "@/components/orders/order-metrics-cards";
+import { OrderMetricsChart } from "@/components/orders/order-metrics-chart";
+import { ExportDialog } from "@/components/orders/export-dialog";
+import { useOrders } from "@/hooks/use-orders";
+import { useOrdersMetrics } from "@/hooks/use-orders-metrics";
+import { ApiOrderStatus, OrderSortField, SortOrder } from "@/types/orders";
 import {
-  Plus,
   Download,
-  Filter,
-  Calendar,
   Search,
-  FileText,
   RefreshCw,
-} from "lucide-react"
-import { Input } from "@/components/ui/input"
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function OrdenesPage() {
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const [isDetailOpen, setIsDetailOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all")
-  const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | "all">("all")
-  const [activeTab, setActiveTab] = useState<string>("all")
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ApiOrderStatus | "all">(
+    "all"
+  );
+  const [activeTab, setActiveTab] = useState<string>("all");
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
-  // Filtrar órdenes basado en la búsqueda y filtros
+  // Hook para obtener órdenes de la API
+  const { orders, pagination, isLoading, error, refetch, setParams, params } =
+    useOrders({
+      page: 1,
+      limit: 20,
+      sortField: "serial_id",
+      sortOrder: "desc",
+    });
+
+  // Hook para obtener métricas de órdenes
+  const {
+    metrics,
+    statusDistribution,
+    isLoading: metricsLoading,
+    error: metricsError,
+    refetch: refetchMetrics,
+  } = useOrdersMetrics();
+
+  // Filtrar órdenes localmente basado en tab y filtros
   const filteredOrders = useMemo(() => {
-    return mockOrders.filter((order) => {
-      // Filtro de búsqueda
-      const matchesSearch =
-        searchQuery === "" ||
-        order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customerEmail.toLowerCase().includes(searchQuery.toLowerCase())
-
-      // Filtro de estado
-      const matchesStatus = statusFilter === "all" || order.status === statusFilter
-
-      // Filtro de pago
-      const matchesPayment = paymentFilter === "all" || order.paymentStatus === paymentFilter
+    return orders.filter((order) => {
+      // Filtro de estado desde select
+      const matchesStatus =
+        statusFilter === "all" || order.estado === statusFilter;
 
       // Filtro de pestaña activa
-      let matchesTab = true
+      let matchesTab = true;
       switch (activeTab) {
         case "pending":
-          matchesTab = order.status === "pending"
-          break
-        case "processing":
-          matchesTab = order.status === "processing" || order.status === "confirmed"
-          break
-        case "shipped":
-          matchesTab = order.status === "shipped"
-          break
-        case "delivered":
-          matchesTab = order.status === "delivered"
-          break
+          matchesTab = order.estado === "PENDING";
+          break;
+        case "approved":
+          matchesTab = order.estado === "APPROVED";
+          break;
         case "cancelled":
-          matchesTab = order.status === "cancelled" || order.status === "refunded"
-          break
+          matchesTab =
+            order.estado === "CANCELLED" || order.estado === "REJECTED";
+          break;
+        case "abandoned":
+          matchesTab = order.estado === "ABANDONED";
+          break;
         default:
-          matchesTab = true
+          matchesTab = true;
       }
 
-      return matchesSearch && matchesStatus && matchesPayment && matchesTab
-    })
-  }, [searchQuery, statusFilter, paymentFilter, activeTab, mockOrders])
+      return matchesStatus && matchesTab;
+    });
+  }, [orders, statusFilter, activeTab]);
 
   // Calcular contadores para las pestañas
   const tabCounts = useMemo(() => {
     return {
-      all: mockOrders.length,
-      pending: mockOrders.filter(o => o.status === "pending").length,
-      processing: mockOrders.filter(o => o.status === "processing" || o.status === "confirmed").length,
-      shipped: mockOrders.filter(o => o.status === "shipped").length,
-      delivered: mockOrders.filter(o => o.status === "delivered").length,
-      cancelled: mockOrders.filter(o => o.status === "cancelled" || o.status === "refunded").length,
-    }
-  }, [mockOrders])
+      all: orders.length,
+      pending: orders.filter((o) => o.estado === "PENDING").length,
+      approved: orders.filter((o) => o.estado === "APPROVED").length,
+      cancelled: orders.filter(
+        (o) => o.estado === "CANCELLED" || o.estado === "REJECTED"
+      ).length,
+      abandoned: orders.filter((o) => o.estado === "ABANDONED").length,
+    };
+  }, [orders]);
 
   // Configuración de filtros para la tabla
   const tableFilters = [
     {
-      id: "status",
+      id: "estado",
       title: "Estado",
       options: [
-        { label: "Pendiente", value: "pending" },
-        { label: "Confirmada", value: "confirmed" },
-        { label: "Procesando", value: "processing" },
-        { label: "Enviada", value: "shipped" },
-        { label: "Entregada", value: "delivered" },
-        { label: "Cancelada", value: "cancelled" },
-        { label: "Reembolsada", value: "refunded" },
+        { label: "Pendiente", value: "PENDING" },
+        { label: "Aprobada", value: "APPROVED" },
+        { label: "Cancelada", value: "CANCELLED" },
+        { label: "Rechazada", value: "REJECTED" },
+        { label: "Abandonada", value: "ABANDONED" },
+        { label: "Error Interno", value: "INTERNAL_ERROR" },
       ],
     },
     {
-      id: "paymentStatus",
-      title: "Estado de Pago",
+      id: "medio_pago",
+      title: "Medio de Pago",
       options: [
-        { label: "Pendiente", value: "pending" },
-        { label: "Pagado", value: "paid" },
-        { label: "Fallido", value: "failed" },
-        { label: "Reembolsado", value: "refunded" },
+        { label: "Tarjeta", value: "Tarjeta" },
+        { label: "PSE", value: "PSE" },
+        { label: "Addi", value: "Addi" },
       ],
     },
-    {
-      id: "fulfillmentStatus",
-      title: "Preparación",
-      options: [
-        { label: "Sin preparar", value: "unfulfilled" },
-        { label: "Parcial", value: "partial" },
-        { label: "Completo", value: "fulfilled" },
-      ],
-    },
-    {
-      id: "source",
-      title: "Origen",
-      options: [
-        { label: "Web", value: "web" },
-        { label: "Móvil", value: "mobile" },
-        { label: "Tienda física", value: "physical_store" },
-        { label: "Teléfono", value: "phone" },
-      ],
-    },
-  ]
+  ];
 
-  const handleOrderClick = (order: Order) => {
-    setSelectedOrder(order)
-    setIsDetailOpen(true)
-  }
+  // Debounce para la búsqueda - espera 500ms después de dejar de escribir
+  useEffect(() => {
+    // No ejecutar en el mount inicial
+    if (searchQuery === "" && debouncedSearch === "") return;
+    // Si ya está sincronizado, no hacer nada
+    if (searchQuery === debouncedSearch) return;
+
+    const timeoutId = setTimeout(() => {
+      console.log("Debounce completado, buscando:", searchQuery);
+      setDebouncedSearch(searchQuery);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, debouncedSearch]);
+
+  // Efecto separado para llamar a la API cuando cambia el debounced search
+  useEffect(() => {
+    // Evitar la llamada inicial cuando ambos están vacíos
+    if (debouncedSearch === "" && params.search === undefined) return;
+
+    console.log("Llamando API con search:", debouncedSearch || "(vacío)");
+    setParams({ search: debouncedSearch || undefined });
+  }, [debouncedSearch, setParams, params.search]);
+
+  // Handler para cambio de paginación
+  const handlePaginationChange = useCallback(
+    ({ pageIndex, pageSize }: { pageIndex: number; pageSize: number }) => {
+      setParams({
+        page: pageIndex + 1, // API usa 1-indexed
+        limit: pageSize,
+      });
+    },
+    [setParams]
+  );
 
   const handleExportOrders = () => {
-    // Implementar exportación a CSV/Excel
-    console.log("Exportando órdenes...")
-  }
+    setExportDialogOpen(true);
+  };
 
   const handleRefresh = () => {
-    // Implementar recarga de datos
-    console.log("Refrescando órdenes...")
-  }
+    refetch();
+    refetchMetrics();
+  };
 
   return (
     <div className="space-y-3">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Órdenes</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Órdenes
+          </h1>
           <p className="text-sm text-muted-foreground">
             Gestiona y monitorea todas tus órdenes en tiempo real
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <Button variant="outline" onClick={handleRefresh} size="sm" className="sm:h-10">
-            <RefreshCw className="h-4 w-4 sm:mr-2" />
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            size="sm"
+            className="sm:h-10"
+            disabled={isLoading || metricsLoading}
+          >
+            <RefreshCw
+              className={`h-4 w-4 sm:mr-2 ${
+                isLoading || metricsLoading ? "animate-spin" : ""
+              }`}
+            />
             <span className="hidden sm:inline">Refrescar</span>
           </Button>
-          <Button variant="outline" onClick={handleExportOrders} size="sm" className="sm:h-10">
+          <Button
+            variant="outline"
+            onClick={handleExportOrders}
+            size="sm"
+            className="sm:h-10"
+          >
             <Download className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Exportar</span>
-          </Button>
-          <Button size="sm" className="sm:h-10">
-            <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Nueva Orden</span>
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards & Chart */}
-      <div className="grid gap-4 lg:grid-cols-[350px_1fr]">
-        <div>
-          <OrderStatsCards orders={mockOrders} />
-        </div>
-        <div>
-          <OrderStatusChart orders={mockOrders} />
-        </div>
-      </div>
+      {/* Error Alert */}
+      {(error || metricsError) && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error al cargar datos</AlertTitle>
+          <AlertDescription>
+            {error?.message || metricsError?.message}. Por favor intenta
+            refrescar la página.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Metrics Cards */}
+      <OrderMetricsCards metrics={metrics} isLoading={metricsLoading} />
+
+      {/* Status Distribution Chart */}
+      <OrderMetricsChart
+        statusDistribution={statusDistribution}
+        isLoading={metricsLoading}
+      />
 
       {/* Filters Bar */}
       <Card>
@@ -198,52 +239,87 @@ export default function OrdenesPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar por orden, cliente..."
+                placeholder="Buscar por orden, cliente, documento..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    // Ejecutar búsqueda inmediata al presionar Enter
+                    setDebouncedSearch(searchQuery);
+                  }
+                }}
+                className="pl-9 pr-9"
               />
+              {searchQuery !== debouncedSearch && (
+                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              )}
             </div>
 
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as OrderStatus | "all")}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) =>
+                setStatusFilter(value as ApiOrderStatus | "all")
+              }
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Filtrar por estado" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="pending">Pendiente</SelectItem>
-                <SelectItem value="confirmed">Confirmada</SelectItem>
-                <SelectItem value="processing">Procesando</SelectItem>
-                <SelectItem value="shipped">Enviada</SelectItem>
-                <SelectItem value="delivered">Entregada</SelectItem>
-                <SelectItem value="cancelled">Cancelada</SelectItem>
-                <SelectItem value="refunded">Reembolsada</SelectItem>
+                <SelectItem value="PENDING">Pendiente</SelectItem>
+                <SelectItem value="APPROVED">Aprobada</SelectItem>
+                <SelectItem value="CANCELLED">Cancelada</SelectItem>
+                <SelectItem value="REJECTED">Rechazada</SelectItem>
+                <SelectItem value="ABANDONED">Abandonada</SelectItem>
+                <SelectItem value="INTERNAL_ERROR">Error Interno</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={paymentFilter} onValueChange={(value) => setPaymentFilter(value as PaymentStatus | "all")}>
+            <Select
+              value={params.sortField || "serial_id"}
+              onValueChange={(value) =>
+                setParams({ sortField: value as OrderSortField })
+              }
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Filtrar por pago" />
+                <SelectValue placeholder="Ordenar por" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos los pagos</SelectItem>
-                <SelectItem value="pending">Pendiente</SelectItem>
-                <SelectItem value="paid">Pagado</SelectItem>
-                <SelectItem value="failed">Fallido</SelectItem>
-                <SelectItem value="refunded">Reembolsado</SelectItem>
+                <SelectItem value="serial_id">Número de orden</SelectItem>
+                <SelectItem value="fecha_creacion">
+                  Fecha de creación
+                </SelectItem>
+                <SelectItem value="total_amount">Monto total</SelectItem>
+                <SelectItem value="cliente">Cliente</SelectItem>
+                <SelectItem value="estado">Estado</SelectItem>
               </SelectContent>
             </Select>
 
-            <Button variant="outline" className="w-full">
-              <Calendar className="mr-2 h-4 w-4" />
-              Rango de fechas
-            </Button>
+            <Select
+              value={params.sortOrder || "desc"}
+              onValueChange={(value) =>
+                setParams({ sortOrder: value as SortOrder })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Dirección" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Más recientes primero</SelectItem>
+                <SelectItem value="asc">Más antiguos primero</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
       {/* Tabs with Orders Table */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-3"
+      >
         <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex h-10 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground w-full sm:w-auto">
             <TabsTrigger value="all" className="whitespace-nowrap">
@@ -258,28 +334,22 @@ export default function OrdenesPage() {
                 {tabCounts.pending}
               </span>
             </TabsTrigger>
-            <TabsTrigger value="processing" className="whitespace-nowrap">
-              Procesando
+            <TabsTrigger value="approved" className="whitespace-nowrap">
+              Aprobadas
               <span className="ml-2 rounded-full bg-background px-2 py-0.5 text-xs">
-                {tabCounts.processing}
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="shipped" className="whitespace-nowrap">
-              Enviadas
-              <span className="ml-2 rounded-full bg-background px-2 py-0.5 text-xs">
-                {tabCounts.shipped}
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="delivered" className="whitespace-nowrap">
-              Entregadas
-              <span className="ml-2 rounded-full bg-background px-2 py-0.5 text-xs">
-                {tabCounts.delivered}
+                {tabCounts.approved}
               </span>
             </TabsTrigger>
             <TabsTrigger value="cancelled" className="whitespace-nowrap">
               Canceladas
               <span className="ml-2 rounded-full bg-background px-2 py-0.5 text-xs">
                 {tabCounts.cancelled}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="abandoned" className="whitespace-nowrap">
+              Abandonadas
+              <span className="ml-2 rounded-full bg-background px-2 py-0.5 text-xs">
+                {tabCounts.abandoned}
               </span>
             </TabsTrigger>
           </TabsList>
@@ -291,22 +361,25 @@ export default function OrdenesPage() {
               <CardTitle>
                 {activeTab === "all" && "Todas las órdenes"}
                 {activeTab === "pending" && "Órdenes pendientes"}
-                {activeTab === "processing" && "Órdenes en proceso"}
-                {activeTab === "shipped" && "Órdenes enviadas"}
-                {activeTab === "delivered" && "Órdenes entregadas"}
-                {activeTab === "cancelled" && "Órdenes canceladas"}
+                {activeTab === "approved" && "Órdenes aprobadas"}
+                {activeTab === "cancelled" && "Órdenes canceladas/rechazadas"}
+                {activeTab === "abandoned" && "Órdenes abandonadas"}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <DataTable
-                columns={ordersColumns}
+                columns={apiOrdersColumns}
                 data={filteredOrders}
-                searchKey="orderNumber"
+                searchKey="cliente"
                 filters={tableFilters}
+                loading={isLoading}
+                pageCount={pagination?.totalPages}
+                pageIndex={(params.page || 1) - 1}
+                pageSize={params.limit || 20}
+                totalItems={pagination?.total}
+                onPaginationChange={handlePaginationChange}
                 initialColumnVisibility={{
-                  items: false,
-                  fulfillmentStatus: false,
-                  source: false,
+                  fecha_creacion: false,
                 }}
               />
             </CardContent>
@@ -314,12 +387,22 @@ export default function OrdenesPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Order Detail Dialog */}
-      <OrderDetailDialog
-        order={selectedOrder}
-        open={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
+      {/* Pagination Info */}
+      {pagination && (
+        <div className="text-sm text-muted-foreground text-center">
+          Mostrando página {pagination.page} de {pagination.totalPages} (
+          {pagination.total} órdenes en total)
+        </div>
+      )}
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        orders={filteredOrders}
+        metrics={metrics}
+        statusDistribution={statusDistribution}
       />
     </div>
-  )
+  );
 }
