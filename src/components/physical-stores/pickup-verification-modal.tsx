@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,36 +19,21 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PhysicalStore, PickupOrder, PickupVerificationResult } from "@/types/physical-stores";
+import { Card, CardContent } from "@/components/ui/card";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import {
-  Package,
-  User,
-  Phone,
-  Mail,
-  MapPin,
-  Clock,
-  CheckCircle,
-  XCircle,
-  QrCode,
-  Key,
-  AlertTriangle
-} from "lucide-react";
+import { Package, CheckCircle, XCircle, Key, IdCard, Hash } from "lucide-react";
 import { toast } from "sonner";
+import {
+  useVerifyPickup,
+  VerifyPickupResponse,
+} from "@/hooks/use-verify-pickup";
 
 const verificationFormSchema = z.object({
-  orderNumber: z.string().min(1, "Número de orden requerido"),
-  verificationCode: z.string().min(6, "Código debe tener al menos 6 caracteres"),
-  customerPresent: z.boolean(),
-  idVerified: z.boolean(),
-  notes: z.string().optional(),
+  serialId: z.string().min(1, "Número de orden requerido"),
+  token: z.string().min(1, "Código de verificación requerido"),
+  numeroDocumento: z.string().min(1, "Número de documento requerido"),
 });
 
 type VerificationFormValues = z.infer<typeof verificationFormSchema>;
@@ -57,302 +41,267 @@ type VerificationFormValues = z.infer<typeof verificationFormSchema>;
 interface PickupVerificationModalProps {
   open: boolean;
   onClose: () => void;
-  store: PhysicalStore;
-  onVerify: (data: VerificationFormValues) => Promise<PickupVerificationResult>;
+  onVerificationSuccess?: (data: VerifyPickupResponse) => void;
 }
+
+const getEstadoLabel = (estado: string) => {
+  const labels: Record<string, string> = {
+    APPROVED: "Aprobada",
+    PENDING: "Pendiente",
+    CANCELLED: "Cancelada",
+    DELIVERED: "Entregada",
+  };
+  return labels[estado] || estado;
+};
+
+const getMetodoEnvioLabel = (metodo: number) => {
+  const labels: Record<number, string> = {
+    1: "Domicilio",
+    2: "Recogida en Tienda",
+  };
+  return labels[metodo] || `Método ${metodo}`;
+};
 
 export function PickupVerificationModal({
   open,
   onClose,
-  store,
-  onVerify,
+  onVerificationSuccess,
 }: PickupVerificationModalProps) {
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationResult, setVerificationResult] = useState<PickupVerificationResult | null>(null);
-  const [foundOrder, setFoundOrder] = useState<PickupOrder | null>(null);
+  const { verify, isLoading, result, reset } = useVerifyPickup();
 
   const form = useForm<VerificationFormValues>({
     resolver: zodResolver(verificationFormSchema),
     defaultValues: {
-      orderNumber: "",
-      verificationCode: "",
-      customerPresent: false,
-      idVerified: false,
-      notes: "",
+      serialId: "",
+      token: "",
+      numeroDocumento: "",
     },
   });
 
   const onSubmit = async (values: VerificationFormValues) => {
-    setIsVerifying(true);
-    setVerificationResult(null);
+    const serialIdNumber = Number.parseInt(values.serialId, 10);
 
-    try {
-      const result = await onVerify(values);
-      setVerificationResult(result);
+    if (Number.isNaN(serialIdNumber)) {
+      toast.error("El número de orden debe ser un número válido");
+      return;
+    }
 
-      if (result.success) {
-        setFoundOrder(result.order || null);
-        toast.success("Verificación exitosa");
-        form.reset();
-      } else {
-        toast.error(result.message);
-      }
-    } catch (error) {
-      toast.error("Error durante la verificación");
-    } finally {
-      setIsVerifying(false);
+    const response = await verify(
+      serialIdNumber,
+      values.numeroDocumento,
+      values.token
+    );
+
+    if (response.valid) {
+      toast.success("Verificación exitosa - Orden válida para recogida");
+      onVerificationSuccess?.(response);
+    } else {
+      toast.error(response.message);
     }
   };
 
   const handleClose = () => {
     form.reset();
-    setVerificationResult(null);
-    setFoundOrder(null);
+    reset();
     onClose();
-  };
-
-  const getMethodLabel = (method: string) => {
-    const labels = {
-      in_store: "Recogida en tienda",
-      curbside: "Recogida en bordillo",
-      locker: "Recogida en locker",
-      drive_thru: "Recogida en auto"
-    };
-    return labels[method as keyof typeof labels] || method;
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Verificación de Recogida - {store.location.name}
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="space-y-1">
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <Package className="h-5 w-5 text-primary" />
+            Verificación de Recogida
           </DialogTitle>
           <DialogDescription>
-            Verificar código de recogida y completar la entrega del pedido
+            Verificar si una orden está lista para ser recogida en tienda
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Store Info */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Información de la Tienda
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Código:</span> {store.code}
-                </div>
-                <div>
-                  <span className="font-medium">Teléfono:</span> {store.contact.phone}
-                </div>
-                <div className="col-span-2">
-                  <span className="font-medium">Dirección:</span> {store.location.address}, {store.location.city}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Verification Form */}
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="orderNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Número de Orden</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Package className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder="ORD-2024-001"
-                            className="pl-9"
-                            {...field}
-                          />
-                        </div>
-                      </FormControl>
-                      <FormDescription>
-                        Ingrese el número de orden del cliente
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="verificationCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Código de Verificación</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Key className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder="ABC123"
-                            className="pl-9 font-mono"
-                            {...field}
-                            style={{ textTransform: 'uppercase' }}
-                          />
-                        </div>
-                      </FormControl>
-                      <FormDescription>
-                        Código de 6 caracteres del cliente
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h4 className="font-medium flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  Verificaciones de Seguridad
-                </h4>
-
-                <FormField
-                  control={form.control}
-                  name="customerPresent"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Cliente presente
-                        </FormLabel>
-                        <FormDescription>
-                          Confirmar que el cliente está presente para recoger el pedido
-                        </FormDescription>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="idVerified"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Identidad verificada
-                        </FormLabel>
-                        <FormDescription>
-                          Se ha verificado la identidad del cliente
-                        </FormDescription>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notas adicionales (opcional)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Observaciones sobre la entrega..."
-                          className="resize-none"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="serialId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número de Orden</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="12345"
+                          className="pl-9"
+                          type="number"
                           {...field}
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      ID serial de la orden del cliente
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              {/* Verification Result */}
-              {verificationResult && (
-                <Card className={verificationResult.success ? 'border-green-200 dark:border-green-800' : 'border-red-200 dark:border-red-800'}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      {verificationResult.success ? (
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-red-600" />
-                      )}
-                      <span className={`font-medium ${verificationResult.success ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
-                        {verificationResult.message}
-                      </span>
-                    </div>
+              <FormField
+                control={form.control}
+                name="token"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Código de Verificación</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="ABC123XYZ"
+                          className="pl-9 font-mono uppercase"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      Token único de verificación del cliente
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                    {verificationResult.success && foundOrder && (
-                      <div className="space-y-3 pt-3 border-t">
-                        <h4 className="font-medium">Detalles del Pedido</h4>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="font-medium">Cliente:</span>
-                            <div>{foundOrder.customerName}</div>
-                            <div className="text-muted-foreground">{foundOrder.customerEmail}</div>
+              <FormField
+                control={form.control}
+                name="numeroDocumento"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número de Documento</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <IdCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="1234567890"
+                          className="pl-9"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      Documento de identidad del cliente
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Verification Result */}
+            {result && (
+              <Card
+                className={
+                  result.valid
+                    ? "border-green-500/50 bg-green-500/10"
+                    : "border-red-500/50 bg-red-500/10"
+                }
+              >
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-center gap-2">
+                    {result.valid ? (
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-red-500" />
+                    )}
+                    <span
+                      className={`font-medium text-sm ${
+                        result.valid
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-red-600 dark:text-red-400"
+                      }`}
+                    >
+                      {result.message}
+                    </span>
+                  </div>
+
+                  {result.valid && result.data && (
+                    <div className="space-y-2 pt-3 mt-3 border-t border-green-500/30">
+                      <h4 className="font-medium text-sm">
+                        Detalles de la Orden
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">
+                            Serial ID:
+                          </span>
+                          <div className="font-medium font-mono">
+                            #{result.data.serialId}
                           </div>
-                          <div>
-                            <span className="font-medium">Método:</span>
-                            <div>{getMethodLabel(foundOrder.pickupMethod)}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Estado:</span>
+                          <div className="font-medium">
+                            {getEstadoLabel(result.data.estado)}
                           </div>
-                          <div>
-                            <span className="font-medium">Total:</span>
-                            <div className="font-mono">€{foundOrder.totalAmount.toFixed(2)}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">
+                            Método de Envío:
+                          </span>
+                          <div className="font-medium">
+                            {getMetodoEnvioLabel(result.data.metodoEnvio)}
                           </div>
-                          <div>
-                            <span className="font-medium">Productos:</span>
-                            <div>{foundOrder.products.length} artículo(s)</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">
+                            Documento:
+                          </span>
+                          <div className="font-medium">
+                            {result.data.numeroDocumento}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">
+                            Token Usado:
+                          </span>
+                          <div className="font-medium">
+                            {result.data.tokenUsado ? "Sí" : "No"}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">
+                            ID Recogida:
+                          </span>
+                          <div className="font-medium font-mono text-xs">
+                            {result.data.recogidaId.slice(0, 8)}...
                           </div>
                         </div>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-
-              <DialogFooter>
-                <Button variant="outline" onClick={handleClose}>
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isVerifying}
-                  className="min-w-[120px]"
-                >
-                  {isVerifying ? (
-                    <>
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                      Verificando...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Verificar
-                    </>
+                    </div>
                   )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button type="button" variant="outline" onClick={handleClose}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Verificando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Verificar
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
