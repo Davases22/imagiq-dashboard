@@ -151,7 +151,8 @@ export function useVerifyPickup(): UseVerifyPickupReturn {
             const errorData = await response.json();
             const failedResponse: VerifyPickupFailedResponse = {
               valid: false,
-              message: errorData.message || `Error del servidor: ${response.status}`,
+              message:
+                errorData.message || `Error del servidor: ${response.status}`,
               data: null,
             };
             setResult(failedResponse);
