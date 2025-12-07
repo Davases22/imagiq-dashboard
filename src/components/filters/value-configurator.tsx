@@ -35,6 +35,7 @@ import {
 } from "@/types/filters";
 import { WebsiteCategory } from "@/types";
 import { productEndpoints } from "@/lib/api";
+import { toast } from "sonner";
 
 interface ValueConfiguratorProps {
   value: FilterValueConfig;
@@ -256,6 +257,7 @@ export function ValueConfigurator({
         console.error("Error fetching distinct values:", error);
         setDynamicValues([]);
         lastRequestRef.current = "";
+        toast.error("Error al cargar los valores dinámicos. Por favor, intenta nuevamente.");
       })
       .finally(() => {
         setLoadingDynamic(false);
@@ -288,6 +290,108 @@ export function ValueConfigurator({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [column?.key, supportsDynamic, value.type, value, scopeCategoriesKey, scopeMenusKey, scopeSubmenusKey]);
+
+  // Initialize operators for selected values when switching to per-value mode
+  useEffect(() => {
+    if (operatorMode === "per-value" && availableOperators.length > 0) {
+      const defaultOp = operator || availableOperators[0]?.value || "equal";
+      let needsUpdate = false;
+      let updatedConfig: FilterValueConfig | null = null;
+
+      if (value.type === "dynamic") {
+        const dynamicConfig = value as DynamicValueConfig;
+        const updatedValues = dynamicConfig.selectedValues.map((val) => {
+          if (!val.operator) {
+            needsUpdate = true;
+            return { ...val, operator: defaultOp };
+          }
+          return val;
+        });
+        if (needsUpdate) {
+          updatedConfig = { ...dynamicConfig, selectedValues: updatedValues };
+        }
+      } else if (value.type === "manual") {
+        const manualConfig = value as ManualValueConfig;
+        if (manualConfig.values) {
+          const updatedValues = manualConfig.values.map((val) => {
+            if (!val.operator) {
+              needsUpdate = true;
+              return { ...val, operator: defaultOp };
+            }
+            return val;
+          });
+          if (needsUpdate) {
+            updatedConfig = { ...manualConfig, values: updatedValues };
+          }
+        }
+        if (manualConfig.ranges) {
+          const updatedRanges = manualConfig.ranges.map((range) => {
+            if (!range.operator) {
+              needsUpdate = true;
+              return { ...range, operator: defaultOp };
+            }
+            return range;
+          });
+          if (needsUpdate && !updatedConfig) {
+            updatedConfig = { ...manualConfig, ranges: updatedRanges };
+          } else if (needsUpdate && updatedConfig) {
+            updatedConfig = { ...updatedConfig as ManualValueConfig, ranges: updatedRanges };
+          }
+        }
+      } else if (value.type === "mixed") {
+        const mixedConfig = value as MixedValueConfig;
+        let updatedMixed = { ...mixedConfig };
+        
+        if (mixedConfig.dynamicValues) {
+          const updatedDynamic = mixedConfig.dynamicValues.map((val) => {
+            if (!val.operator) {
+              needsUpdate = true;
+              return { ...val, operator: defaultOp };
+            }
+            return val;
+          });
+          if (needsUpdate) {
+            updatedMixed.dynamicValues = updatedDynamic;
+          }
+        }
+        
+        if (mixedConfig.manualValues) {
+          const updatedManual = mixedConfig.manualValues.map((val) => {
+            if (!val.operator) {
+              needsUpdate = true;
+              return { ...val, operator: defaultOp };
+            }
+            return val;
+          });
+          if (needsUpdate) {
+            updatedMixed.manualValues = updatedManual;
+          }
+        }
+        
+        if (mixedConfig.ranges) {
+          const updatedRanges = mixedConfig.ranges.map((range) => {
+            if (!range.operator) {
+              needsUpdate = true;
+              return { ...range, operator: defaultOp };
+            }
+            return range;
+          });
+          if (needsUpdate) {
+            updatedMixed.ranges = updatedRanges;
+          }
+        }
+        
+        if (needsUpdate) {
+          updatedConfig = updatedMixed;
+        }
+      }
+
+      if (needsUpdate && updatedConfig) {
+        onValueChange(updatedConfig);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operatorMode]);
 
   // Helper to get default operator for a value
   const getDefaultOperatorForValue = (): FilterOperator => {
@@ -375,12 +479,25 @@ export function ValueConfigurator({
     
     // Validación para rangos
     if (isRangeOp) {
-      if (!newManualMin || !newManualMax || !newManualLabel.trim()) return;
+      if (!newManualMin || !newManualMax || !newManualLabel.trim()) {
+        toast.error("Para rangos, debes completar la etiqueta, valor mínimo y máximo");
+        return;
+      }
       const min = parseFloat(newManualMin);
       const max = parseFloat(newManualMax);
-      if (isNaN(min) || isNaN(max) || min >= max) return;
+      if (isNaN(min) || isNaN(max)) {
+        toast.error("Los valores mínimo y máximo deben ser números válidos");
+        return;
+      }
+      if (min >= max) {
+        toast.error("El valor mínimo debe ser menor que el valor máximo");
+        return;
+      }
     } else {
-      if (!newManualValue.trim()) return;
+      if (!newManualValue.trim()) {
+        toast.error("Debes ingresar un valor");
+        return;
+      }
     }
 
     const newValue: ValueItem = {
@@ -463,12 +580,25 @@ export function ValueConfigurator({
 
     // Validación
     if (isRangeOp) {
-      if (!min || !max || !label.trim()) return;
+      if (!min || !max || !label.trim()) {
+        toast.error("Para rangos, debes completar la etiqueta, valor mínimo y máximo");
+        return;
+      }
       const minNum = parseFloat(min);
       const maxNum = parseFloat(max);
-      if (isNaN(minNum) || isNaN(maxNum) || minNum >= maxNum) return;
+      if (isNaN(minNum) || isNaN(maxNum)) {
+        toast.error("Los valores mínimo y máximo deben ser números válidos");
+        return;
+      }
+      if (minNum >= maxNum) {
+        toast.error("El valor mínimo debe ser menor que el valor máximo");
+        return;
+      }
     } else {
-      if (!editValue.trim()) return;
+      if (!editValue.trim()) {
+        toast.error("Debes ingresar un valor");
+        return;
+      }
     }
 
     const updatedValue: ValueItem = {
@@ -522,10 +652,20 @@ export function ValueConfigurator({
 
   // Add range
   const addRange = () => {
-    if (!newRangeLabel || !newRangeMin || !newRangeMax) return;
+    if (!newRangeLabel || !newRangeMin || !newRangeMax) {
+      toast.error("Debes completar la etiqueta, valor mínimo y máximo");
+      return;
+    }
     const min = parseFloat(newRangeMin);
     const max = parseFloat(newRangeMax);
-    if (isNaN(min) || isNaN(max) || min >= max) return;
+    if (isNaN(min) || isNaN(max)) {
+      toast.error("Los valores mínimo y máximo deben ser números válidos");
+      return;
+    }
+    if (min >= max) {
+      toast.error("El valor mínimo debe ser menor que el valor máximo");
+      return;
+    }
 
     const defaultOp = getDefaultOperatorForValue();
     const newRange: RangeItem = {
@@ -707,17 +847,17 @@ export function ValueConfigurator({
                           return (
                             <div
                               key={val}
-                              className="flex items-center gap-2 p-2 border rounded hover:bg-muted/50"
+                              className={`flex items-center gap-2 p-2 border rounded hover:bg-muted/50 ${operatorMode === "per-value" && isSelected ? "flex-row" : ""}`}
                             >
                               <Checkbox
                                 id={`dynamic-${val}`}
                                 checked={isSelected}
                                 onCheckedChange={() => toggleDynamicValue(val)}
-              disabled={disabled}
-            />
+                                disabled={disabled}
+                              />
                               <Label
                                 htmlFor={`dynamic-${val}`}
-                                className="flex-1 cursor-pointer text-sm"
+                                className={`cursor-pointer text-sm ${operatorMode === "per-value" && isSelected ? "flex-1" : "flex-1"}`}
                               >
                                 {val}
                               </Label>
@@ -732,8 +872,8 @@ export function ValueConfigurator({
                                   }}
                                   disabled={disabled}
                                 >
-                                  <SelectTrigger className="w-32 h-7 text-xs">
-                                    <SelectValue />
+                                  <SelectTrigger className="w-36 h-8 text-xs shrink-0">
+                                    <SelectValue placeholder="Operador" />
                                   </SelectTrigger>
                                   <SelectContent>
                                     {availableOperators.map((op) => (
@@ -744,7 +884,7 @@ export function ValueConfigurator({
                                   </SelectContent>
                                 </Select>
                               )}
-          </div>
+                            </div>
                           );
                         })}
                       </div>
@@ -817,8 +957,8 @@ export function ValueConfigurator({
                                 onValueChange={(op: FilterOperator) => updateRangeOperator(range, op, index)}
                                 disabled={disabled}
                               >
-                                <SelectTrigger className="w-32 h-7 text-xs">
-                                  <SelectValue />
+                                <SelectTrigger className="w-36 h-8 text-xs shrink-0">
+                                  <SelectValue placeholder="Operador" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {availableOperators.map((op) => (
@@ -884,7 +1024,7 @@ export function ValueConfigurator({
                       disabled={disabled}
                         >
                           <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder="Operador" />
                           </SelectTrigger>
                           <SelectContent>
                             {availableOperators.map((op) => (
@@ -930,7 +1070,7 @@ export function ValueConfigurator({
                             disabled={disabled}
                           >
                             <SelectTrigger>
-                              <SelectValue />
+                              <SelectValue placeholder="Operador" />
                             </SelectTrigger>
                             <SelectContent>
                               {availableOperators.map((op) => (
@@ -1009,8 +1149,8 @@ export function ValueConfigurator({
                                           }}
                                           disabled={disabled}
                                         >
-                                          <SelectTrigger className="w-32 h-7 text-xs">
-                                            <SelectValue />
+                                          <SelectTrigger className="w-36 h-8 text-xs shrink-0">
+                                            <SelectValue placeholder="Operador" />
                                           </SelectTrigger>
                                           <SelectContent>
                                             {availableOperators.map((op) => (
@@ -1050,8 +1190,8 @@ export function ValueConfigurator({
                                           }}
                                           disabled={disabled}
                                         >
-                                          <SelectTrigger className="w-32 h-7 text-xs">
-                                            <SelectValue />
+                                          <SelectTrigger className="w-36 h-8 text-xs shrink-0">
+                                            <SelectValue placeholder="Operador" />
                                           </SelectTrigger>
                                           <SelectContent>
                                             {availableOperators.map((op) => (
@@ -1112,8 +1252,8 @@ export function ValueConfigurator({
                                       onValueChange={(op: FilterOperator) => updateValueOperator(valueItem, op, false, index)}
                                       disabled={disabled}
                                     >
-                                      <SelectTrigger className="w-32 h-7 text-xs">
-                                        <SelectValue />
+                                      <SelectTrigger className="w-36 h-8 text-xs shrink-0">
+                                        <SelectValue placeholder="Operador" />
                                       </SelectTrigger>
                                       <SelectContent>
                                         {availableOperators.map((op) => (
@@ -1219,22 +1359,22 @@ export function ValueConfigurator({
                             const valueItem = mixedConfig.dynamicValues.find(v => v.value === val);
                             const isSelected = !!valueItem;
                             return (
-                    <div
-                      key={val}
-                      className="flex items-center gap-2 p-2 border rounded hover:bg-muted/50"
-                    >
-                      <Checkbox
+                              <div
+                                key={val}
+                                className={`flex items-center gap-2 p-2 border rounded hover:bg-muted/50 ${operatorMode === "per-value" && isSelected ? "flex-row" : ""}`}
+                              >
+                                <Checkbox
                                   id={`mixed-dynamic-${val}`}
                                   checked={isSelected}
-                        onCheckedChange={() => toggleDynamicValue(val)}
-                        disabled={disabled}
-                      />
-                      <Label
+                                  onCheckedChange={() => toggleDynamicValue(val)}
+                                  disabled={disabled}
+                                />
+                                <Label
                                   htmlFor={`mixed-dynamic-${val}`}
-                        className="flex-1 cursor-pointer text-sm"
-                      >
-                        {val}
-                      </Label>
+                                  className="flex-1 cursor-pointer text-sm"
+                                >
+                                  {val}
+                                </Label>
                                 {isSelected && operatorMode === "per-value" && (
                                   <Select
                                     value={valueItem?.operator || "equal"}
@@ -1246,8 +1386,8 @@ export function ValueConfigurator({
                                     }}
                                     disabled={disabled}
                                   >
-                                    <SelectTrigger className="w-32 h-7 text-xs">
-                                      <SelectValue />
+                                    <SelectTrigger className="w-36 h-8 text-xs shrink-0">
+                                      <SelectValue placeholder="Operador" />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {availableOperators.map((op) => (
@@ -1258,7 +1398,7 @@ export function ValueConfigurator({
                                     </SelectContent>
                                   </Select>
                                 )}
-                    </div>
+                              </div>
                             );
                           })}
                         </div>
@@ -1307,7 +1447,7 @@ export function ValueConfigurator({
                       disabled={disabled}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Operador" />
                       </SelectTrigger>
                       <SelectContent>
                         {availableOperators.map((op) => (
@@ -1353,7 +1493,7 @@ export function ValueConfigurator({
                         disabled={disabled}
                       >
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Operador" />
                         </SelectTrigger>
                         <SelectContent>
                           {availableOperators.map((op) => (
@@ -1431,8 +1571,8 @@ export function ValueConfigurator({
                                         }}
                                         disabled={disabled}
                                       >
-                                        <SelectTrigger className="w-32 h-7 text-xs">
-                                          <SelectValue />
+                                        <SelectTrigger className="w-36 h-8 text-xs shrink-0">
+                                          <SelectValue placeholder="Operador" />
                                         </SelectTrigger>
                                         <SelectContent>
                                           {availableOperators.map((op) => (
@@ -1472,8 +1612,8 @@ export function ValueConfigurator({
                                         }}
                                         disabled={disabled}
                                       >
-                                        <SelectTrigger className="w-32 h-7 text-xs">
-                                          <SelectValue />
+                                        <SelectTrigger className="w-36 h-8 text-xs shrink-0">
+                                          <SelectValue placeholder="Operador" />
                                         </SelectTrigger>
                                         <SelectContent>
                                           {availableOperators.map((op) => (
@@ -1534,8 +1674,8 @@ export function ValueConfigurator({
                                     onValueChange={(op: FilterOperator) => updateValueOperator(valueItem, op, false, index)}
                                     disabled={disabled}
                                   >
-                                    <SelectTrigger className="w-32 h-7 text-xs">
-                                      <SelectValue />
+                                    <SelectTrigger className="w-36 h-8 text-xs shrink-0">
+                                      <SelectValue placeholder="Operador" />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {availableOperators.map((op) => (
@@ -1627,8 +1767,8 @@ export function ValueConfigurator({
                                 onValueChange={(op: FilterOperator) => updateRangeOperator(range, op, index)}
                                 disabled={disabled}
                               >
-                                <SelectTrigger className="w-32 h-7 text-xs">
-                                  <SelectValue />
+                                <SelectTrigger className="w-36 h-8 text-xs shrink-0">
+                                  <SelectValue placeholder="Operador" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {availableOperators.map((op) => (

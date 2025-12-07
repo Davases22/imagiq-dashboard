@@ -1,9 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ArrowLeft } from "lucide-react";
 import { DynamicFilter } from "@/types/filters";
 import { WebsiteCategory } from "@/types";
@@ -30,6 +40,9 @@ export default function EditarFiltroPage() {
   const [editingFilter, setEditingFilter] = useState<DynamicFilter | undefined>();
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   
   // Get the view type from query parameter to know where to return
   const vista = searchParams.get("vista") || "agrupada";
@@ -129,8 +142,53 @@ export default function EditarFiltroPage() {
   };
 
   const handleCancel = () => {
-    router.push(`/pagina-web/filtros?vista=${vista}`);
+    if (hasChanges) {
+      setPendingNavigation(() => () => router.push(`/pagina-web/filtros?vista=${vista}`));
+      setShowConfirmDialog(true);
+    } else {
+      router.push(`/pagina-web/filtros?vista=${vista}`);
+    }
   };
+
+  const handleBack = () => {
+    if (hasChanges) {
+      setPendingNavigation(() => () => router.push(`/pagina-web/filtros?vista=${vista}`));
+      setShowConfirmDialog(true);
+    } else {
+      router.push(`/pagina-web/filtros?vista=${vista}`);
+    }
+  };
+
+  const handleConfirmExit = () => {
+    setShowConfirmDialog(false);
+    setHasChanges(false);
+    if (pendingNavigation) {
+      pendingNavigation();
+      setPendingNavigation(null);
+    }
+  };
+
+  const handleCancelExit = () => {
+    setShowConfirmDialog(false);
+    setPendingNavigation(null);
+  };
+
+  // Intercept browser navigation (back button, etc.)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasChanges]);
 
   if (loading || categoriesLoading) {
     return (
@@ -153,7 +211,7 @@ export default function EditarFiltroPage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push(`/pagina-web/filtros?vista=${vista}`)}
+          onClick={handleBack}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Volver
@@ -183,9 +241,31 @@ export default function EditarFiltroPage() {
             onSave={handleSave}
             onCancel={handleCancel}
             isLoading={isSaving}
+            onHasChangesChange={setHasChanges}
           />
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Deseas salir sin guardar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Has realizado cambios en el formulario. Si sales ahora, perderás todos los cambios no guardados.
+              ¿Estás seguro de que deseas continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelExit}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmExit}>
+              Salir sin guardar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import * as React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ interface FilterFormProps {
   onSave: (filter: DynamicFilter) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  onHasChangesChange?: (hasChanges: boolean) => void;
 }
 
 const getDefaultValueConfig = (
@@ -60,6 +62,7 @@ export function FilterForm({
   onSave,
   onCancel,
   isLoading = false,
+  onHasChangesChange,
 }: FilterFormProps) {
   const [sectionName, setSectionName] = useState(filter?.sectionName || "");
   const [column, setColumn] = useState(filter?.column || "");
@@ -80,6 +83,22 @@ export function FilterForm({
   );
   const [isActive, setIsActive] = useState(filter?.isActive ?? true);
 
+  // Refs to track previous values for dependency updates
+  const prevColumnRef = useRef<string>(column);
+  const prevOperatorRef = useRef<FilterOperator>(operator);
+
+  // Store initial values to compare for changes
+  const initialValues = React.useRef<{
+    sectionName: string;
+    column: string;
+    operator: FilterOperator;
+    operatorMode: "column" | "per-value";
+    valueConfig: DynamicFilter["valueConfig"];
+    displayType: FilterDisplayType;
+    scope: FilterScope;
+    isActive: boolean;
+  } | null>(null);
+
   const { columns } = useProductColumns();
   const selectedColumn = columns.find((col) => col.key === column);
   
@@ -92,16 +111,93 @@ export function FilterForm({
   // Update form state when filter prop changes (for editing)
   useEffect(() => {
     if (filter) {
-      setSectionName(filter.sectionName || "");
-      setColumn(filter.column || "");
-      setOperator(filter.operator || "equal");
-      setOperatorMode(filter.operatorMode || "column");
-      setValueConfig(filter.valueConfig || getDefaultValueConfig(filter.operator || "equal"));
-      setDisplayType(filter.displayType || "checkbox");
-      setScope(filter.scope || { categories: [], menus: [], submenus: [] });
-      setIsActive(filter.isActive ?? true);
+      const initialSectionName = filter.sectionName || "";
+      const initialColumn = filter.column || "";
+      const initialOperator = filter.operator || "equal";
+      const initialOperatorMode = filter.operatorMode || "column";
+      const initialValueConfig = filter.valueConfig || getDefaultValueConfig(filter.operator || "equal");
+      const initialDisplayType = filter.displayType || "checkbox";
+      const initialScope = filter.scope || { categories: [], menus: [], submenus: [] };
+      const initialIsActive = filter.isActive ?? true;
+
+      setSectionName(initialSectionName);
+      setColumn(initialColumn);
+      setOperator(initialOperator);
+      setOperatorMode(initialOperatorMode);
+      setValueConfig(initialValueConfig);
+      setDisplayType(initialDisplayType);
+      setScope(initialScope);
+      setIsActive(initialIsActive);
+
+      // Store initial values
+      initialValues.current = {
+        sectionName: initialSectionName,
+        column: initialColumn,
+        operator: initialOperator,
+        operatorMode: initialOperatorMode,
+        valueConfig: initialValueConfig,
+        displayType: initialDisplayType,
+        scope: initialScope,
+        isActive: initialIsActive,
+      };
+    } else {
+      // For new filters, store empty initial values
+      initialValues.current = {
+        sectionName: "",
+        column: "",
+        operator: "equal",
+        operatorMode: "column",
+        valueConfig: getDefaultValueConfig("equal"),
+        displayType: "checkbox",
+        scope: { categories: [], menus: [], submenus: [] },
+        isActive: true,
+      };
     }
   }, [filter]);
+
+  // Helper function to deep compare objects
+  const deepEqual = (obj1: any, obj2: any): boolean => {
+    if (obj1 === obj2) return true;
+    if (obj1 == null || obj2 == null) return false;
+    if (typeof obj1 !== "object" || typeof obj2 !== "object") return obj1 === obj2;
+    
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+    
+    if (keys1.length !== keys2.length) return false;
+    
+    for (const key of keys1) {
+      if (!keys2.includes(key)) return false;
+      if (!deepEqual(obj1[key], obj2[key])) return false;
+    }
+    
+    return true;
+  };
+
+  // Check if there are any changes
+  const checkHasChanges = (): boolean => {
+    if (!initialValues.current) return false;
+
+    const hasChanges = 
+      sectionName !== initialValues.current.sectionName ||
+      column !== initialValues.current.column ||
+      operator !== initialValues.current.operator ||
+      operatorMode !== initialValues.current.operatorMode ||
+      displayType !== initialValues.current.displayType ||
+      isActive !== initialValues.current.isActive ||
+      !deepEqual(scope, initialValues.current.scope) ||
+      !deepEqual(valueConfig, initialValues.current.valueConfig);
+
+    return hasChanges;
+  };
+
+  // Notify parent about changes
+  useEffect(() => {
+    if (onHasChangesChange && initialValues.current) {
+      const hasChanges = checkHasChanges();
+      onHasChangesChange(hasChanges);
+    }
+  }, [sectionName, column, operator, operatorMode, displayType, isActive, scope, valueConfig, onHasChangesChange]);
 
   // Reset display type when operator or column changes using API defaultType
   useEffect(() => {
@@ -109,24 +205,53 @@ export function FilterForm({
       const isCurrentValueAvailable = displayTypes.availableTypes.some(
         (type) => type.value === displayType
       );
-      if (!isCurrentValueAvailable && displayTypes.defaultType) {
+      // Reset to default if current is not available OR if column changed
+      if ((!isCurrentValueAvailable || prevColumnRef.current !== column) && displayTypes.defaultType) {
         setDisplayType(displayTypes.defaultType);
       }
     }
-  }, [displayTypes, operator, column, operatorMode]);
+  }, [displayTypes, operator, column, operatorMode, displayType]);
 
-  // Reset value config when operator or column changes
+  // Reset value config when column changes
   useEffect(() => {
-    if (operator === "range") {
-      if (valueConfig.type === "manual" && !valueConfig.ranges) {
-        setValueConfig({ type: "manual", ranges: [] });
-      }
-    } else {
-      if (valueConfig.type === "manual" && !valueConfig.values) {
-        setValueConfig({ type: "manual", values: [] });
+    // Only reset if column actually changed (not on initial mount)
+    if (prevColumnRef.current && prevColumnRef.current !== column && column) {
+      setValueConfig(getDefaultValueConfig(operator));
+    }
+    prevColumnRef.current = column;
+  }, [column, operator]);
+
+  // Reset value config when operator changes
+  useEffect(() => {
+    const prevOp = prevOperatorRef.current;
+    const isRangeOp = operator === "range";
+    const wasRangeOp = prevOp === "range";
+    
+    // Only reset if operator actually changed (not on initial mount)
+    if (prevOperatorRef.current && prevOperatorRef.current !== operator) {
+      // If changed from range to non-range or vice versa, reset completely
+      if ((isRangeOp && !wasRangeOp) || (!isRangeOp && wasRangeOp)) {
+        setValueConfig(getDefaultValueConfig(operator));
+      } else {
+        // Otherwise, just ensure structure matches (only if current config is manual)
+        setValueConfig((currentConfig) => {
+          if (currentConfig.type === "manual") {
+            if (isRangeOp) {
+              if (!currentConfig.ranges) {
+                return { type: "manual", ranges: [] };
+              }
+            } else {
+              if (!currentConfig.values) {
+                return { type: "manual", values: [] };
+              }
+            }
+          }
+          return currentConfig;
+        });
       }
     }
-  }, [operator, valueConfig]);
+    prevOperatorRef.current = operator;
+  }, [operator]);
 
   const handleSave = () => {
     // Validation
