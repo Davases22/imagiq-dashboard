@@ -35,6 +35,7 @@ import {
 } from "@/types/filters";
 import { WebsiteCategory } from "@/types";
 import { productEndpoints } from "@/lib/api";
+import { toast } from "sonner";
 
 interface ValueConfiguratorProps {
   value: FilterValueConfig;
@@ -256,6 +257,7 @@ export function ValueConfigurator({
         console.error("Error fetching distinct values:", error);
         setDynamicValues([]);
         lastRequestRef.current = "";
+        toast.error("Error al cargar los valores dinámicos. Por favor, intenta nuevamente.");
       })
       .finally(() => {
         setLoadingDynamic(false);
@@ -375,12 +377,25 @@ export function ValueConfigurator({
     
     // Validación para rangos
     if (isRangeOp) {
-      if (!newManualMin || !newManualMax || !newManualLabel.trim()) return;
+      if (!newManualMin || !newManualMax || !newManualLabel.trim()) {
+        toast.error("Para rangos, debes completar la etiqueta, valor mínimo y máximo");
+        return;
+      }
       const min = parseFloat(newManualMin);
       const max = parseFloat(newManualMax);
-      if (isNaN(min) || isNaN(max) || min >= max) return;
+      if (isNaN(min) || isNaN(max)) {
+        toast.error("Los valores mínimo y máximo deben ser números válidos");
+        return;
+      }
+      if (min >= max) {
+        toast.error("El valor mínimo debe ser menor que el valor máximo");
+        return;
+      }
     } else {
-      if (!newManualValue.trim()) return;
+      if (!newManualValue.trim()) {
+        toast.error("Debes ingresar un valor");
+        return;
+      }
     }
 
     const newValue: ValueItem = {
@@ -463,12 +478,25 @@ export function ValueConfigurator({
 
     // Validación
     if (isRangeOp) {
-      if (!min || !max || !label.trim()) return;
+      if (!min || !max || !label.trim()) {
+        toast.error("Para rangos, debes completar la etiqueta, valor mínimo y máximo");
+        return;
+      }
       const minNum = parseFloat(min);
       const maxNum = parseFloat(max);
-      if (isNaN(minNum) || isNaN(maxNum) || minNum >= maxNum) return;
+      if (isNaN(minNum) || isNaN(maxNum)) {
+        toast.error("Los valores mínimo y máximo deben ser números válidos");
+        return;
+      }
+      if (minNum >= maxNum) {
+        toast.error("El valor mínimo debe ser menor que el valor máximo");
+        return;
+      }
     } else {
-      if (!editValue.trim()) return;
+      if (!editValue.trim()) {
+        toast.error("Debes ingresar un valor");
+        return;
+      }
     }
 
     const updatedValue: ValueItem = {
@@ -522,10 +550,20 @@ export function ValueConfigurator({
 
   // Add range
   const addRange = () => {
-    if (!newRangeLabel || !newRangeMin || !newRangeMax) return;
+    if (!newRangeLabel || !newRangeMin || !newRangeMax) {
+      toast.error("Debes completar la etiqueta, valor mínimo y máximo");
+      return;
+    }
     const min = parseFloat(newRangeMin);
     const max = parseFloat(newRangeMax);
-    if (isNaN(min) || isNaN(max) || min >= max) return;
+    if (isNaN(min) || isNaN(max)) {
+      toast.error("Los valores mínimo y máximo deben ser números válidos");
+      return;
+    }
+    if (min >= max) {
+      toast.error("El valor mínimo debe ser menor que el valor máximo");
+      return;
+    }
 
     const defaultOp = getDefaultOperatorForValue();
     const newRange: RangeItem = {
