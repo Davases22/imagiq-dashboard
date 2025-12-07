@@ -24,7 +24,18 @@ export function useProductColumns(): UseProductColumnsReturn {
         const response = await productEndpoints.getColumnNames();
         
         if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-          setColumns(response.data);
+          // Process columns to enable dynamic values for "unidad" column
+          const processedColumns = response.data.map((column: ProductColumn) => {
+            // Enable dynamic values for "unidad" column (case-insensitive match)
+            if (column.key.toLowerCase() === "unidad" || column.key.toLowerCase() === "unidades") {
+              return {
+                ...column,
+                supportsDynamic: true,
+              };
+            }
+            return column;
+          });
+          setColumns(processedColumns);
         } else {
           const errorMsg = "Error al cargar las columnas desde la API.";
           setError(errorMsg);

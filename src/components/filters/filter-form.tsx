@@ -83,6 +83,10 @@ export function FilterForm({
   );
   const [isActive, setIsActive] = useState(filter?.isActive ?? true);
 
+  // Refs to track previous values for dependency updates
+  const prevColumnRef = useRef<string>(column);
+  const prevOperatorRef = useRef<FilterOperator>(operator);
+
   // Store initial values to compare for changes
   const initialValues = React.useRef<{
     sectionName: string;
@@ -201,24 +205,53 @@ export function FilterForm({
       const isCurrentValueAvailable = displayTypes.availableTypes.some(
         (type) => type.value === displayType
       );
-      if (!isCurrentValueAvailable && displayTypes.defaultType) {
+      // Reset to default if current is not available OR if column changed
+      if ((!isCurrentValueAvailable || prevColumnRef.current !== column) && displayTypes.defaultType) {
         setDisplayType(displayTypes.defaultType);
       }
     }
-  }, [displayTypes, operator, column, operatorMode]);
+  }, [displayTypes, operator, column, operatorMode, displayType]);
 
-  // Reset value config when operator or column changes
+  // Reset value config when column changes
   useEffect(() => {
-    if (operator === "range") {
-      if (valueConfig.type === "manual" && !valueConfig.ranges) {
-        setValueConfig({ type: "manual", ranges: [] });
-      }
-    } else {
-      if (valueConfig.type === "manual" && !valueConfig.values) {
-        setValueConfig({ type: "manual", values: [] });
+    // Only reset if column actually changed (not on initial mount)
+    if (prevColumnRef.current && prevColumnRef.current !== column && column) {
+      setValueConfig(getDefaultValueConfig(operator));
+    }
+    prevColumnRef.current = column;
+  }, [column, operator]);
+
+  // Reset value config when operator changes
+  useEffect(() => {
+    const prevOp = prevOperatorRef.current;
+    const isRangeOp = operator === "range";
+    const wasRangeOp = prevOp === "range";
+    
+    // Only reset if operator actually changed (not on initial mount)
+    if (prevOperatorRef.current && prevOperatorRef.current !== operator) {
+      // If changed from range to non-range or vice versa, reset completely
+      if ((isRangeOp && !wasRangeOp) || (!isRangeOp && wasRangeOp)) {
+        setValueConfig(getDefaultValueConfig(operator));
+      } else {
+        // Otherwise, just ensure structure matches (only if current config is manual)
+        setValueConfig((currentConfig) => {
+          if (currentConfig.type === "manual") {
+            if (isRangeOp) {
+              if (!currentConfig.ranges) {
+                return { type: "manual", ranges: [] };
+              }
+            } else {
+              if (!currentConfig.values) {
+                return { type: "manual", values: [] };
+              }
+            }
+          }
+          return currentConfig;
+        });
       }
     }
-  }, [operator, valueConfig]);
+    prevOperatorRef.current = operator;
+  }, [operator]);
 
   const handleSave = () => {
     // Validation
