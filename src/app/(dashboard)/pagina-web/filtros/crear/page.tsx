@@ -1,9 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ArrowLeft } from "lucide-react";
 import { DynamicFilter, FilterOrderConfig } from "@/types/filters";
 import { WebsiteCategory } from "@/types";
@@ -17,6 +27,9 @@ export default function CrearFiltroPage() {
   const { categories, loading: categoriesLoading } = useCategories();
   const { filters, createFilter, isLoading: filtersLoading } = useFilters();
   const [isSaving, setIsSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
 
   const handleSave = async (filterData: DynamicFilter) => {
     setIsSaving(true);
@@ -96,8 +109,53 @@ export default function CrearFiltroPage() {
   };
 
   const handleCancel = () => {
-    router.push("/pagina-web/filtros");
+    if (hasChanges) {
+      setPendingNavigation(() => () => router.push("/pagina-web/filtros"));
+      setShowConfirmDialog(true);
+    } else {
+      router.push("/pagina-web/filtros");
+    }
   };
+
+  const handleBack = () => {
+    if (hasChanges) {
+      setPendingNavigation(() => () => router.push("/pagina-web/filtros"));
+      setShowConfirmDialog(true);
+    } else {
+      router.push("/pagina-web/filtros");
+    }
+  };
+
+  const handleConfirmExit = () => {
+    setShowConfirmDialog(false);
+    setHasChanges(false);
+    if (pendingNavigation) {
+      pendingNavigation();
+      setPendingNavigation(null);
+    }
+  };
+
+  const handleCancelExit = () => {
+    setShowConfirmDialog(false);
+    setPendingNavigation(null);
+  };
+
+  // Intercept browser navigation (back button, etc.)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasChanges]);
 
   return (
     <div className="space-y-6">
@@ -106,7 +164,7 @@ export default function CrearFiltroPage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push("/pagina-web/filtros")}
+          onClick={handleBack}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Volver
@@ -140,10 +198,32 @@ export default function CrearFiltroPage() {
               onSave={handleSave}
               onCancel={handleCancel}
               isLoading={isSaving}
+              onHasChangesChange={setHasChanges}
             />
           )}
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Deseas salir sin guardar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Has realizado cambios en el formulario. Si sales ahora, perderás todos los cambios no guardados.
+              ¿Estás seguro de que deseas continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelExit}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmExit}>
+              Salir sin guardar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
