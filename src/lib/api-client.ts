@@ -44,6 +44,7 @@ export async function apiClient(
     const response = await fetch(url, {
       ...options,
       headers,
+      credentials: "include",
     });
 
     // Manejar errores específicos
