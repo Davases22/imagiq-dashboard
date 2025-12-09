@@ -104,6 +104,11 @@ export function useVerifyPickup(): UseVerifyPickupReturn {
         );
 
         if (response.status === 401) {
+          // Cerrar sesión y redirigir a login
+          localStorage.removeItem("imagiq_user");
+          localStorage.removeItem("imagiq_token");
+          globalThis.location.href = "/login";
+
           const failedResponse: VerifyPickupFailedResponse = {
             valid: false,
             message: "Sesión expirada. Por favor, inicie sesión nuevamente.",
