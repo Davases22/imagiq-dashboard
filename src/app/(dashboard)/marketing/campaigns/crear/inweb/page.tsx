@@ -254,12 +254,12 @@ export default function CrearCampaignInWebPage() {
       campaignPayload.scheduling.finalDate = data.finalDate.toISOString();
     }
 
-    // Append campaign data as JSON
-    formData.append("campaign", JSON.stringify(campaignPayload));
+    // Append campaign data as JSON (backend expects "data" field)
+    formData.append("data", JSON.stringify(campaignPayload));
 
-    // Append image file if exists (backend will upload and return URL)
+    // Append image file if exists (backend expects "file" field)
     if (data.imageFile && data.contentType === "image") {
-      formData.append("image", data.imageFile, data.imageFile.name);
+      formData.append("file", data.imageFile, data.imageFile.name);
     }
 
     return formData;
