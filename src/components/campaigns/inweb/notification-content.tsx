@@ -6,8 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Globe, Upload, AlertCircle } from "lucide-react";
+import { Globe, Upload, AlertCircle, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export interface NotificationContentData {
   contentType: "image" | "html";
@@ -170,10 +175,20 @@ export function NotificationContent({ data, onChange, displayStyle }: Notificati
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="url">URL de Destino</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="url">URL de Destino</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>Es la URL o subruta de redirección al hacer clic en el popup o slideup</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <Input
                 id="url"
-                placeholder="https://tuempresa.com/ofertas"
+                placeholder="/ofertas"
                 value={data.url}
                 onChange={(e) =>
                   onChange({
@@ -182,16 +197,37 @@ export function NotificationContent({ data, onChange, displayStyle }: Notificati
                   })
                 }
               />
-              <p className="text-xs text-muted-foreground">
-                URL a la que se redirige al hacer clic en la notificación
-              </p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p className="font-medium">Tipos de URL aceptadas:</p>
+                <ul className="list-disc list-inside space-y-0.5 ml-2">
+                  <li>
+                    <strong>Ruta relativa:</strong> <code className="text-xs bg-muted px-1 py-0.5 rounded">/ofertas</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">/productos</code>
+                  </li>
+                  <li>
+                    <strong>URL absoluta:</strong> <code className="text-xs bg-muted px-1 py-0.5 rounded">https://imagiq.com/ofertas</code>
+                  </li>
+                </ul>
+                <p className="pt-1">
+                  Esta es la URL a la que se redirige al usuario cuando hace clic en la notificación.
+                </p>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="previewUrl">URL del Preview (Iframe)</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="previewUrl">URL del Preview (Iframe)</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>Es la URL o subruta en la cual se muestra la campaña</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <Input
                 id="previewUrl"
-                placeholder="https://imagiq-frontend.vercel.app/productos"
+                placeholder="/ofertas"
                 value={data.previewUrl}
                 onChange={(e) =>
                   onChange({
@@ -200,9 +236,23 @@ export function NotificationContent({ data, onChange, displayStyle }: Notificati
                   })
                 }
               />
-              <p className="text-xs text-muted-foreground">
-                URL que se mostrará en el fondo del preview
-              </p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p className="font-medium">Tipos de URL aceptadas:</p>
+                <ul className="list-disc list-inside space-y-0.5 ml-2">
+                  <li>
+                    <strong>Ruta relativa:</strong> <code className="text-xs bg-muted px-1 py-0.5 rounded">/</code> (página de inicio), <code className="text-xs bg-muted px-1 py-0.5 rounded">/ofertas</code>, <code className="text-xs bg-muted px-1 py-0.5 rounded">/productos</code>
+                  </li>
+                  <li>
+                    <strong>URL absoluta:</strong> <code className="text-xs bg-muted px-1 py-0.5 rounded">https://imagiq.com/ofertas</code>
+                  </li>
+                  <li>
+                    <strong>Especial:</strong> <code className="text-xs bg-muted px-1 py-0.5 rounded">*</code> (todas las subrutas)
+                  </li>
+                </ul>
+                <p className="pt-1">
+                  Esta es la URL que se mostrará en el fondo del preview. Las rutas relativas se convertirán automáticamente a URL completa para el iframe.
+                </p>
+              </div>
             </div>
           </>
         ) : (
