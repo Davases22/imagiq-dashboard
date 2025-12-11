@@ -51,6 +51,10 @@ export function usePickupMetrics() {
 
       if (!response.ok) {
         if (response.status === 401) {
+          // Cerrar sesión y redirigir a login
+          localStorage.removeItem("imagiq_user");
+          localStorage.removeItem("imagiq_token");
+          globalThis.location.href = "/login";
           setError("Sesión expirada");
           return;
         }
