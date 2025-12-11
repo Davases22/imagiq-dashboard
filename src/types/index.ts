@@ -445,3 +445,15 @@ export interface UpdateSubmenuRequest {
   descripcion: string;
   imagen: string;
 }
+
+// Payment Processors
+export type PaymentProcessor = 'epayco' | 'mercadopago';
+
+export interface PaymentProcessorConfig {
+  id: PaymentProcessor;
+  name: string;
+  logo: string;
+  logoDark?: string;
+  enabled: boolean;
+  description: string;
+}
