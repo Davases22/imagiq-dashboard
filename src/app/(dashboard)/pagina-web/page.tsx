@@ -66,7 +66,7 @@ export default function PaginaWebPage() {
       description: "Logo, favicon, colores y ajustes generales del sitio",
       icon: Settings,
       path: "/pagina-web/configuracion",
-      available: false,
+      available: true,
     },
   ]
 
