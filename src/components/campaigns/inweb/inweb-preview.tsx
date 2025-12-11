@@ -18,7 +18,28 @@ function InWebPreviewComponent({
   htmlContent = "",
   mode = "desktop",
 }: InWebPreviewProps) {
-  const iframeUrl = previewUrl || "https://imagiq-frontend.vercel.app/";
+  // Convert subroute to full URL for iframe
+  // If it's already a full URL, use it as-is
+  // If it's a subroute (starts with /), convert to full URL
+  const getIframeUrl = (url: string): string => {
+    if (!url) return "https://imagiq-frontend.vercel.app/";
+    
+    // If it's already a full URL (starts with http:// or https://), use it as-is
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    
+    // If it's a subroute (starts with /), convert to full URL
+    if (url.startsWith("/")) {
+      const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "https://imagiq-frontend.vercel.app";
+      return `${baseUrl}${url}`;
+    }
+    
+    // Default fallback
+    return "https://imagiq-frontend.vercel.app/";
+  };
+
+  const iframeUrl = getIframeUrl(previewUrl);
   // Chrome Desktop Notification - Pop-up (bloqueante)
   const ChromeNotificationPopup = () => {
     const hasContent = (contentType === "html" && htmlContent) || image;

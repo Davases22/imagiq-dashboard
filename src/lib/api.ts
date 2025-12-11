@@ -8,33 +8,35 @@
  * - TypeScript interfaces para requests/responses
  */
 
+import { apiClientFormData, getApiKey } from "@/lib/api-client";
 import {
   BackendCategory,
   BackendMenu,
   BackendSubmenu,
-  CreateCategoryRequest,
-  UpdateCategoryRequest,
-  CreateMenuRequest,
-  UpdateMenuRequest,
-  CreateSubmenuRequest,
-  UpdateSubmenuRequest,
   BackendWhatsAppTemplate,
+  CreateCategoryRequest,
+  CreateMenuRequest,
+  CreateSubmenuRequest,
+  UpdateCategoryRequest,
+  UpdateMenuRequest,
+  UpdateSubmenuRequest,
 } from "@/types";
 import { BackendBanner, BannerPaginationData } from "@/types/banner";
 import {
-  ProductColumn,
   DisplayTypesResponse,
-  FilterOperator,
   DynamicFilter,
+  FilterOperator,
   FilterOrderConfig,
+  ProductColumn,
 } from "@/types/filters";
-import type { Page, PagePaginationData, PageExpanded, CreateCompletePageRequest, CreateCompletePageResponse } from "@/types/page";
+import type {
+  CreateCompletePageRequest,
+  CreateCompletePageResponse,
+  Page,
+  PageExpanded,
+  PagePaginationData,
+} from "@/types/page";
 import type { ProductCard, UpdateProductCardDto } from "@/types/product-card";
-import {
-  apiClient as apiClientWithKey,
-  apiClientFormData,
-  getApiKey,
-} from "@/lib/api-client";
 
 // API Client configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -128,25 +130,20 @@ export class ApiClient {
         };
       }
 
-      // Detectar error 401 con token inválido o expirado y cerrar sesión automáticamente
+      // Detectar error 401 y cerrar sesión automáticamente
       if (response.status === 401 && useAuth) {
-        const errorMessage = data?.message || "";
+        console.warn(
+          "[Auth] Token inválido o expirado detectado. Cerrando sesión..."
+        );
+
+        // Limpiar localStorage y redirigir al login
         if (
-          errorMessage.includes("Invalid or expired token") ||
-          errorMessage.includes("token")
+          typeof globalThis !== "undefined" &&
+          typeof localStorage !== "undefined"
         ) {
-          console.warn(
-            "[Auth] Token inválido o expirado detectado. Cerrando sesión..."
-          );
-
-          // Limpiar localStorage
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("imagiq_token");
-            localStorage.removeItem("imagiq_user");
-
-            // Redirigir al login
-            window.location.href = "/login";
-          }
+          localStorage.removeItem("imagiq_token");
+          localStorage.removeItem("imagiq_user");
+          globalThis.location.href = "/login";
         }
       }
 
@@ -1850,7 +1847,9 @@ export const pageEndpoints = {
     if (expand && expand.length > 0) {
       searchParams.append("expand", expand.join(","));
     }
-    const url = `/api/multimedia/pages/${id}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+    const url = `/api/multimedia/pages/${id}${
+      searchParams.toString() ? `?${searchParams.toString()}` : ""
+    }`;
     return apiClient.get<{ success: boolean; data: PageExpanded }>(url);
   },
 
@@ -1860,28 +1859,33 @@ export const pageEndpoints = {
     if (expand && expand.length > 0) {
       searchParams.append("expand", expand.join(","));
     }
-    const url = `/api/multimedia/pages/slug/${slug}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+    const url = `/api/multimedia/pages/slug/${slug}${
+      searchParams.toString() ? `?${searchParams.toString()}` : ""
+    }`;
     return apiClient.get<{ success: boolean; data: PageExpanded }>(url);
   },
 
   // Crear página completa con banners y FAQs (transaccional)
   createComplete: (data: CreateCompletePageRequest) => {
     const formData = new FormData();
-    
+
     console.log("Construyendo FormData:", {
       page_keys: Object.keys(data.page),
       new_banners_count: data.new_banners.length,
       banner_files_count: data.banner_files.length,
     });
-    
+
     // 1. Agregar datos de la página como JSON string
     formData.append("page", JSON.stringify(data.page));
-    
+
     // 2. Agregar new_banners como JSON string (sin archivos)
     formData.append("new_banners", JSON.stringify(data.new_banners));
-    
+
     // 3. Agregar existing_banner_ids como JSON string
-    formData.append("existing_banner_ids", JSON.stringify(data.existing_banner_ids));
+    formData.append(
+      "existing_banner_ids",
+      JSON.stringify(data.existing_banner_ids)
+    );
 
     // 3.5. Agregar banner_updates si existen (para drag & drop y otros cambios en banners existentes)
     if (data.banner_updates && data.banner_updates.length > 0) {
@@ -1890,97 +1894,127 @@ export const pageEndpoints = {
 
     // 4. Agregar new_faqs como JSON string
     formData.append("new_faqs", JSON.stringify(data.new_faqs));
-    
+
     // 5. Agregar existing_faq_ids como JSON string
     formData.append("existing_faq_ids", JSON.stringify(data.existing_faq_ids));
-    
+
     // 6. Agregar archivos de banners
     // Para nuevos banners: banner_0_desktop_image, banner_1_desktop_image, etc.
     // Para banners existentes: banner_{ID}_desktop_image donde ID es el UUID del banner
     data.banner_files.forEach((files: any, index) => {
       // Si tiene banner_id, es un banner existente - usar el ID del banner
-      const prefix = files.banner_id ? `banner_${files.banner_id}` : `banner_${index}`;
-      
+      const prefix = files.banner_id
+        ? `banner_${files.banner_id}`
+        : `banner_${index}`;
+
       if (files.desktop_image) {
-        console.log(`Agregando ${prefix}_desktop_image:`, files.desktop_image.name);
-        formData.append(`${prefix}_desktop_image`, files.desktop_image, files.desktop_image.name);
+        console.log(
+          `Agregando ${prefix}_desktop_image:`,
+          files.desktop_image.name
+        );
+        formData.append(
+          `${prefix}_desktop_image`,
+          files.desktop_image,
+          files.desktop_image.name
+        );
       }
       if (files.mobile_image) {
-        console.log(`Agregando ${prefix}_mobile_image:`, files.mobile_image.name);
-        formData.append(`${prefix}_mobile_image`, files.mobile_image, files.mobile_image.name);
+        console.log(
+          `Agregando ${prefix}_mobile_image:`,
+          files.mobile_image.name
+        );
+        formData.append(
+          `${prefix}_mobile_image`,
+          files.mobile_image,
+          files.mobile_image.name
+        );
       }
       if (files.desktop_video) {
-        formData.append(`${prefix}_desktop_video`, files.desktop_video, files.desktop_video.name);
+        formData.append(
+          `${prefix}_desktop_video`,
+          files.desktop_video,
+          files.desktop_video.name
+        );
       }
       if (files.mobile_video) {
-        formData.append(`${prefix}_mobile_video`, files.mobile_video, files.mobile_video.name);
+        formData.append(
+          `${prefix}_mobile_video`,
+          files.mobile_video,
+          files.mobile_video.name
+        );
       }
-      
+
       // Agregar URLs existentes si las hay (solo para banners existentes)
       if (files.banner_id) {
         if (files.desktop_image_url) {
-          formData.append(`${prefix}_desktop_image_url`, files.desktop_image_url);
+          formData.append(
+            `${prefix}_desktop_image_url`,
+            files.desktop_image_url
+          );
         }
         if (files.mobile_image_url) {
           formData.append(`${prefix}_mobile_image_url`, files.mobile_image_url);
         }
         if (files.desktop_video_url) {
-          formData.append(`${prefix}_desktop_video_url`, files.desktop_video_url);
+          formData.append(
+            `${prefix}_desktop_video_url`,
+            files.desktop_video_url
+          );
         }
         if (files.mobile_video_url) {
           formData.append(`${prefix}_mobile_video_url`, files.mobile_video_url);
         }
       }
     });
-    
+
     // Usar apiClientFormData directamente (función raw de fetch)
     return apiClientFormData("/api/multimedia/pages/complete", {
       method: "POST",
       body: formData,
     }).then(async (response) => {
       console.log("Response status:", response.status, response.statusText);
-      
+
       // Considerar éxito: 200, 201, 204
       if (response.ok) {
         // Si es 204 No Content, retornar éxito sin parsear body
         if (response.status === 204) {
           return {
             success: true,
-            data: { 
-              page: {} as Page, 
-              created_banner_ids: [], 
-              created_faq_ids: [] 
+            data: {
+              page: {} as Page,
+              created_banner_ids: [],
+              created_faq_ids: [],
             },
-            message: "Página creada exitosamente"
+            message: "Página creada exitosamente",
           } as CreateCompletePageResponse;
         }
-        
+
         // Intentar parsear JSON
         try {
           const data = await response.json();
           console.log("Response data:", data);
-          
+
           // Si no tiene success pero tiene data, asumir éxito
           if (!data.success && data.data) {
             data.success = true;
           }
-          
+
           return data as CreateCompletePageResponse;
         } catch (e) {
           console.warn("Response OK pero no es JSON válido");
           // Si la respuesta es OK pero no es JSON, asumir éxito
           return {
             success: true,
-            data: { 
-              page: {} as Page, 
-              created_banner_ids: [], 
-              created_faq_ids: [] 
+            data: {
+              page: {} as Page,
+              created_banner_ids: [],
+              created_faq_ids: [],
             },
-            message: "Página creada exitosamente"
+            message: "Página creada exitosamente",
           } as CreateCompletePageResponse;
         }
       }
-      
+
       // Si response.ok es false, es un error
       let errorMessage = `HTTP Error ${response.status}`;
       try {
@@ -2036,8 +2070,7 @@ export const pageEndpoints = {
 // Product Cards API endpoints
 export const productCardEndpoints = {
   // Obtener todas las product cards
-  getAll: () =>
-    apiClient.get<ProductCard[]>("/api/multimedia/product-cards"),
+  getAll: () => apiClient.get<ProductCard[]>("/api/multimedia/product-cards"),
 
   // Obtener una product card por ID
   getById: (id: string) =>
@@ -2079,6 +2112,39 @@ export const productCardEndpoints = {
   delete: (id: string) =>
     apiClient.delete<{ success: boolean; message: string }>(
       `/api/multimedia/product-cards/${id}`
+    ),
+};
+
+// Campaign API endpoints
+export interface InWebCampaignRequest {
+  campaign: {
+    name: string;
+    type: string;
+  };
+  content: {
+    type: "image" | "html";
+    url: string;
+    previewUrl: string;
+    htmlContent: string;
+  };
+  behavior: {
+    displayStyle: string;
+    ttl: number;
+    urgency: string;
+  };
+  scheduling: {
+    sendImmediately: boolean;
+    initialDate?: string;
+    finalDate?: string;
+  };
+}
+
+export const campaignEndpoints = {
+  // Crear campaña InWeb (con FormData para soportar upload de imágenes)
+  createInWeb: (formData: FormData) =>
+    apiClient.postFormData<{ success: boolean; data?: any; message?: string }>(
+      "/api/campaigns/inweb-campaigns/create",
+      formData
     ),
 };
 

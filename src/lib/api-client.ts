@@ -50,7 +50,18 @@ export async function apiClient(
     // Manejar errores específicos
     if (!response.ok) {
       if (response.status === 401) {
-        const error = new Error("API Key inválida o faltante");
+        // Cerrar sesión y redirigir a login
+        if (
+          typeof globalThis !== "undefined" &&
+          typeof localStorage !== "undefined"
+        ) {
+          localStorage.removeItem("imagiq_user");
+          localStorage.removeItem("imagiq_token");
+          globalThis.location.href = "/login";
+        }
+        const error = new Error(
+          "Sesión expirada. Por favor, inicie sesión nuevamente."
+        );
         console.error("🔐 Error de autenticación:", error.message);
         throw error;
       }
@@ -101,7 +112,18 @@ export async function apiClientFormData(
 
     if (!response.ok) {
       if (response.status === 401) {
-        const error = new Error("API Key inválida o faltante");
+        // Cerrar sesión y redirigir a login
+        if (
+          typeof globalThis !== "undefined" &&
+          typeof localStorage !== "undefined"
+        ) {
+          localStorage.removeItem("imagiq_user");
+          localStorage.removeItem("imagiq_token");
+          globalThis.location.href = "/login";
+        }
+        const error = new Error(
+          "Sesión expirada. Por favor, inicie sesión nuevamente."
+        );
         console.error("🔐 Error de autenticación:", error.message);
         throw error;
       }
