@@ -9,6 +9,7 @@ import { Clock } from "lucide-react";
 export interface SchedulingSettingsData {
   sendImmediately: boolean;
   scheduledDate: Date | null;
+  finalDate: Date | null;
   enableABTest: boolean;
   abTestPercentage: number;
 }
@@ -45,7 +46,7 @@ export function SchedulingSettings({ data, onChange }: SchedulingSettingsProps) 
         {!data.sendImmediately && (
           <div className="space-y-3 pt-2 border-t">
             <div className="space-y-2">
-              <Label htmlFor="scheduledDate">Fecha y Hora de Envío</Label>
+              <Label htmlFor="scheduledDate">Fecha y Hora de Inicio</Label>
               <Input
                 id="scheduledDate"
                 type="datetime-local"
@@ -69,6 +70,43 @@ export function SchedulingSettings({ data, onChange }: SchedulingSettingsProps) 
                   })
                 }
                 min={new Date().toISOString().slice(0, 16)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="finalDate">Fecha y Hora de Finalización</Label>
+              <Input
+                id="finalDate"
+                type="datetime-local"
+                value={
+                  data.finalDate
+                    ? new Date(
+                        data.finalDate.getTime() -
+                          data.finalDate.getTimezoneOffset() *
+                            60000
+                      )
+                        .toISOString()
+                        .slice(0, 16)
+                    : ""
+                }
+                onChange={(e) =>
+                  onChange({
+                    ...data,
+                    finalDate: e.target.value
+                      ? new Date(e.target.value)
+                      : null,
+                  })
+                }
+                min={
+                  data.scheduledDate
+                    ? new Date(
+                        data.scheduledDate.getTime() -
+                          data.scheduledDate.getTimezoneOffset() *
+                            60000
+                      )
+                        .toISOString()
+                        .slice(0, 16)
+                    : new Date().toISOString().slice(0, 16)
+                }
               />
             </div>
           </div>

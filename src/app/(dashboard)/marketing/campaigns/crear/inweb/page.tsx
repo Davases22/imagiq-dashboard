@@ -33,10 +33,13 @@ import {
   SchedulingSettings,
   SchedulingSettingsData,
 } from "@/components/campaigns/inweb/scheduling-settings";
+import { campaignEndpoints, InWebCampaignRequest } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function CrearCampaignInWebPage() {
   const router = useRouter();
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [isLoading, setIsLoading] = useState(false);
 
   const [inWebData, setInWebData] = useState<{
     campaignName: string;
@@ -54,6 +57,7 @@ export default function CrearCampaignInWebPage() {
     maxAge: number;
     sendImmediately: boolean;
     scheduledDate: Date | null;
+    finalDate: Date | null;
     enableFrequencyCap: boolean;
     maxPerDay: number;
     maxPerWeek: number;
@@ -90,6 +94,7 @@ export default function CrearCampaignInWebPage() {
     // Timing
     sendImmediately: true,
     scheduledDate: null as Date | null,
+    finalDate: null as Date | null,
 
     // Frequency Capping
     enableFrequencyCap: false,
@@ -101,7 +106,7 @@ export default function CrearCampaignInWebPage() {
     abTestPercentage: 50,
 
     // Advanced
-    ttl: 10, // 24 hours in seconds
+    ttl: 3600, // Default to 1 hour in seconds
     urgency: "normal",
     enableFallback: true,
 
@@ -116,12 +121,119 @@ export default function CrearCampaignInWebPage() {
     router.push("/marketing/campaigns");
   };
 
-  const handleSave = () => {
-    console.log("Guardando campaña InWeb:", inWebData);
+  // Map campaign type from English to Spanish
+  const mapCampaignType = (type: string): string => {
+    const typeMap: Record<string, string> = {
+      promotional: "promocional",
+      transactional: "transaccional",
+      news: "noticias",
+      reminder: "recordatorio",
+      "abandoned-cart": "carrito-abandonado",
+    };
+    return typeMap[type] || type;
   };
 
-  const handleSend = () => {
-    console.log("Enviando campaña InWeb:", inWebData);
+  // Capitalize urgency value
+  const capitalizeUrgency = (urgency: string): string => {
+    const urgencyMap: Record<string, string> = {
+      "very-low": "Muy Baja",
+      low: "Baja",
+      normal: "Normal",
+      high: "Alta",
+    };
+    return urgencyMap[urgency] || urgency.charAt(0).toUpperCase() + urgency.slice(1);
+  };
+
+  // Transform frontend data to backend format
+  const transformToBackendFormat = (data: typeof inWebData): InWebCampaignRequest => {
+    const request: InWebCampaignRequest = {
+      campaign: {
+        name: data.campaignName,
+        type: mapCampaignType(data.campaignType),
+      },
+      content: {
+        type: data.contentType,
+        image: data.image || "",
+        url: data.url || "",
+        previewUrl: data.previewUrl || "*",
+        htmlContent: data.htmlContent || "",
+      },
+      behavior: {
+        displayStyle: data.displayStyle || "",
+        ttl: data.ttl,
+        urgency: capitalizeUrgency(data.urgency),
+      },
+      scheduling: {
+        sendImmediately: data.sendImmediately,
+      },
+    };
+
+    // Add dates if not sending immediately
+    if (!data.sendImmediately) {
+      if (data.scheduledDate) {
+        request.scheduling.initialDate = data.scheduledDate.toISOString();
+      }
+      if (data.finalDate) {
+        request.scheduling.finalDate = data.finalDate.toISOString();
+      }
+    }
+
+    return request;
+  };
+
+  const handleSave = async () => {
+    if (!inWebData.campaignName.trim()) {
+      toast.error("El nombre de la campaña es requerido");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const requestData = transformToBackendFormat(inWebData);
+      const response = await campaignEndpoints.createInWeb(requestData);
+
+      if (response.success) {
+        toast.success("Campaña guardada como borrador");
+        router.push("/marketing/campaigns");
+      } else {
+        toast.error(response.message || "Error al guardar la campaña");
+      }
+    } catch (error) {
+      console.error("Error saving campaign:", error);
+      toast.error("Error al guardar la campaña. Por favor, intenta de nuevo.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!inWebData.campaignName.trim()) {
+      toast.error("El nombre de la campaña es requerido");
+      return;
+    }
+
+    if (!inWebData.sendImmediately && !inWebData.scheduledDate) {
+      toast.error("Debes seleccionar una fecha de inicio para campañas programadas");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const requestData = transformToBackendFormat(inWebData);
+      const response = await campaignEndpoints.createInWeb(requestData);
+
+      if (response.success) {
+        toast.success("Campaña creada exitosamente");
+        router.push("/marketing/campaigns");
+      } else {
+        toast.error(response.message || "Error al crear la campaña");
+      }
+    } catch (error) {
+      console.error("Error creating campaign:", error);
+      toast.error("Error al crear la campaña. Por favor, intenta de nuevo.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCampaignInfoChange = (data: CampaignInfoData) => {
@@ -245,6 +357,7 @@ export default function CrearCampaignInWebPage() {
             data={{
               sendImmediately: inWebData.sendImmediately,
               scheduledDate: inWebData.scheduledDate,
+              finalDate: inWebData.finalDate,
               enableABTest: inWebData.enableABTest,
               abTestPercentage: inWebData.abTestPercentage,
             }}
@@ -253,11 +366,20 @@ export default function CrearCampaignInWebPage() {
 
           {/* Action Buttons */}
           <div className="flex gap-3">
-            <Button variant="outline" onClick={handleSave} className="flex-1">
+            <Button 
+              variant="outline" 
+              onClick={handleSave} 
+              className="flex-1"
+              disabled={isLoading}
+            >
               <Save className="mr-2 h-4 w-4" />
               Guardar Borrador
             </Button>
-            <Button onClick={handleSend} className="flex-1">
+            <Button 
+              onClick={handleSend} 
+              className="flex-1"
+              disabled={isLoading}
+            >
               <Send className="mr-2 h-4 w-4" />
               Crear
             </Button>

@@ -2082,3 +2082,37 @@ export const productCardEndpoints = {
     ),
 };
 
+// Campaign API endpoints
+export interface InWebCampaignRequest {
+  campaign: {
+    name: string;
+    type: string;
+  };
+  content: {
+    type: "image" | "html";
+    image: string;
+    url: string;
+    previewUrl: string;
+    htmlContent: string;
+  };
+  behavior: {
+    displayStyle: string;
+    ttl: number;
+    urgency: string;
+  };
+  scheduling: {
+    sendImmediately: boolean;
+    initialDate?: string;
+    finalDate?: string;
+  };
+}
+
+export const campaignEndpoints = {
+  // Crear campaña InWeb
+  createInWeb: (data: InWebCampaignRequest) =>
+    apiClient.post<{ success: boolean; data?: any; message?: string }>(
+      "/api/marketing/campaigns/inweb",
+      data
+    ),
+};
+
