@@ -7,7 +7,7 @@ import { Upload, X, ImageIcon, Loader2 } from "lucide-react"
 import { useRef } from "react"
 
 interface LogoUploadProps {
-  name: "header-logo" | "favicon"
+  name: "header-logo-dark" | "header-logo-light" | "favicon"
   imagePreview: string | null
   onImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onRemoveImage: () => void
@@ -33,10 +33,16 @@ export function LogoUpload({
     fileInputRef.current?.click()
   }
 
+  const getLabelText = () => {
+    if (name === "header-logo-dark") return "Logo Oscuro"
+    if (name === "header-logo-light") return "Logo Claro"
+    return "Favicon"
+  }
+
   return (
     <div className="space-y-2">
       <Label htmlFor={`${name}-upload`} className="text-base font-semibold">
-        {name === "header-logo" ? "Logo del Header" : "Favicon"}
+        {getLabelText()}
       </Label>
       <p className="text-xs text-muted-foreground">
         {description}
@@ -50,7 +56,7 @@ export function LogoUpload({
           <div className={`relative ${name === "favicon" ? "w-32 h-32" : "w-full aspect-square"} mx-auto`}>
             <img
               src={imagePreview}
-              alt={name === "header-logo" ? "Logo Preview" : "Favicon Preview"}
+              alt={name === "favicon" ? "Favicon Preview" : "Logo Preview"}
               className="w-full h-full object-contain rounded-lg border bg-white p-2"
             />
             {isUploading && (

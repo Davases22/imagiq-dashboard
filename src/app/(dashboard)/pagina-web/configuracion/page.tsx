@@ -13,21 +13,29 @@ const API_KEY = process.env.NEXT_PUBLIC_API_KEY
 
 interface Logo {
   id: string
-  name: "header-logo" | "favicon"
+  name: "header-logo-dark" | "header-logo-light" | "favicon"
   image_url: string | null
   alt_text: string
   width: number
   height: number
 }
 
+type LogoType = "header-logo-dark" | "header-logo-light" | "favicon"
+
 export default function ConfiguracionPage() {
   const router = useRouter()
 
-  // Estados para header-logo
-  const [headerLogo, setHeaderLogo] = useState<Logo | null>(null)
-  const [headerPreview, setHeaderPreview] = useState<string | null>(null)
-  const [headerFile, setHeaderFile] = useState<File | null>(null)
-  const [isUploadingHeader, setIsUploadingHeader] = useState(false)
+  // Estados para header-logo-dark
+  const [headerLogoDark, setHeaderLogoDark] = useState<Logo | null>(null)
+  const [headerDarkPreview, setHeaderDarkPreview] = useState<string | null>(null)
+  const [headerDarkFile, setHeaderDarkFile] = useState<File | null>(null)
+  const [isUploadingHeaderDark, setIsUploadingHeaderDark] = useState(false)
+
+  // Estados para header-logo-light
+  const [headerLogoLight, setHeaderLogoLight] = useState<Logo | null>(null)
+  const [headerLightPreview, setHeaderLightPreview] = useState<string | null>(null)
+  const [headerLightFile, setHeaderLightFile] = useState<File | null>(null)
+  const [isUploadingHeaderLight, setIsUploadingHeaderLight] = useState(false)
 
   // Estados para favicon
   const [favicon, setFavicon] = useState<Logo | null>(null)
@@ -46,13 +54,23 @@ export default function ConfiguracionPage() {
     try {
       setIsLoading(true)
 
-      // Cargar header-logo
-      const headerResponse = await fetch(`${API_URL}/api/multimedia/logo/header-logo`)
-      if (headerResponse.ok) {
-        const headerData = await headerResponse.json()
-        if (headerData && headerData.image_url) {
-          setHeaderLogo(headerData)
-          setHeaderPreview(headerData.image_url)
+      // Cargar header-logo-dark
+      const headerDarkResponse = await fetch(`${API_URL}/api/multimedia/logo/header-logo-dark`)
+      if (headerDarkResponse.ok) {
+        const headerDarkData = await headerDarkResponse.json()
+        if (headerDarkData && headerDarkData.image_url) {
+          setHeaderLogoDark(headerDarkData)
+          setHeaderDarkPreview(headerDarkData.image_url)
+        }
+      }
+
+      // Cargar header-logo-light
+      const headerLightResponse = await fetch(`${API_URL}/api/multimedia/logo/header-logo-light`)
+      if (headerLightResponse.ok) {
+        const headerLightData = await headerLightResponse.json()
+        if (headerLightData && headerLightData.image_url) {
+          setHeaderLogoLight(headerLightData)
+          setHeaderLightPreview(headerLightData.image_url)
         }
       }
 
@@ -73,50 +91,56 @@ export default function ConfiguracionPage() {
     }
   }
 
-  // Handler para header-logo
-  const handleHeaderImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  // Validar archivo
+  const validateFile = (file: File, logoType: LogoType) => {
+    const validTypes = logoType === "favicon"
+      ? ["image/jpeg", "image/png", "image/webp", "image/x-icon", "image/svg+xml"]
+      : ["image/jpeg", "image/png", "image/webp", "image/svg+xml"]
 
-    // Validar tipo de archivo
-    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"]
     if (!validTypes.includes(file.type)) {
       toast.error("Formato no válido. Usa JPG, PNG, WebP o SVG")
-      return
+      return false
     }
 
-    // Validar tamaño (máximo 2MB)
     if (file.size > 2 * 1024 * 1024) {
       toast.error("La imagen no debe superar 2MB")
-      return
+      return false
     }
 
-    setHeaderFile(file)
+    return true
+  }
+
+  // Handler para header-logo-dark
+  const handleHeaderDarkImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !validateFile(file, "header-logo-dark")) return
+
+    setHeaderDarkFile(file)
     const reader = new FileReader()
     reader.onloadend = () => {
-      setHeaderPreview(reader.result as string)
+      setHeaderDarkPreview(reader.result as string)
     }
     reader.readAsDataURL(file)
   }
 
-  const handleRemoveHeaderImage = () => {
-    setHeaderFile(null)
-    setHeaderPreview(headerLogo?.image_url || null)
+  const handleRemoveHeaderDarkImage = () => {
+    setHeaderDarkFile(null)
+    setHeaderDarkPreview(headerLogoDark?.image_url || null)
   }
 
-  const handleUploadHeader = async () => {
-    if (!headerFile) {
+  const handleUploadHeaderDark = async () => {
+    if (!headerDarkFile) {
       toast.error("Por favor selecciona una imagen primero")
       return
     }
 
     try {
-      setIsUploadingHeader(true)
+      setIsUploadingHeaderDark(true)
 
       const formData = new FormData()
-      formData.append("image", headerFile)
+      formData.append("image", headerDarkFile)
 
-      const response = await fetch(`${API_URL}/api/multimedia/logo/upload/header-logo`, {
+      const response = await fetch(`${API_URL}/api/multimedia/logo/upload/header-logo-dark`, {
         method: "POST",
         headers: {
           ...(API_KEY && { "X-API-Key": API_KEY }),
@@ -131,35 +155,79 @@ export default function ConfiguracionPage() {
       }
 
       const data = await response.json()
-      setHeaderLogo(data.logo)
-      setHeaderPreview(data.url)
-      setHeaderFile(null)
-      toast.success("Logo del header actualizado correctamente")
+      setHeaderLogoDark(data.logo)
+      setHeaderDarkPreview(data.url)
+      setHeaderDarkFile(null)
+      toast.success("Logo oscuro actualizado correctamente")
     } catch (error) {
-      console.error("Error uploading header logo:", error)
+      console.error("Error uploading header-logo-dark:", error)
       toast.error(error instanceof Error ? error.message : "Error al subir el logo")
     } finally {
-      setIsUploadingHeader(false)
+      setIsUploadingHeaderDark(false)
+    }
+  }
+
+  // Handler para header-logo-light
+  const handleHeaderLightImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !validateFile(file, "header-logo-light")) return
+
+    setHeaderLightFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setHeaderLightPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveHeaderLightImage = () => {
+    setHeaderLightFile(null)
+    setHeaderLightPreview(headerLogoLight?.image_url || null)
+  }
+
+  const handleUploadHeaderLight = async () => {
+    if (!headerLightFile) {
+      toast.error("Por favor selecciona una imagen primero")
+      return
+    }
+
+    try {
+      setIsUploadingHeaderLight(true)
+
+      const formData = new FormData()
+      formData.append("image", headerLightFile)
+
+      const response = await fetch(`${API_URL}/api/multimedia/logo/upload/header-logo-light`, {
+        method: "POST",
+        headers: {
+          ...(API_KEY && { "X-API-Key": API_KEY }),
+        },
+        credentials: "include",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Error al subir el logo")
+      }
+
+      const data = await response.json()
+      setHeaderLogoLight(data.logo)
+      setHeaderLightPreview(data.url)
+      setHeaderLightFile(null)
+      toast.success("Logo claro actualizado correctamente")
+    } catch (error) {
+      console.error("Error uploading header-logo-light:", error)
+      toast.error(error instanceof Error ? error.message : "Error al subir el logo")
+    } finally {
+      setIsUploadingHeaderLight(false)
     }
   }
 
   // Handler para favicon
   const handleFaviconImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validar tipo de archivo
-    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/x-icon", "image/svg+xml"]
-    if (!validTypes.includes(file.type)) {
-      toast.error("Formato no válido. Usa ICO, PNG, JPG, WebP o SVG")
-      return
-    }
-
-    // Validar tamaño (máximo 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("La imagen no debe superar 2MB")
-      return
-    }
+    if (!file || !validateFile(file, "favicon")) return
 
     setFaviconFile(file)
     const reader = new FileReader()
@@ -242,40 +310,82 @@ export default function ConfiguracionPage() {
             Configuración General
           </h1>
           <p className="text-sm text-muted-foreground">
-            Gestiona el logo y favicon de tu sitio web
+            Gestiona los logos y favicon de tu sitio web
           </p>
         </div>
       </div>
 
       {/* Grid de logos */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Header Logo */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Header Logo Dark (para fondos claros) */}
         <Card>
           <CardHeader>
-            <CardTitle>Logo del Header</CardTitle>
+            <CardTitle>Logo Oscuro</CardTitle>
             <CardDescription>
-              Este logo aparece en el encabezado de tu sitio web
+              Para fondos claros - se muestra cuando el header es blanco
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <LogoUpload
-              name="header-logo"
-              imagePreview={headerPreview}
-              onImageChange={handleHeaderImageChange}
-              onRemoveImage={handleRemoveHeaderImage}
-              isUploading={isUploadingHeader}
-              disabled={isUploadingHeader}
+              name="header-logo-dark"
+              imagePreview={headerDarkPreview}
+              onImageChange={handleHeaderDarkImageChange}
+              onRemoveImage={handleRemoveHeaderDarkImage}
+              isUploading={isUploadingHeaderDark}
+              disabled={isUploadingHeaderDark}
               recommendedSize="512 x 512 px"
               description="Formatos: JPG, PNG, WebP o SVG. Máximo 2MB."
             />
 
-            {headerFile && (
+            {headerDarkFile && (
               <Button
-                onClick={handleUploadHeader}
-                disabled={isUploadingHeader}
+                onClick={handleUploadHeaderDark}
+                disabled={isUploadingHeaderDark}
                 className="w-full"
               >
-                {isUploadingHeader ? (
+                {isUploadingHeaderDark ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Subiendo...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Guardar Logo
+                  </>
+                )}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Header Logo Light (para fondos oscuros) */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Logo Claro</CardTitle>
+            <CardDescription>
+              Para fondos oscuros - se muestra cuando el header es negro
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <LogoUpload
+              name="header-logo-light"
+              imagePreview={headerLightPreview}
+              onImageChange={handleHeaderLightImageChange}
+              onRemoveImage={handleRemoveHeaderLightImage}
+              isUploading={isUploadingHeaderLight}
+              disabled={isUploadingHeaderLight}
+              recommendedSize="512 x 512 px"
+              description="Formatos: JPG, PNG, WebP o SVG. Máximo 2MB."
+            />
+
+            {headerLightFile && (
+              <Button
+                onClick={handleUploadHeaderLight}
+                disabled={isUploadingHeaderLight}
+                className="w-full"
+              >
+                {isUploadingHeaderLight ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Subiendo...
