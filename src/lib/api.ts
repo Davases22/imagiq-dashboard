@@ -2114,3 +2114,37 @@ export const productCardEndpoints = {
       `/api/multimedia/product-cards/${id}`
     ),
 };
+
+// Campaign API endpoints
+export interface InWebCampaignRequest {
+  campaign: {
+    name: string;
+    type: string;
+  };
+  content: {
+    type: "image" | "html";
+    url: string;
+    previewUrl: string;
+    htmlContent: string;
+  };
+  behavior: {
+    displayStyle: string;
+    ttl: number;
+    urgency: string;
+  };
+  scheduling: {
+    sendImmediately: boolean;
+    initialDate?: string;
+    finalDate?: string;
+  };
+}
+
+export const campaignEndpoints = {
+  // Crear campaña InWeb (con FormData para soportar upload de imágenes)
+  createInWeb: (formData: FormData) =>
+    apiClient.postFormData<{ success: boolean; data?: any; message?: string }>(
+      "/api/campaigns/inweb-campaigns/create",
+      formData
+    ),
+};
+
