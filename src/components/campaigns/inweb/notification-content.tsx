@@ -11,7 +11,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export interface NotificationContentData {
   contentType: "image" | "html";
-  image: string;
+  image: string; // Base64 preview string for display
+  imageFile?: File | null; // File object for upload
   url: string;
   previewUrl: string;
   htmlContent: string;
@@ -64,6 +65,7 @@ export function NotificationContent({ data, onChange, displayStyle }: Notificati
       onChange({
         ...data,
         image: "",
+        imageFile: null,
       });
       setImageError(null);
       // Limpiar el input de archivo
@@ -120,14 +122,32 @@ export function NotificationContent({ data, onChange, displayStyle }: Notificati
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
+                      // Validate file type
+                      if (!file.type.startsWith("image/")) {
+                        setImageError("Por favor selecciona un archivo de imagen válido");
+                        e.target.value = '';
+                        return;
+                      }
+
+                      // Validate file size (max 10MB)
+                      const maxSize = 10 * 1024 * 1024; // 10MB
+                      if (file.size > maxSize) {
+                        setImageError("La imagen no puede ser mayor a 10MB");
+                        e.target.value = '';
+                        return;
+                      }
+
                       const isValid = await validateImageDimensions(file);
 
                       if (isValid) {
+                        // Store File object for upload
+                        // Create preview for display
                         const reader = new FileReader();
                         reader.onloadend = () => {
                           onChange({
                             ...data,
-                            image: reader.result as string,
+                            image: reader.result as string, // Base64 preview
+                            imageFile: file, // File object for upload
                           });
                         };
                         reader.readAsDataURL(file);

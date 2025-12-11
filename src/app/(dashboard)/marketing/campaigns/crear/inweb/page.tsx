@@ -33,11 +33,13 @@ import {
   SchedulingSettings,
   SchedulingSettingsData,
 } from "@/components/campaigns/inweb/scheduling-settings";
-import { campaignEndpoints, InWebCampaignRequest } from "@/lib/api";
+import { campaignEndpoints } from "@/lib/api";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function CrearCampaignInWebPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -46,7 +48,8 @@ export default function CrearCampaignInWebPage() {
     campaignType: string;
     targetAudience: string;
 
-    image: string;
+    image: string; // Base64 preview
+    imageFile: File | null; // File object for upload
     url: string;
     previewUrl: string;
     displayStyle: "popup" | "slider";
@@ -75,7 +78,8 @@ export default function CrearCampaignInWebPage() {
     targetAudience: "all",
 
     // Notification Content
-    image: "",
+    image: "", // Base64 preview
+    imageFile: null as File | null, // File object for upload
     url: "",
     previewUrl: "",
 
@@ -133,6 +137,27 @@ export default function CrearCampaignInWebPage() {
     return typeMap[type] || type;
   };
 
+  // Map purchase operator to backend format
+  const mapPurchaseOperator = (operator: string): string => {
+    const operatorMap: Record<string, string> = {
+      greater: "greater_than",
+      greaterEqual: "greater_than_or_equal",
+      equal: "equal",
+      lessEqual: "less_than_or_equal",
+      less: "less_than",
+    };
+    return operatorMap[operator] || operator;
+  };
+
+  // Map display style to backend format
+  const mapDisplayStyle = (style: string): string => {
+    const styleMap: Record<string, string> = {
+      popup: "modal",
+      slider: "slider",
+    };
+    return styleMap[style] || style;
+  };
+
   // Capitalize urgency value
   const capitalizeUrgency = (urgency: string): string => {
     const urgencyMap: Record<string, string> = {
@@ -144,41 +169,100 @@ export default function CrearCampaignInWebPage() {
     return urgencyMap[urgency] || urgency.charAt(0).toUpperCase() + urgency.slice(1);
   };
 
-  // Transform frontend data to backend format
-  const transformToBackendFormat = (data: typeof inWebData): InWebCampaignRequest => {
-    const request: InWebCampaignRequest = {
+  // Extract path from URL or return as-is if already a path
+  const extractPathFromUrl = (url: string): string => {
+    if (!url) return "/ofertas";
+    // If it's already a path (starts with /), return as-is
+    if (url.startsWith("/")) return url;
+    // If it's a full URL, extract the path
+    try {
+      const urlObj = new URL(url);
+      return urlObj.pathname || "/ofertas";
+    } catch {
+      // If URL parsing fails, assume it's a path
+      return url.startsWith("/") ? url : `/${url}`;
+    }
+  };
+
+  // Transform frontend data to FormData for backend
+  const transformToFormData = (data: typeof inWebData): FormData => {
+    const formData = new FormData();
+
+    // Build the complete campaign payload matching backend structure
+    const campaignPayload: any = {
       campaign: {
         name: data.campaignName,
         type: mapCampaignType(data.campaignType),
+        channel: "inweb",
+      },
+      targeting: {
+        audience: data.targetAudience || "all",
+        cities: data.selectedCities || [],
+        ageRange: {
+          min: data.minAge || 18,
+          max: data.maxAge || 65,
+        },
+        purchaseFilter: {
+          operator: mapPurchaseOperator(data.purchaseOperator || "equal"),
+          count: data.purchaseCount || 0,
+        },
       },
       content: {
         type: data.contentType,
-        image: data.image || "",
+        image: "", // Will be set after image upload returns URL
         url: data.url || "",
-        previewUrl: data.previewUrl || "*",
-        htmlContent: data.htmlContent || "",
+        htmlContent: data.contentType === "html" ? data.htmlContent : null,
+        previewUrl: extractPathFromUrl(data.previewUrl || "/ofertas"), // Extract path from URL
       },
       behavior: {
-        displayStyle: data.displayStyle || "",
+        displayStyle: mapDisplayStyle(data.displayStyle || "popup"),
         ttl: data.ttl,
         urgency: capitalizeUrgency(data.urgency),
+        enableFallback: data.enableFallback !== false, // Default to true
+      },
+      enableFrequencyCap: data.enableFrequencyCap || false,
+      frequencyCap: {
+        maxPerDay: data.maxPerDay || 3,
+        maxPerWeek: data.maxPerWeek || 10,
       },
       scheduling: {
         sendImmediately: data.sendImmediately,
       },
+      enableABTest: data.enableABTest || false,
+      abTest: {
+        enabled: data.enableABTest || false,
+        percentage: data.enableABTest ? data.abTestPercentage : null,
+      },
+      createdBy: user?.id || user?.email || "unknown",
     };
 
-    // Add dates if not sending immediately
-    if (!data.sendImmediately) {
+    // Always set initialDate
+    // If sendImmediately is true, use current time (or scheduledDate if already set)
+    // If sendImmediately is false, use the user-selected scheduledDate
+    if (data.sendImmediately) {
+      // Use current time if sendImmediately is true
+      campaignPayload.scheduling.initialDate = (data.scheduledDate || new Date()).toISOString();
+    } else {
+      // Use user-selected date if sendImmediately is false
       if (data.scheduledDate) {
-        request.scheduling.initialDate = data.scheduledDate.toISOString();
-      }
-      if (data.finalDate) {
-        request.scheduling.finalDate = data.finalDate.toISOString();
+        campaignPayload.scheduling.initialDate = data.scheduledDate.toISOString();
       }
     }
 
-    return request;
+    // Always add finalDate if provided
+    if (data.finalDate) {
+      campaignPayload.scheduling.finalDate = data.finalDate.toISOString();
+    }
+
+    // Append campaign data as JSON
+    formData.append("campaign", JSON.stringify(campaignPayload));
+
+    // Append image file if exists (backend will upload and return URL)
+    if (data.imageFile && data.contentType === "image") {
+      formData.append("image", data.imageFile, data.imageFile.name);
+    }
+
+    return formData;
   };
 
   const handleSave = async () => {
@@ -187,10 +271,15 @@ export default function CrearCampaignInWebPage() {
       return;
     }
 
+    if (inWebData.contentType === "image" && !inWebData.imageFile) {
+      toast.error("Debes subir una imagen para la campaña");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const requestData = transformToBackendFormat(inWebData);
-      const response = await campaignEndpoints.createInWeb(requestData);
+      const formData = transformToFormData(inWebData);
+      const response = await campaignEndpoints.createInWeb(formData);
 
       if (response.success) {
         toast.success("Campaña guardada como borrador");
@@ -212,6 +301,11 @@ export default function CrearCampaignInWebPage() {
       return;
     }
 
+    if (inWebData.contentType === "image" && !inWebData.imageFile) {
+      toast.error("Debes subir una imagen para la campaña");
+      return;
+    }
+
     if (!inWebData.sendImmediately && !inWebData.scheduledDate) {
       toast.error("Debes seleccionar una fecha de inicio para campañas programadas");
       return;
@@ -219,8 +313,8 @@ export default function CrearCampaignInWebPage() {
 
     setIsLoading(true);
     try {
-      const requestData = transformToBackendFormat(inWebData);
-      const response = await campaignEndpoints.createInWeb(requestData);
+      const formData = transformToFormData(inWebData);
+      const response = await campaignEndpoints.createInWeb(formData);
 
       if (response.success) {
         toast.success("Campaña creada exitosamente");
@@ -344,6 +438,7 @@ export default function CrearCampaignInWebPage() {
             data={{
               contentType: inWebData.contentType,
               image: inWebData.image,
+              imageFile: inWebData.imageFile,
               url: inWebData.url,
               previewUrl: inWebData.previewUrl,
               htmlContent: inWebData.htmlContent,
@@ -403,3 +498,4 @@ export default function CrearCampaignInWebPage() {
     </div>
   );
 }
+

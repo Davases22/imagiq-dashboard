@@ -2090,7 +2090,6 @@ export interface InWebCampaignRequest {
   };
   content: {
     type: "image" | "html";
-    image: string;
     url: string;
     previewUrl: string;
     htmlContent: string;
@@ -2108,11 +2107,11 @@ export interface InWebCampaignRequest {
 }
 
 export const campaignEndpoints = {
-  // Crear campaña InWeb
-  createInWeb: (data: InWebCampaignRequest) =>
-    apiClient.post<{ success: boolean; data?: any; message?: string }>(
-      "/api/marketing/campaigns/inweb",
-      data
+  // Crear campaña InWeb (con FormData para soportar upload de imágenes)
+  createInWeb: (formData: FormData) =>
+    apiClient.postFormData<{ success: boolean; data?: any; message?: string }>(
+      "/api/campaigns/inweb-campaigns/create",
+      formData
     ),
 };
 
