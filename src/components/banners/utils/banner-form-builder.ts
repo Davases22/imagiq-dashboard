@@ -3,7 +3,7 @@
  * Centraliza la lógica de construcción de formularios para crear y editar banners
  */
 
-import type { BannerPosition, BannerTextStyles } from "@/types/banner";
+import type { BannerPosition, BannerTextStyles, ContentBlock } from "@/types/banner";
 
 export interface BannerFormFields {
   name: string;
@@ -23,6 +23,8 @@ export interface BannerFormFields {
   position_mobile?: BannerPosition;
   // NUEVO: Estilos de texto
   text_styles?: BannerTextStyles;
+  // NUEVO: Bloques de contenido con configuración desktop/mobile independiente
+  content_blocks?: ContentBlock[];
 }
 
 export interface BannerMediaFiles {
@@ -63,7 +65,8 @@ function appendTextFields(
   formData.append("title", fields.title || "");
   formData.append("description", fields.description || "");
   formData.append("cta", fields.cta || "");
-  formData.append("color_font", fields.color_font || "");
+  // Mapear color_font del frontend a text_color_default del backend
+  formData.append("text_color_default", fields.color_font || "");
   formData.append("coordinates", fields.coordinates || "");
   formData.append("coordinates_mobile", fields.coordinates_mobile || "");
 
@@ -78,6 +81,11 @@ function appendTextFields(
   // Estilos de texto como JSON
   if (fields.text_styles) {
     formData.append('text_styles', JSON.stringify(fields.text_styles));
+  }
+
+  // NUEVO: Bloques de contenido con configuración desktop/mobile independiente
+  if (fields.content_blocks && fields.content_blocks.length > 0) {
+    formData.append('content_blocks', JSON.stringify(fields.content_blocks));
   }
 
   // NOTA: NO enviamos category_id, subcategory_id, submenu_id al backend

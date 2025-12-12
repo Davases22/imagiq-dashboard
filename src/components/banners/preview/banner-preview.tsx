@@ -7,7 +7,7 @@ import { Monitor, Smartphone, RotateCcw } from "lucide-react";
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { DraggableBannerOverlay } from "./draggable-banner-overlay";
 import { BannerContentOverlay } from "./banner-content-overlay";
-import type { BannerPosition } from "@/types/banner";
+import type { BannerPosition, ContentBlock } from "@/types/banner";
 import { gridToPercentage, getDefaultPosition } from "../utils/position-utils";
 
 interface BannerPreviewProps {
@@ -31,6 +31,8 @@ interface BannerPreviewProps {
   onCoordinatesChange?: (coordinates: string) => void;
   onCoordinatesMobileChange?: (coordinates: string) => void;
   text_styles?: import('@/types/banner').BannerTextStyles;
+  content_blocks?: ContentBlock[];
+  onBlockPositionChange?: (blockId: string, device: 'desktop' | 'mobile', position: { x: number; y: number }) => void;
 }
 
 interface BannerContentProps {
@@ -47,6 +49,8 @@ interface BannerContentProps {
   placement?: string;
   onPositionChange?: (position: BannerPosition) => void;
   textStyles?: import('@/types/banner').BannerTextStyles;
+  contentBlocks?: ContentBlock[];
+  onBlockPositionChange?: (blockId: string, device: 'desktop' | 'mobile', position: { x: number; y: number }) => void;
 }
 
 type DeviceType = "desktop" | "mobile";
@@ -114,6 +118,188 @@ const getStyles = (placement: string | undefined, device: DeviceType) => {
 const isSingleView = (placement?: string) =>
   placement === "product-detail" || placement === "category-top" || Boolean(placement?.startsWith("banner-"));
 
+// Helper para escalar tamaños en el preview (40% del tamaño original)
+const scaleFontSize = (size: string): string => {
+  const regex = /([\d.]+)(rem|px|em)/;
+  const match = regex.exec(size);
+  if (match) {
+    const value = Number.parseFloat(match[1]) * 0.4;
+    return `${value}${match[2]}`;
+  }
+  return size;
+};
+
+const scalePadding = (padding: string): string => {
+  return padding.replaceAll(/([\d.]+)(px|rem|em)/g, (_match, num, unit) => {
+    const value = Number.parseFloat(num) * 0.4;
+    return `${value}${unit}`;
+  });
+};
+
+// Componente para renderizar bloques de contenido con drag & drop
+function ContentBlockOverlay({ 
+  block, 
+  device, 
+  onPositionChange,
+  onDragStart 
+}: { 
+  block: ContentBlock; 
+  device: DeviceType;
+  onPositionChange?: (blockId: string, position: { x: number; y: number }) => void;
+  onDragStart?: (blockId: string, e: React.MouseEvent, element: HTMLDivElement) => void;
+}) {
+  const isMobile = device === "mobile";
+  const position = isMobile ? block.position_mobile : block.position_desktop;
+  
+  // Container configs con fallback a desktop si no hay mobile config
+  const textAlign = (isMobile && block.textAlign_mobile) ? block.textAlign_mobile : (block.textAlign || 'left');
+  const gap = (isMobile && block.gap_mobile) ? block.gap_mobile : (block.gap || '12px');
+  
+  const blockRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!onPositionChange || !onDragStart || !blockRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    onDragStart(block.id, e, blockRef.current);
+  };
+
+  return (
+    <div
+      ref={blockRef}
+      className="absolute group"
+      style={{
+        left: `${position.x}%`,
+        top: `${position.y}%`,
+        transform: 'translate(-50%, -50%)',
+        cursor: onPositionChange ? 'move' : 'default',
+      }}
+      onMouseDown={handleMouseDown}
+    >
+      {/* Visualización del contenedor (borde punteado) */}
+      <div className="absolute inset-0 border-2 border-dashed border-blue-400 dark:border-blue-500 opacity-0 group-hover:opacity-50 rounded-md pointer-events-none transition-opacity" />
+      {/* Indicador de drag cuando hay onPositionChange */}
+      {onPositionChange && (
+        <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <div className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded-md shadow-sm whitespace-nowrap">
+            Arrastra para mover
+          </div>
+        </div>
+      )}
+      
+      <div
+        className="flex flex-col pointer-events-auto"
+        style={{
+          gap,
+        }}
+      >
+        {/* Título */}
+        {block.title && (() => {
+          const titleConfig = isMobile && block.title_mobile 
+            ? { ...block.title, ...block.title_mobile }
+            : block.title;
+          
+          return (
+            <h2
+              style={{
+                fontSize: scaleFontSize(titleConfig.fontSize || '2rem'),
+                fontWeight: titleConfig.fontWeight || '700',
+                color: titleConfig.color || '#ffffff',
+                lineHeight: titleConfig.lineHeight || '1.2',
+                textTransform: titleConfig.textTransform || 'none',
+                letterSpacing: titleConfig.letterSpacing || 'normal',
+                textShadow: titleConfig.textShadow || '2px 2px 4px rgba(0,0,0,0.5)',
+                margin: 0,
+                whiteSpace: 'pre-line',
+                textAlign,
+              }}
+            >
+              {block.title.text}
+            </h2>
+          );
+        })()}
+
+        {/* Subtítulo */}
+        {block.subtitle && (() => {
+          const subtitleConfig = isMobile && block.subtitle_mobile 
+            ? { ...block.subtitle, ...block.subtitle_mobile }
+            : block.subtitle;
+          
+          return (
+            <h3
+              style={{
+                fontSize: scaleFontSize(subtitleConfig.fontSize || '1.5rem'),
+                fontWeight: subtitleConfig.fontWeight || '600',
+                color: subtitleConfig.color || '#ffffff',
+                lineHeight: subtitleConfig.lineHeight || '1.3',
+                textTransform: subtitleConfig.textTransform || 'none',
+                margin: 0,
+                whiteSpace: 'pre-line',
+                textAlign,
+              }}
+            >
+              {block.subtitle.text}
+            </h3>
+          );
+        })()}
+
+        {/* Descripción */}
+        {block.description && (() => {
+          const descriptionConfig = isMobile && block.description_mobile 
+            ? { ...block.description, ...block.description_mobile }
+            : block.description;
+          
+          return (
+            <p
+              style={{
+                fontSize: scaleFontSize(descriptionConfig.fontSize || '1rem'),
+                fontWeight: descriptionConfig.fontWeight || '400',
+                color: descriptionConfig.color || '#ffffff',
+                lineHeight: descriptionConfig.lineHeight || '1.5',
+                margin: 0,
+                whiteSpace: 'pre-line',
+                textAlign,
+              }}
+            >
+              {block.description.text}
+            </p>
+          );
+        })()}
+
+        {/* CTA */}
+        {block.cta && (() => {
+          const ctaConfig = isMobile && block.cta_mobile 
+            ? { ...block.cta, ...block.cta_mobile }
+            : block.cta;
+          
+          return (
+            <div style={{ textAlign }}>
+              <a
+                href={block.cta.link_url || '#'}
+                className="inline-block"
+                style={{
+                  fontSize: scaleFontSize(ctaConfig.fontSize || '1rem'),
+                  fontWeight: ctaConfig.fontWeight || '600',
+                  backgroundColor: ctaConfig.backgroundColor || '#ffffff',
+                  color: ctaConfig.color || '#000000',
+                  padding: scalePadding(ctaConfig.padding || '12px 24px'),
+                  borderRadius: ctaConfig.borderRadius || '8px',
+                  border: ctaConfig.border || 'none',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  whiteSpace: 'pre-line',
+                }}
+              >
+                {block.cta.text}
+              </a>
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  );
+}
+
 // Componente especial para navbar mobile (tira de notificación)
 function NavbarMobileBanner({ title, description, cta, linkUrl }: { title?: string; description?: string; cta?: string; linkUrl?: string }) {
   if (!title && !description && !cta) {
@@ -147,13 +333,16 @@ function NavbarMobileBanner({ title, description, cta, linkUrl }: { title?: stri
   );
 }
 
-function BannerContent({ bannerId, image, video, title, description, cta, colorFont, linkUrl, device, placement, position, onPositionChange, textStyles }: Readonly<BannerContentProps>) {
+function BannerContent({ bannerId, image, video, title, description, cta, colorFont, linkUrl, device, placement, position, onPositionChange, textStyles, contentBlocks, onBlockPositionChange }: Readonly<BannerContentProps>) {
   const [showContent, setShowContent] = useState(!video);
   const [imageUrl, setImageUrl] = useState<string>();
   const [videoUrl, setVideoUrl] = useState<string>();
   const videoRef = useRef<HTMLVideoElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -185,6 +374,49 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
     }
   }, [video]);
 
+  // Handlers para mouse drag de bloques
+  useEffect(() => {
+    if (!isDragging || !draggedBlockId || !onBlockPositionChange || !containerRef.current || !dragOffset) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current || !dragOffset) return;
+      
+      const rect = containerRef.current.getBoundingClientRect();
+      // Calcular posición considerando el offset inicial del mouse
+      const x = ((e.clientX - rect.left - dragOffset.x) / rect.width) * 100;
+      const y = ((e.clientY - rect.top - dragOffset.y) / rect.height) * 100;
+      
+      // Sin límites estrictos - permite posicionar libremente
+      // El navegador se encargará de renderizar correctamente
+      // Pasar el device para actualizar solo la posición del dispositivo activo
+      onBlockPositionChange(draggedBlockId, device, {
+        x,
+        y,
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setDraggedBlockId(null);
+      setDragOffset(null);
+    };
+
+    // Eventos en document para que funcione incluso si el mouse sale del contenedor
+    document.addEventListener('mousemove', handleMouseMove, { passive: false });
+    document.addEventListener('mouseup', handleMouseUp);
+
+    // Prevenir selección de texto durante el drag
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'move';
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isDragging, draggedBlockId, onBlockPositionChange, dragOffset]);
+
   const { aspectRatio, maxWidth, mediaClass, minHeight } = getStyles(placement, device);
 
   if (!image && !video) {
@@ -199,13 +431,31 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
   }
 
   const currentPos = position || getDefaultPosition();
-  const hasContent = Boolean(title || description || cta || linkUrl);
+  // Solo mostrar overlay legacy si NO hay content_blocks
+  const hasLegacyContent = Boolean(title || description || cta || linkUrl) && !contentBlocks?.length;
   const Overlay = onPositionChange ? DraggableBannerOverlay : BannerContentOverlay;
   const overlayId = `overlay-${bannerId || 'default'}-${device}`;
 
+  const handleBlockDragStart = (blockId: string, e: React.MouseEvent, element: HTMLDivElement) => {
+    if (!containerRef.current) return;
+    
+    const elementRect = element.getBoundingClientRect();
+    
+    // Calcular el offset del mouse respecto al centro del elemento
+    const offsetX = e.clientX - (elementRect.left + elementRect.width / 2);
+    const offsetY = e.clientY - (elementRect.top + elementRect.height / 2);
+    
+    setDragOffset({ x: offsetX, y: offsetY });
+    setDraggedBlockId(blockId);
+    setIsDragging(true);
+  };
+
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div ref={containerRef} className={`relative ${aspectRatio} ${maxWidth} w-full rounded-lg overflow-hidden bg-black`}>
+      <div 
+        ref={containerRef} 
+        className={`relative ${aspectRatio} ${maxWidth} w-full rounded-lg overflow-hidden bg-black`}
+      >
         {video && videoUrl && !showContent && (
           <video ref={videoRef} src={videoUrl} className={mediaClass} autoPlay muted playsInline onEnded={() => setShowContent(true)} />
         )}
@@ -217,7 +467,24 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
                 {Array.from({ length: 81 }, (_, i) => <div key={`g-${Math.floor(i/9)}-${i%9}`} className="border border-dashed border-white/10" />)}
               </div>
             </div>
-            {hasContent && <Overlay id={overlayId} title={title} description={description} cta={cta} colorFont={colorFont} linkUrl={linkUrl} position={currentPos} device={device} textStyles={textStyles} placement={placement} />}
+            {hasLegacyContent && <Overlay id={overlayId} title={title} description={description} cta={cta} colorFont={colorFont} linkUrl={linkUrl} position={currentPos} device={device} textStyles={textStyles} placement={placement} />}
+            {/* Renderizar bloques de contenido */}
+            {contentBlocks && contentBlocks.length > 0 && (
+              <div className="absolute inset-0">
+                {contentBlocks.map((block) => (
+                  <ContentBlockOverlay 
+                    key={block.id} 
+                    block={block} 
+                    device={device}
+                    onPositionChange={onBlockPositionChange ? (blockId, pos) => {
+                      // Pasar el device para actualizar solo la posición del dispositivo activo
+                      onBlockPositionChange(blockId, device, pos);
+                    } : undefined}
+                    onDragStart={handleBlockDragStart}
+                  />
+                ))}
+              </div>
+            )}
           </>
         )}
         <div className="absolute top-4 left-4 pointer-events-none">
@@ -238,7 +505,7 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
 
 export function BannerPreview(props: Readonly<BannerPreviewProps>) {
   const { bannerId, desktop_image, desktop_video, mobile_image, mobile_video, title, description, cta, color_font = "#FFFFFF", link_url, placement,
-    position_desktop, position_mobile, onPositionDesktopChange, onPositionMobileChange, coordinates, coordinatesMobile, text_styles } = props;
+    position_desktop, position_mobile, onPositionDesktopChange, onPositionMobileChange, coordinates, coordinatesMobile, text_styles, content_blocks, onBlockPositionChange } = props;
 
   const [viewMode, setViewMode] = useState<DeviceType>("desktop");
   const [reloadKey, setReloadKey] = useState(0);
@@ -294,6 +561,10 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
           device={mode}
           placement={placement}
           textStyles={text_styles}
+          contentBlocks={content_blocks}
+          onBlockPositionChange={onBlockPositionChange ? (blockId, device, pos) => {
+            onBlockPositionChange(blockId, device, pos);
+          } : undefined}
         />
       </div>
     );
