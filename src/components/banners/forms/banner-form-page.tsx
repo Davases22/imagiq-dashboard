@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Send, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useBannerForm } from "@/hooks/use-banner-form";
+import { useContentBlocks } from "@/hooks/use-content-blocks";
 import { BannerFormFields } from "./banner-form-fields";
 import { BannerMediaUpload } from "./banner-media-upload";
 import { BannerCategoryFields } from "./banner-category-fields";
-import { BannerTextStylesFields } from "./banner-text-styles-fields";
 import { BannerPreview } from "../preview/banner-preview";
 import { BannerSizeGuide } from "./banner-size-guide";
+import { ContentBlocksManager } from "./content-boxes-manager";
 import { buildNormalizedPlacement } from "@/utils/normalizeText";
 
 interface BannerFormPageProps {
@@ -33,9 +34,6 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
   const categoryNameRef = useRef("");
   const subcategoryNameRef = useRef("");
 
-  // Estado para controlar qué dispositivo está activo
-  const [activeDevice, setActiveDevice] = useState<"desktop" | "mobile">("desktop");
-
   const {
     formData,
     existingUrls,
@@ -51,10 +49,32 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
     positionMobile,
     handlePositionDesktopChange,
     handlePositionMobileChange,
-    // NUEVO: Estilos de texto
-    textStyles,
-    handleTextStylesChange,
+    // NUEVO: Content blocks cargados
+    loadedContentBlocks,
   } = useBannerForm({ mode, bannerId, initialPlacement });
+
+  // Hook para gestionar bloques de contenido
+  const {
+    blocks: contentBlocks,
+    addBlock,
+    removeBlock,
+    updateBlock,
+    updateBlockPosition,
+    importBlocks,
+  } = useContentBlocks();
+
+  // Importar bloques cuando se carguen del backend (modo edición)
+  useEffect(() => {
+    if (loadedContentBlocks && loadedContentBlocks.length > 0) {
+      importBlocks(loadedContentBlocks);
+      console.log("Content blocks importados al editor:", loadedContentBlocks);
+    }
+  }, [loadedContentBlocks, importBlocks]);
+
+  // Handler para cambios de posición de bloques desde el preview
+  const handleBlockPositionChange = (blockId: string, device: 'desktop' | 'mobile', position: { x: number; y: number }) => {
+    updateBlockPosition(blockId, device, position);
+  };
 
   // Definir textos según el modo
   const pageTitle = mode === "create" ? "Crear Banner" : "Editar Banner";
@@ -109,7 +129,10 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
               <CardTitle className="text-lg sm:text-xl">Información del Banner</CardTitle>
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
-              <BannerFormFields formData={formData} onFieldChange={handleFieldChange} />
+              <BannerFormFields 
+                formData={formData} 
+                onFieldChange={handleFieldChange}
+              />
             </CardContent>
           </Card>
 
@@ -181,7 +204,7 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
           {/* Guía de dimensiones - No mostrar para navbar mobile */}
           {formData.placement !== "notification" && <BannerSizeGuide placement={formData.placement} />}
 
-          {/* Estilos de Texto - Solo para Hero, Home, y banners de categoría (no navbar mobile) */}
+          {/* Content Blocks - Solo para banners con contenido */}
           {formData.placement !== "notification" && (formData.placement === "hero" || 
             formData.placement === "home" || 
             formData.placement.startsWith("home-") ||
@@ -189,32 +212,17 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
             formData.placement.startsWith("banner-")) && (
             <Card>
               <CardHeader className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg sm:text-xl">Estilos de Texto</CardTitle>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={activeDevice === "desktop" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setActiveDevice("desktop")}
-                    >
-                      Desktop
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={activeDevice === "mobile" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setActiveDevice("mobile")}
-                    >
-                      Mobile
-                    </Button>
-                  </div>
-                </div>
+                <CardTitle className="text-lg sm:text-xl">Bloques de Contenido</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Crea bloques con título, subtítulo, descripción y botones personalizables con configuración independiente para desktop y mobile.
+                </p>
               </CardHeader>
               <CardContent className="p-4 sm:p-6">
-                <BannerTextStylesFields
-                  textStyles={textStyles}
-                  onTextStylesChange={handleTextStylesChange}
+                <ContentBlocksManager
+                  blocks={contentBlocks}
+                  onAddBlock={addBlock}
+                  onRemoveBlock={removeBlock}
+                  onUpdateBlock={updateBlock}
                 />
               </CardContent>
             </Card>
@@ -242,7 +250,7 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
             <Button
               type="button"
               variant="outline"
-              onClick={() => handleSubmit("draft", (error) => toast.error(error))}
+              onClick={() => handleSubmit("draft", contentBlocks, (error) => toast.error(error))}
               disabled={isLoading}
               className="flex-1"
             >
@@ -262,7 +270,7 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
             </Button>
             <Button
               type="button"
-              onClick={() => handleSubmit("active", (error) => toast.error(error))}
+              onClick={() => handleSubmit("active", contentBlocks, (error) => toast.error(error))}
               disabled={isLoading}
               className="flex-1"
             >
@@ -312,7 +320,8 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
                 coordinatesMobile={formData.coordinates_mobile}
                 onCoordinatesChange={handleCoordinatesChange}
                 onCoordinatesMobileChange={handleCoordinatesMobileChange}
-                text_styles={textStyles}
+                content_blocks={contentBlocks}
+                onBlockPositionChange={handleBlockPositionChange}
               />
             </CardContent>
           </Card>

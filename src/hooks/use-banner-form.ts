@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { bannerEndpoints } from "@/lib/api";
-import type { BannerPosition, BannerTextStyles } from "@/types/banner";
+import type { BannerPosition, BannerTextStyles, ContentBlock } from "@/types/banner";
 import {
   gridToPercentage,
   getDefaultPosition,
@@ -72,7 +72,7 @@ export function useBannerForm({
     title: "",
     description: "",
     cta: "",
-    color_font: "#000000",
+    color_font: "#ffffff", // Default: Modo claro para hero banners
     coordinates: "4-4",
     coordinates_mobile: "4-4",
     category_id: "",
@@ -93,6 +93,7 @@ export function useBannerForm({
   // NUEVO: Estado para estilos de texto
   // NUEVO: Estilos de texto
   const [textStyles, setTextStyles] = useState<BannerTextStyles | undefined>();
+  const [loadedContentBlocks, setLoadedContentBlocks] = useState<any[] | undefined>();
 
   // Cargar banner existente si estamos en modo edición
   useEffect(() => {
@@ -134,7 +135,8 @@ export function useBannerForm({
               title: banner.title || "",
               description: banner.description || "",
               cta: banner.cta || "",
-              color_font: banner.color_font || "#000000",
+              // Mapear text_color_default del backend a color_font del frontend
+              color_font: banner.color_font || (banner as any).text_color_default || "#ffffff",
               coordinates: banner.coordinates || "4-4",
               coordinates_mobile: banner.coordinates_mobile || "4-4",
               category_id: categoryName,
@@ -171,6 +173,22 @@ export function useBannerForm({
             };
 
             setTextStyles(parseTextStyles(banner.text_styles));
+
+            // NUEVO: Cargar content_blocks si existen
+            if (banner.content_blocks) {
+              try {
+                const parsed = typeof banner.content_blocks === 'string' 
+                  ? JSON.parse(banner.content_blocks) 
+                  : banner.content_blocks;
+                setLoadedContentBlocks(Array.isArray(parsed) ? parsed : []);
+                console.log("Content blocks cargados:", parsed);
+              } catch (error) {
+                console.error("Error parsing content_blocks:", error);
+                setLoadedContentBlocks([]);
+              }
+            } else {
+              setLoadedContentBlocks([]);
+            }
           } else {
             alert("No se pudo cargar el banner");
             router.push("/marketing/banners");
@@ -256,7 +274,7 @@ export function useBannerForm({
   };
 
   // Envío del formulario
-  const prepareAndSend = async (status: "draft" | "active") => {
+  const prepareAndSend = async (status: "draft" | "active", contentBlocks?: ContentBlock[]) => {
     // SIMPLIFICACIÓN: El backend NO necesita category_id, subcategory_id, submenu_id
     // Solo necesita el placement string para determinar dónde mostrar el banner
     // Ejemplo: "banner-Dispositivos móviles-Galaxy Tab-Galaxy Tab A"
@@ -282,6 +300,8 @@ export function useBannerForm({
       position_mobile: positionMobile,
       // NUEVO: Estilos de texto
       text_styles: textStyles,
+      // NUEVO: Bloques de contenido
+      content_blocks: contentBlocks,
     };
 
     const files: BannerMediaFiles = {
@@ -309,6 +329,7 @@ export function useBannerForm({
 
   const handleSubmit = async (
     status: "draft" | "active",
+    contentBlocks?: ContentBlock[],
     onValidationError?: (error: string) => void
   ) => {
     const validation = validate();
@@ -320,7 +341,7 @@ export function useBannerForm({
 
     setIsLoading(true);
     try {
-      const response = await prepareAndSend(status);
+      const response = await prepareAndSend(status, contentBlocks);
       if (response.success) {
         router.push("/marketing/banners");
       } else {
@@ -355,5 +376,7 @@ export function useBannerForm({
     // NUEVO: Estilos de texto
     textStyles,
     handleTextStylesChange,
+    // NUEVO: Content blocks cargados
+    loadedContentBlocks,
   };
 }
