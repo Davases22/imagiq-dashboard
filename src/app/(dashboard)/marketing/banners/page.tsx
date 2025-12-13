@@ -7,19 +7,24 @@ import { Plus, Eye, MousePointer, TrendingUp, Image, ArrowUpDown } from "lucide-
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { OrganizeBannersModal } from "@/components/banners/organize-banners-modal";
+import { useBannerStats } from "@/hooks/use-banner-stats";
 
 export default function BannersPage() {
   const router = useRouter();
   const [organizeModalOpen, setOrganizeModalOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Obtener estadísticas reales de banners
+  const { stats, isLoading: statsLoading, refetch: refetchStats } = useBannerStats();
+
   const handleCreateBanner = () => {
     router.push('/marketing/banners/crear/seleccionar-tipo');
   };
 
   const handleOrganizeSuccess = () => {
-    // Trigger refresh en la tabla
+    // Trigger refresh en la tabla y stats
     setRefreshTrigger(prev => prev + 1);
+    refetchStats();
   };
 
   return (
@@ -74,9 +79,9 @@ export default function BannersPage() {
         />
         <BannerStatsCard
           title="Banners Activos"
-          value="2"
-          subtitle="De 5 totales"
-          progress={40}
+          value={statsLoading ? "..." : String(stats?.activos || 0)}
+          subtitle={statsLoading ? "Cargando..." : `De ${stats?.total || 0} totales`}
+          progress={stats ? Math.round((stats.activos / stats.total) * 100) : 0}
           icon={Image}
         />
       </div>
