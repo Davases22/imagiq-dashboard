@@ -3,14 +3,23 @@
 import { BannerStatsCard } from "@/components/banners/stats/banner-stats-card";
 import { BannersTable } from "@/components/banners/tables/banners-table";
 import { Button } from "@/components/ui/button";
-import { Plus, Eye, MousePointer, TrendingUp, Image } from "lucide-react";
+import { Plus, Eye, MousePointer, TrendingUp, Image, ArrowUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { OrganizeBannersModal } from "@/components/banners/organize-banners-modal";
 
 export default function BannersPage() {
   const router = useRouter();
+  const [organizeModalOpen, setOrganizeModalOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleCreateBanner = () => {
     router.push('/marketing/banners/crear/seleccionar-tipo');
+  };
+
+  const handleOrganizeSuccess = () => {
+    // Trigger refresh en la tabla
+    setRefreshTrigger(prev => prev + 1);
   };
 
   return (
@@ -25,10 +34,16 @@ export default function BannersPage() {
             Gestiona los banners del hero section de tu tienda
           </p>
         </div>
-        <Button onClick={handleCreateBanner}>
-          <Plus className="mr-2 h-4 w-4" />
-          Crear Banner
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setOrganizeModalOpen(true)}>
+            <ArrowUpDown className="mr-2 h-4 w-4" />
+            Organizar Banners
+          </Button>
+          <Button onClick={handleCreateBanner}>
+            <Plus className="mr-2 h-4 w-4" />
+            Crear Banner
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -67,7 +82,14 @@ export default function BannersPage() {
       </div>
 
       {/* Banners Table */}
-      <BannersTable />
+      <BannersTable key={refreshTrigger} />
+
+      {/* Modal de organización */}
+      <OrganizeBannersModal
+        open={organizeModalOpen}
+        onOpenChange={setOrganizeModalOpen}
+        onSuccess={handleOrganizeSuccess}
+      />
     </div>
   );
 }

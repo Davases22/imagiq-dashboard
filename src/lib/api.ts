@@ -1489,6 +1489,15 @@ export const bannerEndpoints = {
     apiClient.delete<{ success: boolean; message?: string }>(
       `/api/multimedia/banners/${id}`
     ),
+
+  updateOrder: (payload: { placement: string; bannerOrders: Array<{ id: string; display_order: number }> }) =>
+    apiClient.patch<{ message: string }>(
+      "/api/multimedia/banners/order",
+      payload
+    ),
+
+  getPlacements: () =>
+    apiClient.get<string[]>("/api/multimedia/banners/placements"),
 };
 
 // Product Notifications API endpoints
