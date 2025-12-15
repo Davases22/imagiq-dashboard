@@ -76,10 +76,10 @@ const getStyles = (placement: string | undefined, device: DeviceType) => {
   const isDesktop = device === "desktop";
 
   // Ofertas banners - aspect ratio personalizado para ofertas
-  // Actualizado para coincidir con frontend: mitad del alto (1260x310)
+  // Actualizado para coincidir con frontend y getRealBannerWidth: 1210x310
   if (placement?.startsWith("ofertas-")) {
     return {
-      aspectRatio: isDesktop ? "aspect-[1260/310]" : "aspect-[414/310]",
+      aspectRatio: isDesktop ? "aspect-[1210/310]" : "aspect-[414/310]",
       maxWidth: isDesktop ? "max-w-2xl" : "max-w-sm",
       mediaClass: "absolute inset-0 w-full h-full object-cover pointer-events-none",
       minHeight: "",
@@ -346,13 +346,48 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
 
   const sensors = useSensors(useSensor(PointerSensor));
 
+  /**
+   * Obtiene el tamaño real del banner (no el del preview) según el placement
+   * Necesario para convertir correctamente píxeles de drag a porcentajes
+   */
+  const getRealBannerSize = (placement?: string): { width: number; height: number } => {
+    // Banners de ofertas (landing pages): 1210x310
+    if (placement?.startsWith("ofertas-")) {
+      return { width: 1210, height: 310 };
+    }
+    // Hero banners: 1920x1080
+    if (placement === "hero") {
+      return { width: 1920, height: 1080 };
+    }
+    // Banners de categoría: 318x318
+    if (placement === "category-top" || placement?.startsWith("banner-")) {
+      return { width: 318, height: 318 };
+    }
+    // Banners Home: 1440x810
+    if (placement?.startsWith("home-")) {
+      return { width: 1440, height: 810 };
+    }
+    // Por defecto: 1440x810
+    return { width: 1440, height: 810 };
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     if (!containerRef.current || !onPositionChange) return;
     const rect = containerRef.current.getBoundingClientRect();
     const current = position || getDefaultPosition();
+
+    // Obtener el tamaño REAL del banner (no del preview) para calcular porcentajes correctos
+    const realSize = getRealBannerSize(placement);
+
+    // Calcular el factor de escala: cuánto más pequeño es el preview vs el banner real
+    const scaleX = rect.width / realSize.width;
+    const scaleY = rect.height / realSize.height;
+
+    // Convertir el delta en píxeles del preview a porcentaje del banner real
+    // delta.x es en píxeles del preview, así que lo escalamos al tamaño real primero
     const newPosition: BannerPosition = {
-      x: Math.max(0, Math.min(100, current.x + (event.delta.x / rect.width) * 100)),
-      y: Math.max(0, Math.min(100, current.y + (event.delta.y / rect.height) * 100)),
+      x: Math.max(0, Math.min(100, current.x + (event.delta.x / scaleX / realSize.width) * 100)),
+      y: Math.max(0, Math.min(100, current.y + (event.delta.y / scaleY / realSize.height) * 100)),
       imageWidth: imageRef.current?.naturalWidth,
       imageHeight: imageRef.current?.naturalHeight,
     };
