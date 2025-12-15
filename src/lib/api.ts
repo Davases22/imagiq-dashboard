@@ -1498,6 +1498,13 @@ export const bannerEndpoints = {
 
   getPlacements: () =>
     apiClient.get<string[]>("/api/multimedia/banners/placements"),
+
+  getStats: () =>
+    apiClient.get<{
+      total: number;
+      activos: number;
+      inactivos: number;
+    }>("/api/multimedia/banners/stats"),
 };
 
 // Product Notifications API endpoints
