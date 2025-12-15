@@ -28,7 +28,25 @@ interface PlacementSpecs {
   readonly mobile?: SizeSpec;
 }
 
-const BANNER_SPECS: Record<string, PlacementSpecs> = {
+export const BANNER_SPECS: Record<string, PlacementSpecs> = {
+  "ofertas-cazadores-de-ofertas": {
+    title: "Landing Page Banner",
+    description: "Banner horizontal para páginas de aterrizaje (landing pages)",
+    desktop: {
+      width: 2520,
+      height: 620,
+      aspectRatio: "2520:620",
+      maxSize: "2MB para imágenes, 6MB para videos",
+      notes: "Banner de ancho completo con márgenes responsivos"
+    },
+    mobile: {
+      width: 828,
+      height: 620,
+      aspectRatio: "828:620",
+      maxSize: "1MB para imágenes, 3MB para videos",
+      notes: "Versión móvil con aspect ratio más cuadrado"
+    }
+  },
   hero: {
     title: "Hero Banner (Banner Principal)",
     description: "Banner de pantalla completa con efecto de reducción al scroll",

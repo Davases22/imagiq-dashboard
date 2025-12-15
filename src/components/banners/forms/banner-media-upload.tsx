@@ -1,10 +1,13 @@
 "use client";
 
-import { Upload, Video, Pencil, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Upload, Video, Pencil, Trash2, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import NextImage from "next/image";
+import { BANNER_SPECS } from "./banner-size-guide";
 
 interface BannerMediaUploadProps {
   readonly files: {
@@ -32,6 +35,7 @@ interface MediaFieldProps {
   readonly isVideo: boolean;
   readonly onFileChange: (file: File | undefined) => void;
   readonly onRemove: () => void;
+  readonly expectedDimensions?: { width: number; height: number };
 }
 
 function MediaField({
@@ -42,14 +46,88 @@ function MediaField({
   existingUrl,
   isVideo,
   onFileChange,
-  onRemove
+  onRemove,
+  expectedDimensions
 }: MediaFieldProps) {
+  const [dimensionError, setDimensionError] = useState<string | null>(null);
   const hasNewFile = !!file;
   const hasExistingFile = !!existingUrl && !hasNewFile;
   const fileName = existingUrl ? existingUrl.split('/').pop() || 'Archivo actual' : '';
 
   // Determinar si es un banner de categoría (formato vertical 1080x1944 - 9:16)
   const isCategoryBanner = id.includes('desktop') && (label.includes('Banner') || label.includes('Categoría'));
+
+  // Limpiar error cuando se elimina el archivo o cambia el archivo existente
+  useEffect(() => {
+    if (!file && !existingUrl) {
+      setDimensionError(null);
+    }
+  }, [file, existingUrl]);
+
+  // Función para validar dimensiones de imagen
+  const validateImageDimensions = async (file: File): Promise<boolean> => {
+    if (!expectedDimensions || isVideo) {
+      console.log('⏭️ Skipping validation:', { hasExpectedDimensions: !!expectedDimensions, isVideo, id });
+      return true;
+    }
+
+    console.log('🔍 Validating image dimensions for:', id, 'Expected:', expectedDimensions);
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        img.onload = () => {
+          console.log('📏 Image loaded - Width:', img.width, 'Height:', img.height);
+          const isValid =
+            img.width === expectedDimensions.width &&
+            img.height === expectedDimensions.height;
+
+          if (!isValid) {
+            console.log('❌ Validation failed for:', id);
+            setDimensionError(
+              `La imagen debe tener ${expectedDimensions.width}×${expectedDimensions.height}px. ` +
+              `La imagen seleccionada tiene ${img.width}×${img.height}px.`
+            );
+            resolve(false);
+          } else {
+            console.log('✅ Validation passed for:', id);
+            setDimensionError(null);
+            resolve(true);
+          }
+        };
+        img.src = e.target?.result as string;
+      };
+
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Handler para cambio de archivo con validación
+  const handleFileChange = async (selectedFile: File | undefined) => {
+    console.log('🎯 handleFileChange called for:', id, 'File:', selectedFile?.name);
+
+    if (!selectedFile) {
+      setDimensionError(null);
+      onFileChange(undefined);
+      return;
+    }
+
+    const isValid = await validateImageDimensions(selectedFile);
+    console.log('✔️ Validation result for', id, ':', isValid);
+
+    if (isValid) {
+      console.log('✅ Accepting file for:', id);
+      onFileChange(selectedFile);
+    } else {
+      console.log('❌ Rejecting file for:', id);
+      // Limpiar el input si la validación falla
+      const input = document.getElementById(id) as HTMLInputElement;
+      if (input) input.value = '';
+      onFileChange(undefined);
+    }
+  };
 
   return (
     <div className="space-y-2">
@@ -80,7 +158,7 @@ function MediaField({
                   </div>
                 ) : (
                   // Preview de imagen
-                  <Image
+                  <NextImage
                     src={existingUrl}
                     alt={label}
                     fill
@@ -133,7 +211,7 @@ function MediaField({
             type="file"
             accept={accept}
             className="hidden"
-            onChange={(e) => onFileChange(e.target.files?.[0])}
+            onChange={(e) => handleFileChange(e.target.files?.[0])}
           />
         </div>
       )}
@@ -146,7 +224,7 @@ function MediaField({
               id={id}
               type="file"
               accept={accept}
-              onChange={(e) => onFileChange(e.target.files?.[0])}
+              onChange={(e) => handleFileChange(e.target.files?.[0])}
             />
             <Upload className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           </div>
@@ -162,6 +240,16 @@ function MediaField({
           )}
         </>
       )}
+
+      {/* Error de validación de dimensiones */}
+      {dimensionError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-sm">
+            {dimensionError}
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 }
@@ -169,6 +257,31 @@ function MediaField({
 export function BannerMediaUpload({ files, existingUrls, placement, onFileChange }: BannerMediaUploadProps) {
   // Para product-detail, mostrar solo una opción general (formato vertical)
   const isSingleMedia = placement === "product-detail";
+
+  // Obtener dimensiones esperadas basadas en el placement
+  const getDimensions = (isDesktop: boolean): { width: number; height: number } | undefined => {
+    // Determinar el specKey según placement
+    let specKey = placement;
+
+    // Banners de categoría (verticales)
+    if (placement.startsWith("banner-") || placement === "category-top") {
+      specKey = "category-banner";
+    }
+    // Landing pages de ofertas (horizontales)
+    else if (placement.startsWith("ofertas-")) {
+      specKey = "ofertas-cazadores-de-ofertas";
+    }
+
+    const specs = BANNER_SPECS[specKey];
+    if (!specs) {
+      console.log('⚠️ No specs found for placement:', placement);
+      return undefined;
+    }
+
+    const dimensions = isDesktop ? specs.desktop : specs.mobile;
+    console.log('📐 Dimensions for', isDesktop ? 'Desktop' : 'Mobile', ':', dimensions);
+    return dimensions;
+  };
 
   if (isSingleMedia) {
     return (
@@ -182,6 +295,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
           isVideo={false}
           onFileChange={(file) => onFileChange("desktop_image", file)}
           onRemove={() => onFileChange("desktop_image", undefined)}
+          expectedDimensions={getDimensions(true)}
         />
 
         <MediaField
@@ -210,6 +324,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
         isVideo={false}
         onFileChange={(file) => onFileChange("desktop_image", file)}
         onRemove={() => onFileChange("desktop_image", undefined)}
+        expectedDimensions={getDimensions(true)}
       />
 
       <MediaField
@@ -221,6 +336,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
         isVideo={false}
         onFileChange={(file) => onFileChange("mobile_image", file)}
         onRemove={() => onFileChange("mobile_image", undefined)}
+        expectedDimensions={getDimensions(false)}
       />
 
       <MediaField
