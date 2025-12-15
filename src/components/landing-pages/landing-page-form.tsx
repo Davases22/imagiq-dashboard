@@ -10,12 +10,12 @@ import { Save, Loader2 } from "lucide-react"
 import {
   OfertaBasicFields,
   OfertaBannersManager,
-  OfertaBannerPreviewCard,
   OfertaSectionsManager,
   OfertaFaqSection,
 } from "@/components/ofertas"
 import { useOfertaForm } from "@/hooks/use-oferta-form"
 import { Skeleton } from "@/components/ui/skeleton"
+import { BannerPreview } from "@/components/banners/preview/banner-preview"
 
 interface LandingPageFormProps {
   pageId?: string
@@ -56,8 +56,6 @@ function LandingPageFormComponent({ pageId, mode, onCancel }: LandingPageFormPro
     setFaqItems,
     handleOfertaFieldChange,
     handleBannersChange,
-    handlePositionDesktopChange,
-    handlePositionMobileChange,
     handleSubmit,
     saving,
     isFormValid,
@@ -237,13 +235,48 @@ function LandingPageFormComponent({ pageId, mode, onCancel }: LandingPageFormPro
 
         {/* Columna Derecha - Preview (Sticky) */}
         <div className="lg:sticky lg:top-20 lg:self-start space-y-6">
-          {/* Preview del banner activo */}
-          {bannersEnabled && activeBanner && (
-            <OfertaBannerPreviewCard
-              activeBanner={activeBanner}
-              onPositionDesktopChange={handlePositionDesktopChange}
-              onPositionMobileChange={handlePositionMobileChange}
-            />
+          {activeBanner && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Vista Previa del Banner</CardTitle>
+                <CardDescription>
+                  Vista previa en tiempo real con drag & drop de bloques de contenido
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-2">
+                <div className="w-full overflow-x-auto">
+                  <BannerPreview
+                    bannerId={activeBanner.id}
+                    desktop_image={activeBanner.files.desktop_image || activeBanner.data.desktop_image_url}
+                    desktop_video={activeBanner.files.desktop_video || activeBanner.data.desktop_video_url}
+                    mobile_image={activeBanner.files.mobile_image || activeBanner.data.mobile_image_url}
+                    mobile_video={activeBanner.files.mobile_video || activeBanner.data.mobile_video_url}
+                    link_url={activeBanner.data.link_url}
+                    placement="ofertas"
+                    isLandingPage={true}
+                    content_blocks={activeBanner.contentBlocks}
+                    onBlockPositionChange={(blockId, device, position) => {
+                      const updatedBanners = banners.map(b => {
+                        if (b.id === activeBannerId) {
+                          const updatedBlocks = b.contentBlocks.map(block => {
+                            if (block.id === blockId) {
+                              return {
+                                ...block,
+                                [device === 'desktop' ? 'position_desktop' : 'position_mobile']: position
+                              };
+                            }
+                            return block;
+                          });
+                          return { ...b, contentBlocks: updatedBlocks };
+                        }
+                        return b;
+                      });
+                      handleBannersChange(updatedBanners);
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>

@@ -1,30 +1,18 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { BannerTextStyles, BannerPosition } from "@/types/banner"
+import { ContentBlock } from "@/types/banner"
 import { pageEndpoints, productCardEndpoints } from "@/lib/api"
 import type { CreateCompletePageRequest, NewBanner, PageFAQ, BannerFiles as ApiBannerFiles, ProductSection, ProductSectionDTO, InfoSection, PageExpanded, BannerUpdate } from "@/types/page"
 import type { ProductCard } from "@/types/product-card"
 import { useAuth } from "@/contexts/AuthContext"
 import { useProductCardsContext } from "@/contexts/ProductCardsContext"
 
-const DEFAULT_TEXT_STYLES: BannerTextStyles = {
-  title: { fontSize: "clamp(2rem, 5vw, 4rem)", fontWeight: "700", lineHeight: "1.2" },
-  description: { fontSize: "clamp(1rem, 2vw, 1.5rem)", fontWeight: "400", lineHeight: "1.5" },
-  cta: { fontSize: "1rem", fontWeight: "600", padding: "0.75rem 1.5rem", borderWidth: "0px" },
-}
-
 interface BannerData {
   id: string
   name: string
   placement: string
   link_url: string
-  title: string
-  description: string
-  cta: string
-  color_font: string
-  coordinates: string
-  coordinates_mobile: string
   desktop_image_url?: string
   mobile_image_url?: string
   desktop_video_url?: string
@@ -42,9 +30,7 @@ export interface BannerItem {
   id: string
   data: BannerData
   files: BannerFiles
-  textStyles: BannerTextStyles
-  positionDesktop: BannerPosition
-  positionMobile: BannerPosition
+  contentBlocks: ContentBlock[]
 }
 
 interface InfoItem {
@@ -91,17 +77,9 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         name: "Banner 1",
         placement: "ofertas-nueva-oferta",
         link_url: "",
-        title: "",
-        description: "",
-        cta: "",
-        color_font: "#000000",
-        coordinates: "",
-        coordinates_mobile: "",
       },
       files: {},
-      textStyles: DEFAULT_TEXT_STYLES,
-      positionDesktop: { x: 10, y: 50 },
-      positionMobile: { x: 10, y: 50 },
+      contentBlocks: [],
     },
   ])
   const [activeBannerId, setActiveBannerId] = useState("banner-1")
@@ -152,8 +130,8 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
     }
   }
 
-  const handleBannersChange = (updatedBanners: Array<{ id: string; data: BannerData; files: BannerFiles; textStyles: BannerTextStyles }>) => {
-    const normalizedTitle = titulo.trim() ? titulo.trim().toLowerCase().replace(/\s+/g, '-') : 'nueva-oferta'
+  const handleBannersChange = (updatedBanners: Array<{ id: string; data: BannerData; files: BannerFiles; contentBlocks: ContentBlock[] }>) => {
+    const normalizedTitle = titulo.trim() ? titulo.trim().toLowerCase().replaceAll(/\s+/g, '-') : 'nueva-oferta'
     const currentPlacement = `ofertas-${normalizedTitle}`
     
     setBanners(prev =>
@@ -161,20 +139,8 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         const existing = prev.find(p => p.id === ub.id)
         return existing
           ? { ...existing, ...ub, data: { ...ub.data, placement: currentPlacement } }
-          : { ...ub, data: { ...ub.data, placement: currentPlacement }, positionDesktop: { x: 10, y: 50 }, positionMobile: { x: 10, y: 50 } }
+          : { ...ub, data: { ...ub.data, placement: currentPlacement }, contentBlocks: ub.contentBlocks }
       })
-    )
-  }
-
-  const handlePositionDesktopChange = (position: BannerPosition) => {
-    setBanners(prev =>
-      prev.map(b => (b.id === activeBannerId ? { ...b, positionDesktop: position } : b))
-    )
-  }
-
-  const handlePositionMobileChange = (position: BannerPosition) => {
-    setBanners(prev =>
-      prev.map(b => (b.id === activeBannerId ? { ...b, positionMobile: position } : b))
     )
   }
 
@@ -296,6 +262,18 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
               }
             }
 
+            // Parsear content_blocks si existe
+            let contentBlocks: ContentBlock[] = []
+            if (banner.content_blocks) {
+              try {
+                contentBlocks = typeof banner.content_blocks === 'string'
+                  ? JSON.parse(banner.content_blocks)
+                  : banner.content_blocks
+              } catch (error) {
+                console.error('Error parseando content_blocks:', error)
+              }
+            }
+
             return {
               id: banner.id,
               data: {
@@ -303,23 +281,13 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
                 name: banner.name,
                 placement: banner.placement,
                 link_url: banner.link_url || '',
-                title: banner.title || '',
-                description: banner.description || '',
-                cta: banner.cta || '',
-                color_font: banner.color_font || '#000000',
-                coordinates: banner.coordinates || '',
-                coordinates_mobile: banner.coordinates_mobile || '',
                 desktop_image_url: banner.desktop_image_url || undefined,
                 mobile_image_url: banner.mobile_image_url || undefined,
                 desktop_video_url: banner.desktop_video_url || undefined,
                 mobile_video_url: banner.mobile_video_url || undefined,
               },
               files: {}, // Los archivos ya existen en el servidor
-              textStyles: typeof banner.text_styles === 'string'
-                ? JSON.parse(banner.text_styles)
-                : banner.text_styles || DEFAULT_TEXT_STYLES,
-              positionDesktop,
-              positionMobile,
+              contentBlocks,
             }
           })
           
@@ -416,19 +384,11 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
             // Banner existente: guardar su ID
             existingBannerIds.push(banner.data.id)
 
-            // ✅ ENVIAR ACTUALIZACIONES DE POSICIÓN (esto resuelve el bug del drag & drop)
+            // ✅ ENVIAR ACTUALIZACIONES (content_blocks y link_url)
             bannerUpdates.push({
               id: banner.data.id,
-              position_desktop: banner.positionDesktop,
-              position_mobile: banner.positionMobile,
-              text_styles: banner.textStyles as unknown as Record<string, unknown>,
-              title: banner.data.title,
-              description: banner.data.description,
-              cta: banner.data.cta,
-              color_font: banner.data.color_font,
+              content_blocks: JSON.stringify(banner.contentBlocks),
               link_url: banner.data.link_url,
-              coordinates: banner.data.coordinates,
-              coordinates_mobile: banner.data.coordinates_mobile,
             })
 
             // ✅ Agregar archivos con referencia al banner ID (igual que en edición individual)
@@ -470,15 +430,8 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
               name: banner.data.name,
               placement: banner.data.placement,
               status: "active",
-              title: banner.data.title,
-              description: banner.data.description,
-              cta: banner.data.cta,
-              color_font: banner.data.color_font,
+              content_blocks: JSON.stringify(banner.contentBlocks),
               link_url: banner.data.link_url,
-              coordinates: banner.data.coordinates,
-              coordinates_mobile: banner.data.coordinates_mobile,
-              position_desktop: banner.positionDesktop,
-              position_mobile: banner.positionMobile,
             })
 
             bannerFiles.push({
@@ -727,8 +680,6 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
     // Handlers
     handleOfertaFieldChange,
     handleBannersChange,
-    handlePositionDesktopChange,
-    handlePositionMobileChange,
     handleSubmit,
     handleCancel,
     

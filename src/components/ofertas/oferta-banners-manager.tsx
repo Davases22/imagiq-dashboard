@@ -2,22 +2,17 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus, Trash2 } from "lucide-react"
-import { BannerFormFields } from "@/components/banners/forms/banner-form-fields"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { BannerMediaUpload } from "@/components/banners/forms/banner-media-upload"
-import { BannerTextStylesFields } from "@/components/banners/forms/banner-text-styles-fields"
-import { BannerTextStyles } from "@/types/banner"
+import { ContentBlocksManager } from "@/components/banners/forms/content-boxes-manager"
+import { ContentBlock } from "@/types/banner"
 
 interface BannerData {
   id: string
   name: string
   placement: string
   link_url: string
-  title: string
-  description: string
-  cta: string
-  color_font: string
-  coordinates: string
-  coordinates_mobile: string
   desktop_image_url?: string
   mobile_image_url?: string
   desktop_video_url?: string
@@ -32,8 +27,18 @@ interface BannerFiles {
 }
 
 interface OfertaBannersManagerProps {
-  banners: Array<{ id: string; data: BannerData; files: BannerFiles; textStyles: BannerTextStyles }>
-  onBannersChange: (banners: Array<{ id: string; data: BannerData; files: BannerFiles; textStyles: BannerTextStyles }>) => void
+  banners: Array<{ 
+    id: string
+    data: BannerData
+    files: BannerFiles
+    contentBlocks: ContentBlock[]
+  }>
+  onBannersChange: (banners: Array<{ 
+    id: string
+    data: BannerData
+    files: BannerFiles
+    contentBlocks: ContentBlock[]
+  }>) => void
   onActiveBannerChange: (bannerId: string) => void
   activeBannerId: string
 }
@@ -60,11 +65,34 @@ export function OfertaBannersManager({
     onBannersChange(updated)
   }
 
-  const handleTextStylesChange = (styles: BannerTextStyles) => {
+  const handleContentBlocksChange = (blocks: ContentBlock[]) => {
     const updated = banners.map((b) =>
-      b.id === activeBannerId ? { ...b, textStyles: styles } : b
+      b.id === activeBannerId ? { ...b, contentBlocks: blocks } : b
     )
     onBannersChange(updated)
+  }
+
+  const handleAddBlock = () => {
+    if (!activeBanner) return
+    const newBlock: ContentBlock = {
+      id: `block-${Date.now()}`,
+      position_desktop: { x: 50, y: 50 },
+      position_mobile: { x: 50, y: 50 },
+      title: { text: "Título", fontSize: "3rem", fontWeight: "700", color: "#000000" },
+    }
+    handleContentBlocksChange([...activeBanner.contentBlocks, newBlock])
+  }
+
+  const handleRemoveBlock = (blockId: string) => {
+    if (!activeBanner) return
+    handleContentBlocksChange(activeBanner.contentBlocks.filter(b => b.id !== blockId))
+  }
+
+  const handleUpdateBlock = (blockId: string, updates: Partial<ContentBlock>) => {
+    if (!activeBanner) return
+    handleContentBlocksChange(
+      activeBanner.contentBlocks.map(b => b.id === blockId ? { ...b, ...updates } : b)
+    )
   }
 
   const handleAddBanner = () => {
@@ -74,21 +102,11 @@ export function OfertaBannersManager({
       data: {
         id: newId,
         name: `Banner ${banners.length + 1}`,
-        placement: "hero",
+        placement: "ofertas-landing",
         link_url: "",
-        title: "",
-        description: "",
-        cta: "",
-        color_font: "#000000",
-        coordinates: "",
-        coordinates_mobile: "",
       },
       files: {},
-      textStyles: {
-        title: { fontSize: "clamp(2rem, 5vw, 4rem)", fontWeight: "700", lineHeight: "1.2" },
-        description: { fontSize: "clamp(1rem, 2vw, 1.5rem)", fontWeight: "400", lineHeight: "1.5" },
-        cta: { fontSize: "1rem", fontWeight: "600", padding: "0.75rem 1.5rem", borderWidth: "0px" },
-      },
+      contentBlocks: [],
     }
     onBannersChange([...banners, newBanner])
     onActiveBannerChange(newId)
@@ -141,7 +159,27 @@ export function OfertaBannersManager({
         <TabsContent value={activeBannerId} className="space-y-6 mt-6">
           <div>
             <h4 className="font-medium mb-4">Información del Banner</h4>
-            <BannerFormFields formData={activeBanner.data} onFieldChange={handleFieldChange} />
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="banner-name">Nombre del Banner</Label>
+                <Input
+                  id="banner-name"
+                  value={activeBanner.data.name}
+                  onChange={(e) => handleFieldChange("name", e.target.value)}
+                  placeholder="Ej: Banner Principal"
+                />
+              </div>
+              <div>
+                <Label htmlFor="banner-link">URL de Enlace (opcional)</Label>
+                <Input
+                  id="banner-link"
+                  type="url"
+                  value={activeBanner.data.link_url}
+                  onChange={(e) => handleFieldChange("link_url", e.target.value)}
+                  placeholder="https://ejemplo.com"
+                />
+              </div>
+            </div>
           </div>
 
           <Separator />
@@ -149,7 +187,7 @@ export function OfertaBannersManager({
           <div>
             <h4 className="font-medium mb-2">Medios del Banner</h4>
             <p className="text-sm text-muted-foreground mb-4">
-              Dimensiones recomendadas: Desktop <strong>1260×310px</strong> | Mobile <strong>414×310px</strong>
+              Dimensiones recomendadas: Desktop <strong>2520×620px</strong> | Mobile <strong>828×620px</strong>
             </p>
             <BannerMediaUpload
               files={activeBanner.files}
@@ -167,10 +205,15 @@ export function OfertaBannersManager({
           <Separator />
 
           <div>
-            <h4 className="font-medium mb-4">Estilos de Texto</h4>
-            <BannerTextStylesFields
-              textStyles={activeBanner.textStyles}
-              onTextStylesChange={handleTextStylesChange}
+            <h4 className="font-medium mb-4">Bloques de Contenido</h4>
+            <p className="text-sm text-muted-foreground mb-4">
+              Crea bloques con título, subtítulo, descripción y botones personalizables con configuración independiente para desktop y mobile.
+            </p>
+            <ContentBlocksManager
+              blocks={activeBanner.contentBlocks}
+              onAddBlock={handleAddBlock}
+              onRemoveBlock={handleRemoveBlock}
+              onUpdateBlock={handleUpdateBlock}
             />
           </div>
         </TabsContent>

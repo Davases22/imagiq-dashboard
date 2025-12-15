@@ -22,6 +22,7 @@ interface BannerPreviewProps {
   color_font?: string;
   link_url?: string;
   placement?: string;
+  isLandingPage?: boolean; // Para usar dimensiones específicas de landing pages
   position_desktop?: BannerPosition;
   position_mobile?: BannerPosition;
   onPositionDesktopChange?: (position: BannerPosition) => void;
@@ -47,6 +48,7 @@ interface BannerContentProps {
   position?: BannerPosition;
   device: "desktop" | "mobile";
   placement?: string;
+  isLandingPage?: boolean;
   onPositionChange?: (position: BannerPosition) => void;
   textStyles?: import('@/types/banner').BannerTextStyles;
   contentBlocks?: ContentBlock[];
@@ -61,7 +63,7 @@ function getMediaUrl(media: File | string | undefined): string | undefined {
   return URL.createObjectURL(media);
 }
 
-const getStyles = (placement: string | undefined, device: DeviceType) => {
+const getStyles = (placement: string | undefined, device: DeviceType, isLandingPage?: boolean) => {
   const isFlexible = placement === "category-top" || placement === "product-detail" || placement?.startsWith("banner-");
 
   if (isFlexible) {
@@ -74,6 +76,18 @@ const getStyles = (placement: string | undefined, device: DeviceType) => {
   }
 
   const isDesktop = device === "desktop";
+
+  // Landing Pages banners - aspect ratio específico panorámico
+  // Desktop: 2520x620 → simplificado a 126:31
+  // Mobile: 828x620 → simplificado a 207:155
+  if (isLandingPage) {
+    return {
+      aspectRatio: isDesktop ? "aspect-[126/31]" : "aspect-[207/155]",
+      maxWidth: isDesktop ? "max-w-full" : "max-w-sm",
+      mediaClass: "absolute inset-0 w-full h-full object-cover pointer-events-none",
+      minHeight: "",
+    };
+  }
 
   // Ofertas banners - aspect ratio personalizado para ofertas
   // Actualizado para coincidir con frontend y getRealBannerWidth: 1210x310
@@ -164,6 +178,14 @@ function ContentBlockOverlay({
     onDragStart(block.id, e, blockRef.current);
   };
 
+  // Ajustar transform basado en textAlign para landing pages
+  let transformX = '-50%'; // Por defecto: centrado
+  if (textAlign === 'left') {
+    transformX = '0%'; // Izquierda: el punto está en el borde izquierdo
+  } else if (textAlign === 'right') {
+    transformX = '-100%'; // Derecha: el punto está en el borde derecho
+  }
+
   return (
     <div
       ref={blockRef}
@@ -171,7 +193,7 @@ function ContentBlockOverlay({
       style={{
         left: `${position.x}%`,
         top: `${position.y}%`,
-        transform: 'translate(-50%, -50%)',
+        transform: `translate(${transformX}, -50%)`,
         cursor: onPositionChange ? 'move' : 'default',
       }}
       onMouseDown={handleMouseDown}
@@ -333,7 +355,7 @@ function NavbarMobileBanner({ title, description, cta, linkUrl }: { title?: stri
   );
 }
 
-function BannerContent({ bannerId, image, video, title, description, cta, colorFont, linkUrl, device, placement, position, onPositionChange, textStyles, contentBlocks, onBlockPositionChange }: Readonly<BannerContentProps>) {
+function BannerContent({ bannerId, image, video, title, description, cta, colorFont, linkUrl, device, placement, isLandingPage, position, onPositionChange, textStyles, contentBlocks, onBlockPositionChange }: Readonly<BannerContentProps>) {
   const [showContent, setShowContent] = useState(!video);
   const [imageUrl, setImageUrl] = useState<string>();
   const [videoUrl, setVideoUrl] = useState<string>();
@@ -452,7 +474,7 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
     };
   }, [isDragging, draggedBlockId, onBlockPositionChange, dragOffset]);
 
-  const { aspectRatio, maxWidth, mediaClass, minHeight } = getStyles(placement, device);
+  const { aspectRatio, maxWidth, mediaClass, minHeight } = getStyles(placement, device, isLandingPage);
 
   if (!image && !video) {
     return (
@@ -539,7 +561,7 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
 }
 
 export function BannerPreview(props: Readonly<BannerPreviewProps>) {
-  const { bannerId, desktop_image, desktop_video, mobile_image, mobile_video, title, description, cta, color_font = "#FFFFFF", link_url, placement,
+  const { bannerId, desktop_image, desktop_video, mobile_image, mobile_video, title, description, cta, color_font = "#FFFFFF", link_url, placement, isLandingPage,
     position_desktop, position_mobile, onPositionDesktopChange, onPositionMobileChange, coordinates, coordinatesMobile, text_styles, content_blocks, onBlockPositionChange } = props;
 
   const [viewMode, setViewMode] = useState<DeviceType>("desktop");
@@ -595,6 +617,7 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
           onPositionChange={handler}
           device={mode}
           placement={placement}
+          isLandingPage={isLandingPage}
           textStyles={text_styles}
           contentBlocks={content_blocks}
           onBlockPositionChange={onBlockPositionChange ? (blockId, device, pos) => {
