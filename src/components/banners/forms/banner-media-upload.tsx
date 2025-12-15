@@ -67,11 +67,8 @@ function MediaField({
   // Función para validar dimensiones de imagen
   const validateImageDimensions = async (file: File): Promise<boolean> => {
     if (!expectedDimensions || isVideo) {
-      console.log('⏭️ Skipping validation:', { hasExpectedDimensions: !!expectedDimensions, isVideo, id });
       return true;
     }
-
-    console.log('🔍 Validating image dimensions for:', id, 'Expected:', expectedDimensions);
 
     return new Promise((resolve) => {
       const img = new Image();
@@ -79,20 +76,17 @@ function MediaField({
 
       reader.onload = (e) => {
         img.onload = () => {
-          console.log('📏 Image loaded - Width:', img.width, 'Height:', img.height);
           const isValid =
             img.width === expectedDimensions.width &&
             img.height === expectedDimensions.height;
 
           if (!isValid) {
-            console.log('❌ Validation failed for:', id);
             setDimensionError(
               `La imagen debe tener ${expectedDimensions.width}×${expectedDimensions.height}px. ` +
               `La imagen seleccionada tiene ${img.width}×${img.height}px.`
             );
             resolve(false);
           } else {
-            console.log('✅ Validation passed for:', id);
             setDimensionError(null);
             resolve(true);
           }
@@ -106,8 +100,6 @@ function MediaField({
 
   // Handler para cambio de archivo con validación
   const handleFileChange = async (selectedFile: File | undefined) => {
-    console.log('🎯 handleFileChange called for:', id, 'File:', selectedFile?.name);
-
     if (!selectedFile) {
       setDimensionError(null);
       onFileChange(undefined);
@@ -115,13 +107,10 @@ function MediaField({
     }
 
     const isValid = await validateImageDimensions(selectedFile);
-    console.log('✔️ Validation result for', id, ':', isValid);
 
     if (isValid) {
-      console.log('✅ Accepting file for:', id);
       onFileChange(selectedFile);
     } else {
-      console.log('❌ Rejecting file for:', id);
       // Limpiar el input si la validación falla
       const input = document.getElementById(id) as HTMLInputElement;
       if (input) input.value = '';
@@ -274,13 +263,10 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
 
     const specs = BANNER_SPECS[specKey];
     if (!specs) {
-      console.log('⚠️ No specs found for placement:', placement);
       return undefined;
     }
 
-    const dimensions = isDesktop ? specs.desktop : specs.mobile;
-    console.log('📐 Dimensions for', isDesktop ? 'Desktop' : 'Mobile', ':', dimensions);
-    return dimensions;
+    return isDesktop ? specs.desktop : specs.mobile;
   };
 
   if (isSingleMedia) {
