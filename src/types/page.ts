@@ -48,11 +48,12 @@ export interface NewBanner {
   name: string;
   placement: string;
   status: "draft" | "active";
+  link_url?: string;
+  // Sistema LEGACY (mantener para compatibilidad)
   title?: string;
   description?: string;
   cta?: string;
   color_font?: string;
-  link_url?: string;
   coordinates?: string;
   coordinates_mobile?: string;
   position_desktop?: {
@@ -67,11 +68,15 @@ export interface NewBanner {
     imageWidth?: number;
     imageHeight?: number;
   };
+  // Sistema ACTUAL: ContentBlocks
+  content_blocks?: any; // ContentBlock[] serializado como JSON
 }
 
 // Actualización de banner existente
 export interface BannerUpdate {
   id: string;
+  link_url?: string;
+  // Sistema LEGACY (mantener para compatibilidad)
   position_desktop?: {
     x: number;
     y: number;
@@ -84,15 +89,15 @@ export interface BannerUpdate {
     imageWidth?: number;
     imageHeight?: number;
   };
-  // Campos opcionales que también pueden actualizarse
   title?: string;
   description?: string;
   cta?: string;
   color_font?: string;
-  link_url?: string;
   coordinates?: string;
   coordinates_mobile?: string;
   text_styles?: Record<string, unknown>;
+  // Sistema ACTUAL: ContentBlocks
+  content_blocks?: any; // ContentBlock[] serializado como JSON
 }
 
 // Archivos de banner
