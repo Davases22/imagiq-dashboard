@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { GripVertical, Trash2 } from "lucide-react"
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface ProductSection {
   id: string
@@ -22,14 +24,33 @@ export function SectionListItem({
   onSelect,
   onDelete,
 }: SectionListItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: section.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
     <div
-      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
-        isActive ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-      }`}
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${isActive ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+        }`}
       onClick={onSelect}
     >
-      <GripVertical className="h-4 w-4 text-muted-foreground" />
+      <div {...attributes} {...listeners} className="cursor-grab hover:text-foreground">
+        <GripVertical className="h-4 w-4 text-muted-foreground transition-colors" />
+      </div>
+
       <div className="flex-1">
         <p className="font-medium text-sm">{section.name}</p>
         <p className="text-xs text-muted-foreground">

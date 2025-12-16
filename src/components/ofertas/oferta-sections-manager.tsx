@@ -8,6 +8,22 @@ import { Plus } from "lucide-react"
 import { SectionListItem } from "./sections/section-list-item"
 import { SectionConfigForm } from "./sections/section-config-form"
 
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+
 interface ProductSection {
   id: string
   name: string
@@ -32,6 +48,24 @@ export function OfertaSectionsManager({
   onSectionsChange,
 }: OfertaSectionsManagerProps) {
   const [activeSection, setActiveSection] = useState<string>(sections[0]?.id || "")
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = sections.findIndex((s) => s.id === active.id);
+      const newIndex = sections.findIndex((s) => s.id === over.id);
+
+      onSectionsChange(arrayMove(sections, oldIndex, newIndex));
+    }
+  };
 
   const handleAddSection = () => {
     const newSection: ProductSection = {
@@ -103,22 +137,35 @@ export function OfertaSectionsManager({
       </div>
 
       {sections.length > 0 && (
-        <>
-          {/* Lista de secciones */}
-          <div className="space-y-2">
-            {sections.map((section) => (
-              <SectionListItem
-                key={section.id}
-                section={section}
-                isActive={activeSection === section.id}
-                canDelete={sections.length > 1}
-                onSelect={() => setActiveSection(section.id)}
-                onDelete={() => handleDeleteSection(section.id)}
-              />
-            ))}
-          </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={sections.map(s => s.id)} // Pass IDs, not objects
+            strategy={verticalListSortingStrategy}
+          >
+            {/* Lista de secciones */}
+            <div className="space-y-2">
+              {sections.map((section) => (
+                <SectionListItem
+                  key={section.id}
+                  section={section}
+                  isActive={activeSection === section.id}
+                  canDelete={sections.length > 1}
+                  onSelect={() => setActiveSection(section.id)}
+                  onDelete={() => handleDeleteSection(section.id)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
 
-          <Separator />
+      {sections.length > 0 && (
+        <>
+          <Separator className="mt-4" />
 
           {/* Formulario de configuración */}
           {activeSectionData && (
