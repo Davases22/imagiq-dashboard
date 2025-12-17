@@ -181,14 +181,6 @@ function ContentBlockOverlay({
     onDragStart(block.id, e, blockRef.current);
   };
 
-  // Ajustar transform basado en textAlign para landing pages
-  let transformX = '-50%'; // Por defecto: centrado
-  if (textAlign === 'left') {
-    transformX = '0%'; // Izquierda: el punto está en el borde izquierdo
-  } else if (textAlign === 'right') {
-    transformX = '-100%'; // Derecha: el punto está en el borde derecho
-  }
-
   return (
     <div
       ref={blockRef}
@@ -196,7 +188,7 @@ function ContentBlockOverlay({
       style={{
         left: `${position.x}%`,
         top: `${position.y}%`,
-        transform: `translate(${transformX}, -50%)`,
+        transform: 'translate(-50%, -50%)',
         cursor: onPositionChange ? 'move' : 'default',
       }}
       onMouseDown={handleMouseDown}
@@ -216,6 +208,8 @@ function ContentBlockOverlay({
         className="flex flex-col pointer-events-auto"
         style={{
           gap,
+          textAlign,
+          minWidth: 'max-content',
         }}
       >
         {/* Título */}
@@ -236,7 +230,6 @@ function ContentBlockOverlay({
                 textShadow: titleConfig.textShadow || '2px 2px 4px rgba(0,0,0,0.5)',
                 margin: 0,
                 whiteSpace: 'pre-line',
-                textAlign,
               }}
             >
               {block.title.text}
@@ -260,7 +253,6 @@ function ContentBlockOverlay({
                 textTransform: subtitleConfig.textTransform || 'none',
                 margin: 0,
                 whiteSpace: 'pre-line',
-                textAlign,
               }}
             >
               {block.subtitle.text}
@@ -283,7 +275,6 @@ function ContentBlockOverlay({
                 lineHeight: descriptionConfig.lineHeight || '1.5',
                 margin: 0,
                 whiteSpace: 'pre-line',
-                textAlign,
               }}
             >
               {block.description.text}
@@ -298,7 +289,7 @@ function ContentBlockOverlay({
             : block.cta;
 
           return (
-            <div style={{ textAlign }}>
+            <div>
               <button
                 type="button"
                 className="inline-block cursor-grab active:cursor-grabbing"
@@ -446,11 +437,14 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
 
       const rect = containerRef.current.getBoundingClientRect();
       // Calcular posición considerando el offset inicial del mouse
-      const x = ((e.clientX - rect.left - dragOffset.x) / rect.width) * 100;
-      const y = ((e.clientY - rect.top - dragOffset.y) / rect.height) * 100;
+      const rawX = ((e.clientX - rect.left - dragOffset.x) / rect.width) * 100;
+      const rawY = ((e.clientY - rect.top - dragOffset.y) / rect.height) * 100;
 
-      // Sin límites estrictos - permite posicionar libremente
-      // El navegador se encargará de renderizar correctamente
+      // Aplicar límites para mantener el contenido dentro del banner
+      // Permitimos un pequeño margen (5%) para que el usuario pueda posicionar cerca de los bordes
+      const x = Math.max(5, Math.min(95, rawX));
+      const y = Math.max(5, Math.min(95, rawY));
+
       // Pasar el device para actualizar solo la posición del dispositivo activo
       onBlockPositionChange(draggedBlockId, device, {
         x,

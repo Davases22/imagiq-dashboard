@@ -229,10 +229,10 @@ export function DraggableBannerOverlay({
       {...attributes}
     >
       <div
-        className="space-y-1 px-4"
+        className="space-y-1"
         style={{
-          maxWidth: device === "mobile" ? "220px" : "360px",
           textAlign,
+          minWidth: 'max-content',
         }}
       >
         {/* Título */}
