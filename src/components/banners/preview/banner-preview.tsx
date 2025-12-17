@@ -299,9 +299,9 @@ function ContentBlockOverlay({
 
           return (
             <div style={{ textAlign }}>
-              <a
-                href={block.cta.link_url || '#'}
-                className="inline-block"
+              <button
+                type="button"
+                className="inline-block cursor-grab active:cursor-grabbing"
                 style={{
                   fontSize: scaleFontSize(ctaConfig.fontSize || '1rem', isMobile),
                   fontWeight: ctaConfig.fontWeight || '600',
@@ -310,13 +310,16 @@ function ContentBlockOverlay({
                   padding: scalePadding(ctaConfig.padding || '12px 24px', isMobile),
                   borderRadius: ctaConfig.borderRadius || '8px',
                   border: ctaConfig.border || 'none',
-                  textDecoration: 'none',
                   textAlign: 'center',
                   whiteSpace: 'pre-line',
                 }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  // No navigation in preview
+                }}
               >
                 {block.cta.text}
-              </a>
+              </button>
             </div>
           );
         })()}

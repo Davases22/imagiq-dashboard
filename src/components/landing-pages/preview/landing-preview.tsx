@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Smartphone, Monitor } from "lucide-react"
+import { Smartphone, Monitor, ArrowLeft } from "lucide-react"
 
 interface LandingPagePreviewProps {
     data: any // Using any for flexibility as we construct the payload manually
@@ -11,6 +12,7 @@ interface LandingPagePreviewProps {
 }
 
 export function LandingPagePreview({ data, baseUrl = "http://localhost:3000" }: LandingPagePreviewProps) {
+    const router = useRouter()
     const iframeRef = useRef<HTMLIFrameElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
@@ -89,7 +91,7 @@ export function LandingPagePreview({ data, baseUrl = "http://localhost:3000" }: 
         <Card className="h-full flex flex-col overflow-hidden border-2 border-primary/20 sticky top-4">
             <CardHeader className="bg-muted/30 pb-4">
                 <div className="flex items-center justify-between">
-                    <div className="space-y-1">
+                    <div className="space-y-1 flex items-center gap-2">
                         <CardTitle className="text-lg">Vista Previa en Vivo</CardTitle>
                     </div>
                     <div className="flex items-center space-x-1 bg-background border rounded-md p-1">
