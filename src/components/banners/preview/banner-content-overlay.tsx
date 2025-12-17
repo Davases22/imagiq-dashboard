@@ -115,15 +115,15 @@ function getPreviewContainerWidth(placement?: string): number {
  * Calcula dinámicamente el factor de escala comparando el ancho del preview vs el ancho real esperado
  */
 function scaleTextStylesForPreview(
-  styles: BannerTextStyles | undefined, 
+  styles: BannerTextStyles | undefined,
   placement?: string // placement del banner para determinar anchos
 ): BannerTextStyles | undefined {
   if (!styles) return undefined;
-  
+
   // Obtener anchos según el placement
   const containerWidth = getPreviewContainerWidth(placement);
   const realBannerWidth = getRealBannerWidth(placement);
-  
+
   // Calcular factor de escala dinámico
   const scaleFactor = containerWidth / realBannerWidth;
 
@@ -138,14 +138,14 @@ function scaleTextStylesForPreview(
         return `${value.toFixed(2)}${numMatch[2]}`;
       }
     }
-    
+
     // Si es un valor simple (rem, px, em), escalarlo directamente
     const simpleMatch = fontSize.match(/(\d+\.?\d*)(rem|px|em)/);
     if (simpleMatch) {
       const value = parseFloat(simpleMatch[1]) * scaleFactor;
       return `${value.toFixed(2)}${simpleMatch[2]}`;
     }
-    
+
     return fontSize;
   };
 
@@ -304,6 +304,7 @@ export function BannerContentOverlay({
               rel="noopener noreferrer"
               className="hover:underline"
               style={{ fontSize: device === "mobile" ? "0.7rem" : "0.8rem", color: "#7fb4ff" }}
+              onClick={(e) => e.preventDefault()}
             >
               Ver enlace
             </a>
