@@ -133,7 +133,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
   const handleBannersChange = (updatedBanners: Array<{ id: string; data: BannerData; files: BannerFiles; contentBlocks: ContentBlock[] }>) => {
     const normalizedTitle = titulo.trim() ? titulo.trim().toLowerCase().replaceAll(/\s+/g, '-') : 'nueva-oferta'
     const currentPlacement = `ofertas-${normalizedTitle}`
-    
+
     setBanners(prev =>
       updatedBanners.map(ub => {
         const existing = prev.find(p => p.id === ub.id)
@@ -170,7 +170,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
 
         // Determinar dónde están los datos
         let pageData: PageExpanded
-        
+
         // Si response.data tiene la propiedad 'data', los datos están ahí
         if ('data' in response.data && response.data.data) {
           pageData = response.data.data
@@ -196,7 +196,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         // Cargar datos básicos
         setTitulo(pageData.title ?? '')
         setDescripcion(pageData.meta_description ?? '')
-        
+
         // Convertir fechas ISO a formato YYYY-MM-DD para inputs tipo date
         if (pageData.valid_from) {
           const date = new Date(pageData.valid_from)
@@ -206,7 +206,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
           const date = new Date(pageData.valid_until)
           setFechaFin(date.toISOString().split('T')[0])
         }
-        
+
         setIsActive(pageData.is_active ?? false)
 
         // Cargar título y descripción de sección de productos
@@ -235,7 +235,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         // Cargar banners si existen
         if (pageData.banners && pageData.banners.length > 0) {
           setBannersEnabled(true)
-          
+
           // Mapear banners del backend al formato del formulario
           const mappedBanners = pageData.banners.map((banner, index) => {
             // Parsear posiciones si vienen como strings JSON
@@ -290,7 +290,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
               contentBlocks,
             }
           })
-          
+
           setBanners(mappedBanners)
           if (mappedBanners.length > 0) {
             setActiveBannerId(mappedBanners[0].id)
@@ -304,16 +304,16 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         if (pageData.product_cards && pageData.product_cards.length > 0) {
           // Limpiar contexto antes de cargar (en modo edición)
           clearAll()
-          
+
           // Agrupar product cards por sección
           const cardsBySection = new Map<string, ProductCard[]>()
-          
+
           for (const card of pageData.product_cards) {
             // Buscar en qué sección está este product card
-            const section = pageData.sections.find(s => 
+            const section = pageData.sections.find(s =>
               (s.product_card_ids || s.product_ids || []).includes(card.id)
             )
-            
+
             if (section) {
               if (!cardsBySection.has(section.id)) {
                 cardsBySection.set(section.id, [])
@@ -321,7 +321,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
               cardsBySection.get(section.id)!.push(card)
             }
           }
-          
+
           // Cargar cada grupo de cards al contexto
           cardsBySection.forEach((cards, sectionId) => {
             loadExistingCards(cards, sectionId)
@@ -368,7 +368,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
     try {
       // Generar slug desde el título
       const slug = titulo.trim().toLowerCase().replace(/\s+/g, '-')
-      
+
       // 1. Preparar banners: separar nuevos de existentes
       const newBanners: NewBanner[] = []
       const existingBannerIds: string[] = []
@@ -393,7 +393,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
 
             // ✅ Agregar archivos con referencia al banner ID (igual que en edición individual)
             const hasNewFiles = !!(banner.files.desktop_image || banner.files.mobile_image ||
-                                   banner.files.desktop_video || banner.files.mobile_video)
+              banner.files.desktop_video || banner.files.mobile_video)
 
             if (hasNewFiles) {
               bannerFiles.push({
@@ -443,11 +443,11 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
           }
         })
       }
-      
+
       // 2. Preparar FAQs: separar nuevos de existentes
       const newFaqs: PageFAQ[] = []
       const existingFaqIds: string[] = []
-      
+
       if (faqEnabled) {
         faqItems.forEach((faq, index) => {
           // Si el FAQ tiene ID, es existente
@@ -465,17 +465,17 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
           }
         })
       }
-      
+
       // 3. Preparar secciones de info
       const infoSections = infoSectionEnabled
         ? infoItems.map((item, index) => ({
-            id: item.id,
-            title: item.title,
-            content: `<a href="${item.linkUrl}">Ver más</a>`,
-            order: index + 1,
-          }))
+          id: item.id,
+          title: item.title,
+          content: `<a href="${item.linkUrl}">Ver más</a>`,
+          order: index + 1,
+        }))
         : []
-      
+
       // 4. Construir request
       const request: CreateCompletePageRequest = {
         page: {
@@ -508,7 +508,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         existing_faq_ids: existingFaqIds,
         banner_files: bannerFiles,
       }
-      
+
       // Log para verificar que se están enviando los campos
       console.log("📤 Enviando request:", {
         pageId,
@@ -520,11 +520,11 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         banner_updates_count: bannerUpdates.length,
         banner_updates: bannerUpdates, // Ver qué se está enviando exactamente
       })
-      
+
       // 5. Enviar al backend
       // En modo edición, el backend debería actualizar la página existente si se envía el ID
       const response = await pageEndpoints.createComplete(request)
-      
+
       // Extraer el ID de la página creada
       const isDirectPageResponse = response && 'id' in response && 'slug' in response
       let createdPageId: string | null = null
@@ -533,16 +533,16 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
       } else if (response.data?.page?.id) {
         createdPageId = response.data.page.id
       }
-      
+
       if (!createdPageId) {
         throw new Error("No se pudo obtener el ID de la página creada")
       }
-      
+
       // 6. Crear product cards si existen
       if (productCards.length > 0) {
         // Mapa para relacionar tempId con ID real
         const cardIdMap = new Map<string, string>()
-        
+
         // Crear cada product card
         for (const card of productCards) {
           try {
@@ -555,10 +555,10 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
             if (card.cta_url) formData.append("cta_url", card.cta_url)
             if (card.image) formData.append("image", card.image)
             if (card.image_url) formData.append("image_url", card.image_url)
-            
+
             const createdCard = await productCardEndpoints.create(formData)
             const realCardId = createdCard.data?.id || (createdCard as any).id
-            
+
             if (realCardId) {
               cardIdMap.set(card.tempId, realCardId)
             }
@@ -567,18 +567,18 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
             // Continuar con las demás aunque una falle
           }
         }
-        
+
         // 7. Actualizar secciones con los IDs reales de product cards
         if (cardIdMap.size > 0) {
           const updatedSections = productSections.map(section => {
             // Obtener los product cards de esta sección del contexto
             const sectionCards = productCards.filter(card => card.sectionId === section.id)
-            
+
             // Mapear los IDs temporales a IDs reales
             const realIds = sectionCards
               .map(card => cardIdMap.get(card.tempId))
               .filter(id => id !== undefined) as string[]
-            
+
             return {
               id: section.id,
               name: section.name,
@@ -586,7 +586,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
               product_card_ids: realIds,
             }
           })
-          
+
           // Actualizar la página con las secciones correctas
           try {
             await pageEndpoints.update(createdPageId, {
@@ -597,17 +597,17 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
             toast.warning("Página creada pero hubo un problema al relacionar los productos")
           }
         }
-        
+
         // Limpiar el contexto de product cards
         clearAll()
       }
-      
+
       // Validar éxito
-      const isSuccess = 
+      const isSuccess =
         response.success === true || // Formato completo con success
         (response.success !== false && response.data && response.data.page) || // Formato completo sin success pero con data
         isDirectPageResponse // Formato directo (el backend retornó el Page directamente)
-      
+
       if (isSuccess) {
         toast.success("Oferta creada exitosamente")
         router.push(returnPath)
@@ -616,13 +616,13 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
       }
     } catch (error) {
       console.error("Error en el proceso:", error)
-      
+
       // Si el error es de red o timeout, la oferta pudo haberse creado
       const errorMessage = error instanceof Error ? error.message : String(error)
-      
-      if (errorMessage.includes('Failed to fetch') || 
-          errorMessage.includes('Network') ||
-          errorMessage.includes('timeout')) {
+
+      if (errorMessage.includes('Failed to fetch') ||
+        errorMessage.includes('Network') ||
+        errorMessage.includes('timeout')) {
         toast.error(
           "Error de conexión. La oferta pudo haberse creado. Verifica en la lista de ofertas.",
           { duration: 5000 }
@@ -648,7 +648,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
     fechaFin,
     isActive,
     setIsActive,
-    
+
     // Estados de banners
     bannersEnabled,
     setBannersEnabled,
@@ -656,7 +656,7 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
     activeBannerId,
     setActiveBannerId,
     activeBanner,
-    
+
     // Estados de secciones de productos
     productSectionsTitle,
     setProductSectionsTitle,
@@ -664,28 +664,29 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
     setProductSectionsDescription,
     productSections,
     setProductSections,
-    
+
     // Estados de sección informativa
     infoSectionEnabled,
     setInfoSectionEnabled,
     infoItems,
     setInfoItems,
-    
+
     // Estados de FAQ
     faqEnabled,
     setFaqEnabled,
     faqItems,
     setFaqItems,
-    
+
     // Handlers
     handleOfertaFieldChange,
     handleBannersChange,
     handleSubmit,
     handleCancel,
-    
+
     // Estado del formulario
     loading,
     saving,
     isFormValid: isFormValid(),
+    productCards, // Exposed for preview
   }
 }

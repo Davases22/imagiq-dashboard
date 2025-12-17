@@ -132,43 +132,46 @@ const getStyles = (placement: string | undefined, device: DeviceType, isLandingP
 const isSingleView = (placement?: string) =>
   placement === "product-detail" || placement === "category-top" || Boolean(placement?.startsWith("banner-"));
 
-// Helper para escalar tamaños en el preview (40% del tamaño original)
-const scaleFontSize = (size: string): string => {
+// Helper para escalar tamaños en el preview (40% del tamaño original en desktop, 60% en mobile)
+const scaleFontSize = (size: string, isMobile: boolean): string => {
   const regex = /([\d.]+)(rem|px|em)/;
   const match = regex.exec(size);
   if (match) {
-    const value = Number.parseFloat(match[1]) * 0.4;
+    // En mobile usamos un factor mayor (0.6) para que se vea más legible
+    const factor = isMobile ? 1 : 0.4;
+    const value = Number.parseFloat(match[1]) * factor;
     return `${value}${match[2]}`;
   }
   return size;
 };
 
-const scalePadding = (padding: string): string => {
+const scalePadding = (padding: string, isMobile: boolean): string => {
   return padding.replaceAll(/([\d.]+)(px|rem|em)/g, (_match, num, unit) => {
-    const value = Number.parseFloat(num) * 0.4;
+    const factor = isMobile ? 0.6 : 0.4;
+    const value = Number.parseFloat(num) * factor;
     return `${value}${unit}`;
   });
 };
 
 // Componente para renderizar bloques de contenido con drag & drop
-function ContentBlockOverlay({ 
-  block, 
-  device, 
+function ContentBlockOverlay({
+  block,
+  device,
   onPositionChange,
-  onDragStart 
-}: { 
-  block: ContentBlock; 
+  onDragStart
+}: {
+  block: ContentBlock;
   device: DeviceType;
   onPositionChange?: (blockId: string, position: { x: number; y: number }) => void;
   onDragStart?: (blockId: string, e: React.MouseEvent, element: HTMLDivElement) => void;
 }) {
   const isMobile = device === "mobile";
   const position = isMobile ? block.position_mobile : block.position_desktop;
-  
+
   // Container configs con fallback a desktop si no hay mobile config
   const textAlign = (isMobile && block.textAlign_mobile) ? block.textAlign_mobile : (block.textAlign || 'left');
   const gap = (isMobile && block.gap_mobile) ? block.gap_mobile : (block.gap || '12px');
-  
+
   const blockRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -208,7 +211,7 @@ function ContentBlockOverlay({
           </div>
         </div>
       )}
-      
+
       <div
         className="flex flex-col pointer-events-auto"
         style={{
@@ -217,14 +220,14 @@ function ContentBlockOverlay({
       >
         {/* Título */}
         {block.title && (() => {
-          const titleConfig = isMobile && block.title_mobile 
+          const titleConfig = isMobile && block.title_mobile
             ? { ...block.title, ...block.title_mobile }
             : block.title;
-          
+
           return (
             <h2
               style={{
-                fontSize: scaleFontSize(titleConfig.fontSize || '2rem'),
+                fontSize: scaleFontSize(titleConfig.fontSize || '2rem', isMobile),
                 fontWeight: titleConfig.fontWeight || '700',
                 color: titleConfig.color || '#ffffff',
                 lineHeight: titleConfig.lineHeight || '1.2',
@@ -243,14 +246,14 @@ function ContentBlockOverlay({
 
         {/* Subtítulo */}
         {block.subtitle && (() => {
-          const subtitleConfig = isMobile && block.subtitle_mobile 
+          const subtitleConfig = isMobile && block.subtitle_mobile
             ? { ...block.subtitle, ...block.subtitle_mobile }
             : block.subtitle;
-          
+
           return (
             <h3
               style={{
-                fontSize: scaleFontSize(subtitleConfig.fontSize || '1.5rem'),
+                fontSize: scaleFontSize(subtitleConfig.fontSize || '1.5rem', isMobile),
                 fontWeight: subtitleConfig.fontWeight || '600',
                 color: subtitleConfig.color || '#ffffff',
                 lineHeight: subtitleConfig.lineHeight || '1.3',
@@ -267,14 +270,14 @@ function ContentBlockOverlay({
 
         {/* Descripción */}
         {block.description && (() => {
-          const descriptionConfig = isMobile && block.description_mobile 
+          const descriptionConfig = isMobile && block.description_mobile
             ? { ...block.description, ...block.description_mobile }
             : block.description;
-          
+
           return (
             <p
               style={{
-                fontSize: scaleFontSize(descriptionConfig.fontSize || '1rem'),
+                fontSize: scaleFontSize(descriptionConfig.fontSize || '1rem', isMobile),
                 fontWeight: descriptionConfig.fontWeight || '400',
                 color: descriptionConfig.color || '#ffffff',
                 lineHeight: descriptionConfig.lineHeight || '1.5',
@@ -290,21 +293,21 @@ function ContentBlockOverlay({
 
         {/* CTA */}
         {block.cta && (() => {
-          const ctaConfig = isMobile && block.cta_mobile 
+          const ctaConfig = isMobile && block.cta_mobile
             ? { ...block.cta, ...block.cta_mobile }
             : block.cta;
-          
+
           return (
             <div style={{ textAlign }}>
               <a
                 href={block.cta.link_url || '#'}
                 className="inline-block"
                 style={{
-                  fontSize: scaleFontSize(ctaConfig.fontSize || '1rem'),
+                  fontSize: scaleFontSize(ctaConfig.fontSize || '1rem', isMobile),
                   fontWeight: ctaConfig.fontWeight || '600',
                   backgroundColor: ctaConfig.backgroundColor || '#ffffff',
                   color: ctaConfig.color || '#000000',
-                  padding: scalePadding(ctaConfig.padding || '12px 24px'),
+                  padding: scalePadding(ctaConfig.padding || '12px 24px', isMobile),
                   borderRadius: ctaConfig.borderRadius || '8px',
                   border: ctaConfig.border || 'none',
                   textDecoration: 'none',
@@ -437,12 +440,12 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!containerRef.current || !dragOffset) return;
-      
+
       const rect = containerRef.current.getBoundingClientRect();
       // Calcular posición considerando el offset inicial del mouse
       const x = ((e.clientX - rect.left - dragOffset.x) / rect.width) * 100;
       const y = ((e.clientY - rect.top - dragOffset.y) / rect.height) * 100;
-      
+
       // Sin límites estrictos - permite posicionar libremente
       // El navegador se encargará de renderizar correctamente
       // Pasar el device para actualizar solo la posición del dispositivo activo
@@ -495,13 +498,13 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
 
   const handleBlockDragStart = (blockId: string, e: React.MouseEvent, element: HTMLDivElement) => {
     if (!containerRef.current) return;
-    
+
     const elementRect = element.getBoundingClientRect();
-    
+
     // Calcular el offset del mouse respecto al centro del elemento
     const offsetX = e.clientX - (elementRect.left + elementRect.width / 2);
     const offsetY = e.clientY - (elementRect.top + elementRect.height / 2);
-    
+
     setDragOffset({ x: offsetX, y: offsetY });
     setDraggedBlockId(blockId);
     setIsDragging(true);
@@ -509,8 +512,8 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div 
-        ref={containerRef} 
+      <div
+        ref={containerRef}
         className={`relative ${aspectRatio} ${maxWidth} w-full rounded-lg overflow-hidden bg-black`}
       >
         {video && videoUrl && !showContent && (
@@ -521,7 +524,7 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
             <img ref={imageRef} src={imageUrl} alt="Banner preview" className={mediaClass} />
             <div className="absolute inset-0 pointer-events-none">
               <div className="w-full h-full grid grid-cols-9 grid-rows-9">
-                {Array.from({ length: 81 }, (_, i) => <div key={`g-${Math.floor(i/9)}-${i%9}`} className="border border-dashed border-white/10" />)}
+                {Array.from({ length: 81 }, (_, i) => <div key={`g-${Math.floor(i / 9)}-${i % 9}`} className="border border-dashed border-white/10" />)}
               </div>
             </div>
             {hasLegacyContent && <Overlay id={overlayId} title={title} description={description} cta={cta} colorFont={colorFont} linkUrl={linkUrl} position={currentPos} device={device} textStyles={textStyles} placement={placement} />}
@@ -529,9 +532,9 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
             {contentBlocks && contentBlocks.length > 0 && (
               <div className="absolute inset-0">
                 {contentBlocks.map((block) => (
-                  <ContentBlockOverlay 
-                    key={block.id} 
-                    block={block} 
+                  <ContentBlockOverlay
+                    key={block.id}
+                    block={block}
                     device={device}
                     onPositionChange={onBlockPositionChange ? (blockId, pos) => {
                       // Pasar el device para actualizar solo la posición del dispositivo activo
@@ -577,11 +580,11 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
             <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
-        <NavbarMobileBanner 
-          title={title} 
-          description={description} 
-          cta={cta} 
-          linkUrl={link_url} 
+        <NavbarMobileBanner
+          title={title}
+          description={description}
+          cta={cta}
+          linkUrl={link_url}
         />
       </div>
     );
@@ -600,7 +603,7 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
     const pos = getPos(mode);
     const handler = getHandler(mode);
     const isFlexible = placement === "category-top" || placement === "product-detail" || placement?.startsWith("banner-");
-    
+
     return (
       <div className={`flex justify-center ${isFlexible ? 'max-w-md mx-auto' : ''}`}>
         <BannerContent
@@ -643,7 +646,7 @@ export function BannerPreview(props: Readonly<BannerPreviewProps>) {
   }
 
   return (
-      <div className="space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 p-1 bg-muted rounded-lg flex-1">
           {(["desktop", "mobile"] as const).map((mode) => (

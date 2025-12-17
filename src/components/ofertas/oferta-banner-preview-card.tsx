@@ -8,12 +8,14 @@ interface OfertaBannerPreviewCardProps {
   activeBanner: BannerItem
   onPositionDesktopChange: (position: BannerPosition) => void
   onPositionMobileChange: (position: BannerPosition) => void
+  onBlockPositionChange?: (blockId: string, device: 'desktop' | 'mobile', position: { x: number; y: number }) => void
 }
 
 export function OfertaBannerPreviewCard({
   activeBanner,
   onPositionDesktopChange,
   onPositionMobileChange,
+  onBlockPositionChange,
 }: OfertaBannerPreviewCardProps) {
   return (
     <Card>
@@ -36,6 +38,7 @@ export function OfertaBannerPreviewCard({
           placement={activeBanner.data.placement}
           content_blocks={activeBanner.contentBlocks}
           isLandingPage={true}
+          onBlockPositionChange={onBlockPositionChange}
         />
       </CardContent>
     </Card>
