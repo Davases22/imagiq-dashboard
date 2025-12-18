@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft } from "lucide-react";
-import { DynamicFilter, FilterOrderConfig } from "@/types/filters";
+import { DynamicFilter } from "@/types/filters";
 import { WebsiteCategory } from "@/types";
 import { useCategories } from "@/features/categories/useCategories";
 import { useFilters } from "@/hooks/use-filters";
@@ -34,55 +34,8 @@ export default function CrearFiltroPage() {
   const handleSave = async (filterData: DynamicFilter) => {
     setIsSaving(true);
     try {
-      // Initialize order config for all scopes
-      const orderConfig: FilterOrderConfig = {
-        categories: {},
-        menus: {},
-        submenus: {},
-      };
-
-      // Set initial order for each scope based on existing filters
-      // Find the maximum order for each category to avoid duplicates
-      filterData.scope.categories.forEach((categoryId) => {
-        const categoryFilters = filters.filter((f) =>
-          f.scope.categories.includes(categoryId)
-        );
-        // Find the maximum order for this category, or use -1 if no filters exist
-        const maxOrder = categoryFilters.reduce((max, f) => {
-          const order = f.order?.categories[categoryId] ?? -1;
-          return Math.max(max, order);
-        }, -1);
-        // Set order to maxOrder + 1 (will be 0 if no filters exist)
-        orderConfig.categories[categoryId] = maxOrder + 1;
-      });
-
-      filterData.scope.menus.forEach((menuId) => {
-        const menuFilters = filters.filter((f) =>
-          f.scope.menus.includes(menuId)
-        );
-        // Find the maximum order for this menu, or use -1 if no filters exist
-        const maxOrder = menuFilters.reduce((max, f) => {
-          const order = f.order?.menus[menuId] ?? -1;
-          return Math.max(max, order);
-        }, -1);
-        // Set order to maxOrder + 1 (will be 0 if no filters exist)
-        orderConfig.menus[menuId] = maxOrder + 1;
-      });
-
-      filterData.scope.submenus.forEach((submenuId) => {
-        const submenuFilters = filters.filter((f) =>
-          f.scope.submenus.includes(submenuId)
-        );
-        // Find the maximum order for this submenu, or use -1 if no filters exist
-        const maxOrder = submenuFilters.reduce((max, f) => {
-          const order = f.order?.submenus[submenuId] ?? -1;
-          return Math.max(max, order);
-        }, -1);
-        // Set order to maxOrder + 1 (will be 0 if no filters exist)
-        orderConfig.submenus[submenuId] = maxOrder + 1;
-      });
-
-      // Prepare filter data for API
+      // No calcular order - el backend lo hace automáticamente
+      // El backend asignará la última posición en cada scope automáticamente
       const filterPayload = {
         sectionName: filterData.sectionName,
         column: filterData.column,
@@ -91,7 +44,8 @@ export default function CrearFiltroPage() {
         valueConfig: filterData.valueConfig,
         displayType: filterData.displayType,
         scope: filterData.scope,
-        order: orderConfig,
+        // order es opcional - si no se envía o se envía vacío, backend calcula automáticamente
+        order: { categories: {}, menus: {}, submenus: {} },
         isActive: filterData.isActive,
       };
 
