@@ -477,30 +477,39 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         : []
 
       // 4. Construir request
+      // En modo edición evitamos enviar "sections" dentro de createComplete para no
+      // sobreescribir/limpiar los product_card_ids existentes antes de la actualización final.
+      const includeSectionsInCreate = !pageId
+
+      const pagePayload: any = {
+        ...(pageId && { id: pageId }), // Incluir id solo si estamos editando
+        slug,
+        title: titulo,
+        status: "published",
+        created_by: user?.email || "unknown@imagiq.com",
+        valid_from: fechaInicio || undefined,
+        valid_until: fechaFin || undefined,
+        products_section_title: productSectionsTitle.trim() || undefined,
+        products_section_description: productSectionsDescription.trim() || undefined,
+        info_sections: infoSections,
+        meta_title: titulo,
+        meta_description: descripcion,
+        category: "Ofertas",
+        is_public: true,
+        is_active: isActive,
+      }
+
+      if (includeSectionsInCreate) {
+        pagePayload.sections = productSections.map((section, index) => ({
+          id: section.id,
+          name: section.name,
+          order: index + 1,
+          product_card_ids: section.products,
+        }))
+      }
+
       const request: CreateCompletePageRequest = {
-        page: {
-          ...(pageId && { id: pageId }), // Incluir id solo si estamos editando
-          slug,
-          title: titulo,
-          status: "published",
-          created_by: user?.email || "unknown@imagiq.com",
-          valid_from: fechaInicio || undefined,
-          valid_until: fechaFin || undefined,
-          sections: productSections.map((section, index) => ({
-            id: section.id,
-            name: section.name,
-            order: index + 1,
-            product_card_ids: section.products,
-          })),
-          products_section_title: productSectionsTitle.trim() || undefined,
-          products_section_description: productSectionsDescription.trim() || undefined,
-          info_sections: infoSections,
-          meta_title: titulo,
-          meta_description: descripcion,
-          category: "Ofertas",
-          is_public: true,
-          is_active: isActive,
-        },
+        page: pagePayload,
         new_banners: newBanners,
         existing_banner_ids: existingBannerIds,
         banner_updates: bannerUpdates.length > 0 ? bannerUpdates : undefined, // ✅ Enviar actualizaciones de posición
@@ -514,7 +523,8 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         pageId,
         products_section_title: request.page.products_section_title,
         products_section_description: request.page.products_section_description,
-        sections_count: request.page.sections.length,
+        sections_included_in_create: includeSectionsInCreate,
+        sections_count: includeSectionsInCreate ? request.page.sections.length : 0,
         new_banners_count: newBanners.length,
         existing_banner_ids: existingBannerIds,
         banner_updates_count: bannerUpdates.length,
@@ -574,9 +584,19 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
             // Obtener los product cards de esta sección del contexto
             const sectionCards = productCards.filter(card => card.sectionId === section.id)
 
-            // Mapear los IDs temporales a IDs reales
+            // Mapear los IDs: nuevas (en cardIdMap) + existentes (tempId es su ID real)
             const realIds = sectionCards
-              .map(card => cardIdMap.get(card.tempId))
+              .map(card => {
+                // Si está en el map, es una card nueva recién creada
+                if (cardIdMap.has(card.tempId)) {
+                  return cardIdMap.get(card.tempId)
+                }
+                // Si no está en el map y el tempId NO empieza con "temp-", es una card existente
+                if (!card.tempId.startsWith('temp-')) {
+                  return card.tempId // Ya es el ID real
+                }
+                return undefined
+              })
               .filter(id => id !== undefined) as string[]
 
             return {
