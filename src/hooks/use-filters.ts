@@ -142,8 +142,10 @@ export function useFilters(): UseFiltersReturn {
       const response = await filterEndpoints.create(data);
       
       if (response.success && response.data) {
+        // El backend asigna automáticamente el orden, así que la respuesta ya tiene el orden correcto
         const newFilter = parseFilterDates(response.data);
-        setFilters((prev) => [...prev, newFilter]);
+        // Refrescar lista completa para mantener consistencia con el estado del servidor
+        await refreshFilters();
         toast.success(response.message || "Filtro creado correctamente");
         return newFilter;
       } else {
@@ -157,7 +159,7 @@ export function useFilters(): UseFiltersReturn {
       console.error("Error creating filter:", err);
       return null;
     }
-  }, []);
+  }, [refreshFilters]);
 
   // Update filter
   const updateFilter = useCallback(async (id: string, data: Partial<CreateFilterData>): Promise<DynamicFilter | null> => {
@@ -172,6 +174,8 @@ export function useFilters(): UseFiltersReturn {
       if (data.valueConfig !== undefined) cleanPayload.valueConfig = data.valueConfig;
       if (data.displayType !== undefined) cleanPayload.displayType = data.displayType;
       if (data.scope !== undefined) cleanPayload.scope = data.scope;
+      // No incluir order si se está actualizando el scope - el backend lo maneja automáticamente
+      // Solo incluir order si se está actualizando explícitamente el orden
       if (data.order !== undefined) cleanPayload.order = data.order;
       if (data.isActive !== undefined) cleanPayload.isActive = data.isActive;
 
@@ -196,6 +200,20 @@ export function useFilters(): UseFiltersReturn {
         
         if (filterData) {
           const updatedFilter = parseFilterDates(filterData);
+          
+          // Si se actualizó el scope, refrescar la lista para obtener el orden correcto
+          const scopeWasUpdated = data.scope !== undefined;
+          
+          if (scopeWasUpdated) {
+            // El backend maneja automáticamente el orden al actualizar scope
+            // Refrescar lista completa para mantener consistencia con el estado del servidor
+            await refreshFilters();
+            toast.success(response.message || "Filtro actualizado correctamente");
+            // Retornar el filtro actualizado de la respuesta (ya tiene el orden correcto)
+            return updatedFilter;
+          }
+          
+          // Si no se actualizó el scope, actualizar solo el filtro en el estado
           setFilters((prev) => prev.map((f) => (f.id === id ? updatedFilter : f)));
           toast.success(response.message || "Filtro actualizado correctamente");
           return updatedFilter;
@@ -217,7 +235,7 @@ export function useFilters(): UseFiltersReturn {
       console.error("Error updating filter:", err);
       return null;
     }
-  }, []);
+  }, [refreshFilters, fetchFilters]);
 
   // Toggle filter status (uses PATCH endpoint)
   const toggleFilterStatus = useCallback(async (id: string, isActive: boolean): Promise<boolean> => {
@@ -266,7 +284,8 @@ export function useFilters(): UseFiltersReturn {
       const response = await filterEndpoints.delete(id);
       
       if (response.success) {
-        setFilters((prev) => prev.filter((f) => f.id !== id));
+        // Refrescar lista para obtener el orden reajustado por el backend
+        await refreshFilters();
         toast.success(response.message || "Filtro eliminado correctamente");
         return true;
       } else {
@@ -280,7 +299,7 @@ export function useFilters(): UseFiltersReturn {
       console.error("Error deleting filter:", err);
       return false;
     }
-  }, []);
+  }, [refreshFilters]);
 
   // Delete multiple filters
   const deleteBulk = useCallback(async (filterIds: string[]): Promise<boolean> => {
@@ -290,7 +309,8 @@ export function useFilters(): UseFiltersReturn {
       const response = await filterEndpoints.deleteBulk({ filterIds });
       
       if (response.success) {
-        setFilters((prev) => prev.filter((f) => !filterIds.includes(f.id)));
+        // Refrescar lista para obtener el orden reajustado por el backend
+        await refreshFilters();
         // Handle nested response structure: response.data might be { deletedCount: number } or wrapped
         const responseData = response.data as DeleteBulkResponse | undefined;
         let deletedCount = filterIds.length;
@@ -316,7 +336,7 @@ export function useFilters(): UseFiltersReturn {
       console.error("Error deleting filters:", err);
       return false;
     }
-  }, []);
+  }, [refreshFilters]);
 
   return {
     filters,

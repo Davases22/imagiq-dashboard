@@ -95,6 +95,26 @@ export class ApiClient {
     const url = `${this.baseURL}${endpoint}`;
     const apiKey = getApiKey();
     const headers = useAuth ? this.getAuthHeaders() : this.headers;
+    
+    // Log request details for filter order endpoint
+    if (endpoint.includes("/filters/order")) {
+      console.log("[Request] ========== FILTER ORDER REQUEST ==========");
+      console.log("[Request] URL:", url);
+      console.log("[Request] Method:", options.method || "GET");
+      console.log("[Request] Headers:", JSON.stringify(headers, null, 2));
+      console.log("[Request] Body (raw):", options.body);
+      console.log("[Request] Body (type):", typeof options.body);
+      if (options.body && typeof options.body === 'string') {
+        try {
+          const parsedBody = JSON.parse(options.body);
+          console.log("[Request] Body (parsed):", JSON.stringify(parsedBody, null, 2));
+        } catch (e) {
+          console.log("[Request] Body is not valid JSON");
+        }
+      }
+      console.log("[Request] ==========================================");
+    }
+    
     const config: RequestInit = {
       headers: headers,
       ...options,
@@ -103,22 +123,23 @@ export class ApiClient {
     try {
       const response = await fetch(url, config);
 
-      // Log errores del servidor para debugging
-      if (!response.ok) {
-        console.error(`[API Error] ${response.status} ${response.statusText}`, {
-          url,
-          status: response.status,
-          statusText: response.statusText,
-        });
-      }
-
-      // Intentar parsear JSON
-      let data;
+      // Leer el body de la respuesta una sola vez
+      let responseText = "";
+      let data: any = {};
+      
       try {
-        data = await response?.json();
+        responseText = await response.text();
+        if (responseText) {
+      try {
+            data = JSON.parse(responseText);
       } catch (jsonError) {
-        // Si no es JSON válido, retornar error
-        console.error("JSON parsing error:", jsonError, {
+            // Si no es JSON válido, usar el texto como mensaje
+            data = { message: responseText, error: responseText };
+          }
+        }
+      } catch (error) {
+        // Si no se puede leer el body, retornar error
+        console.error("Error reading response:", error, {
           url,
           status: response.status,
           statusText: response.statusText,
@@ -128,6 +149,27 @@ export class ApiClient {
           success: false,
           message: `Error al procesar la respuesta del servidor (Status: ${response.status})`,
         };
+      }
+
+      // Log errores del servidor para debugging
+      if (!response.ok) {
+        const errorDetails = {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          errorBody: data,
+          responseText: responseText ? responseText.substring(0, 500) : "(empty)", // Primeros 500 caracteres
+        };
+        
+        // Si es un error 400, mostrar más detalles
+        if (response.status === 400) {
+          console.error(`[API Error 400] Bad Request - Detalles completos:`, errorDetails);
+          if (data && typeof data === 'object') {
+            console.error(`[API Error 400] Mensaje del servidor:`, data);
+          }
+        } else {
+          console.error(`[API Error] ${response.status} ${response.statusText}`, errorDetails);
+        }
       }
 
       // Detectar error 401 y cerrar sesión automáticamente
@@ -211,11 +253,18 @@ export class ApiClient {
     data?: unknown,
     useAuth: boolean = false
   ): Promise<ApiResponse<T>> {
+    // Log the request data for debugging
+    if (endpoint.includes("/filters/order")) {
+      console.log("[PUT Request] Endpoint:", endpoint);
+      console.log("[PUT Request] Data object:", data);
+      console.log("[PUT Request] Data JSON:", JSON.stringify(data, null, 2));
+      console.log("[PUT Request] Data type:", typeof data);
+    }
     return this.request<T>(
       endpoint,
       {
         method: "PUT",
-        body: JSON.stringify(data),
+        body: data ? JSON.stringify(data) : undefined,
       },
       useAuth
     );
@@ -1615,16 +1664,44 @@ export const filterEndpoints = {
       message?: string;
       data?: { deletedCount: number };
     }>("/api/filters/bulk", data),
-  updateOrder: (data: UpdateOrderRequest) =>
-    apiClient.put<{
+  updateOrder: (data: UpdateOrderRequest) => {
+    // El backend espera todo en el body: scopeType, scopeId y filterOrders
+    const body = {
+      scopeType: data.scopeType,
+      scopeId: data.scopeId,
+      filterOrders: data.filterOrders,
+    };
+    
+    console.log("[updateOrder] Body completo:", JSON.stringify(body, null, 2));
+    
+    return apiClient.put<{
       success: boolean;
       message?: string;
       data?: {
         updatedFilters: Array<{ filterId: string; order: FilterOrderConfig }>;
       };
-    }>("/api/filters/order", data),
+    }>("/api/filters/order", body);
+  },
   updateFilterOrder: (id: string, order: FilterOrderConfig) =>
     apiClient.patch<DynamicFilter>(`/api/filters/${id}/order`, { order }),
+  getByContext: (params: { categoriaUuid: string; menuUuid?: string; submenuUuid?: string }) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append("categoriaUuid", params.categoriaUuid);
+    if (params.menuUuid) searchParams.append("menuUuid", params.menuUuid);
+    if (params.submenuUuid) searchParams.append("submenuUuid", params.submenuUuid);
+    return apiClient.get<DynamicFilter[]>(`/api/filters/by-context?${searchParams.toString()}`);
+  },
+  getByHierarchy: (params: { categoriaUuid?: string; menuUuid?: string; submenuUuid?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params.categoriaUuid) searchParams.append("categoriaUuid", params.categoriaUuid);
+    if (params.menuUuid) searchParams.append("menuUuid", params.menuUuid);
+    if (params.submenuUuid) searchParams.append("submenuUuid", params.submenuUuid);
+    return apiClient.get<{
+      categoryFilters: DynamicFilter[];
+      menuFilters: DynamicFilter[];
+      submenuFilters: DynamicFilter[];
+    }>(`/api/filters/by-hierarchy?${searchParams.toString()}`);
+  },
 };
 
 // User API endpoints

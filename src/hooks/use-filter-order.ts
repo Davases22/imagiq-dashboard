@@ -26,6 +26,22 @@ export function useFilterOrder(): UseFilterOrderReturn {
     onSuccess?: (updatedFilters: DynamicFilter[]) => void
   ): Promise<boolean> => {
     try {
+      // Validar que los parámetros estén completos
+      if (!params.scopeType || !params.scopeId || !params.filterOrders || params.filterOrders.length === 0) {
+        console.error("Invalid updateOrder params:", params);
+        toast.error("Error: Parámetros inválidos para actualizar el orden");
+        return false;
+      }
+      
+      // Validar que todos los filterOrders tengan filterId y order
+      const invalidOrders = params.filterOrders.filter(fo => !fo.filterId || typeof fo.order !== 'number');
+      if (invalidOrders.length > 0) {
+        console.error("Invalid filterOrders:", invalidOrders);
+        toast.error("Error: Algunos filtros tienen datos inválidos");
+        return false;
+      }
+      
+      console.log("Calling updateOrder with params:", JSON.stringify(params, null, 2));
       const response = await filterEndpoints.updateOrder(params);
       
       if (response.success) {

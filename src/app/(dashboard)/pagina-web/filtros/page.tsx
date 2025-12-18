@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { GripVertical, Edit, Trash2, Copy, Filter, Plus, ChevronDown, ChevronRight, Search, X, Eye } from "lucide-react";
+import { GripVertical, Edit, Trash2, Copy, Filter, Plus, ChevronDown, ChevronRight, Search, X, Eye, Save } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -77,6 +77,11 @@ export default function FiltrosPage() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
   const [updatingStatusFilters, setUpdatingStatusFilters] = useState<Set<string>>(new Set());
+  // Estado para rastrear orden reordenado por scope (clave: "scopeType:scopeId", valor: array de filtros reordenados)
+  const [reorderedFiltersByScope, setReorderedFiltersByScope] = useState<Map<string, DynamicFilter[]>>(new Map());
+  const [hasOrderChanged, setHasOrderChanged] = useState(false);
+  const [updatingOrder, setUpdatingOrder] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
   
   // Get active tab from URL query parameter, default to "agrupada"
   const activeTab = searchParams.get("vista") || "agrupada";
@@ -88,6 +93,51 @@ export default function FiltrosPage() {
     setCurrentTab(vista === "tabla" ? "table" : "grouped");
   }, [searchParams]);
 
+  // Limpiar estado de reordenamiento cuando se refrescan los filtros desde el servidor
+  // Solo si no hay cambios pendientes (para no perder el trabajo del usuario)
+  useEffect(() => {
+    if (!filtersLoading && !hasOrderChanged && reorderedFiltersByScope.size > 0) {
+      setReorderedFiltersByScope(new Map());
+    }
+  }, [filtersLoading, hasOrderChanged]);
+
+  // Helper para obtener filtros ordenados (usa estado local si hay cambios, sino usa orden original)
+  const getOrderedFiltersForScope = (
+    scopeType: 'category' | 'menu' | 'submenu',
+    scopeId: string,
+    originalFilters: DynamicFilter[]
+  ): DynamicFilter[] => {
+    const scopeKey = `${scopeType}:${scopeId}`;
+    const reordered = reorderedFiltersByScope.get(scopeKey);
+    
+    if (reordered) {
+      return reordered;
+    }
+    
+    // Ordenar por orden original
+    return [...originalFilters].sort((a, b) => {
+      let orderA = -1;
+      let orderB = -1;
+      
+      if (scopeType === 'category') {
+        orderA = a.order?.categories[scopeId] ?? -1;
+        orderB = b.order?.categories[scopeId] ?? -1;
+      } else if (scopeType === 'menu') {
+        orderA = a.order?.menus[scopeId] ?? -1;
+        orderB = b.order?.menus[scopeId] ?? -1;
+      } else {
+        orderA = a.order?.submenus[scopeId] ?? -1;
+        orderB = b.order?.submenus[scopeId] ?? -1;
+      }
+      
+      if (orderA === -1 && orderB === -1) return 0;
+      if (orderA === -1) return 1;
+      if (orderB === -1) return -1;
+      
+      return orderA - orderB;
+    });
+  };
+
   // Group filters by category/menu/submenu
   const groupedFilters = useMemo(() => {
     const groups: GroupedFilters[] = [];
@@ -96,12 +146,14 @@ export default function FiltrosPage() {
       const categoryFilters = filters.filter(
         (f) => f.scope.categories.includes(category.id)
       );
+      const orderedCategoryFilters = getOrderedFiltersForScope('category', category.id, categoryFilters);
 
       const menuGroups: GroupedFilters["menus"] = [];
       category.menus.forEach((menu) => {
         const menuFilters = filters.filter(
           (f) => f.scope.menus.includes(menu.id)
         );
+        const orderedMenuFilters = getOrderedFiltersForScope('menu', menu.id, menuFilters);
 
         const submenuGroups: Array<{
           submenuId: string;
@@ -113,42 +165,37 @@ export default function FiltrosPage() {
             (f) => f.scope.submenus.includes(submenu.id)
           );
           if (submenuFilters.length > 0) {
+            const orderedSubmenuFilters = getOrderedFiltersForScope('submenu', submenu.id, submenuFilters);
             submenuGroups.push({
               submenuId: submenu.id,
               submenuName: submenu.nombreVisible || submenu.name,
-              filters: submenuFilters.sort(
-                (a, b) => (a.order.submenus[submenu.id] || 0) - (b.order.submenus[submenu.id] || 0)
-              ),
+              filters: orderedSubmenuFilters,
             });
           }
         });
 
-        if (menuFilters.length > 0 || submenuGroups.length > 0) {
+        if (orderedMenuFilters.length > 0 || submenuGroups.length > 0) {
           menuGroups.push({
             menuId: menu.id,
             menuName: menu.nombreVisible || menu.name,
-            filters: menuFilters.sort(
-              (a, b) => (a.order.menus[menu.id] || 0) - (b.order.menus[menu.id] || 0)
-            ),
+            filters: orderedMenuFilters,
             submenus: submenuGroups,
           });
         }
       });
 
-      if (categoryFilters.length > 0 || menuGroups.length > 0) {
+      if (orderedCategoryFilters.length > 0 || menuGroups.length > 0) {
         groups.push({
           categoryId: category.id,
           categoryName: category.nombreVisible || category.name,
-          filters: categoryFilters.sort(
-            (a, b) => (a.order.categories[category.id] || 0) - (b.order.categories[category.id] || 0)
-          ),
+          filters: orderedCategoryFilters,
           menus: menuGroups,
         });
       }
     });
 
     return groups;
-  }, [filters, categories]);
+  }, [filters, categories, reorderedFiltersByScope]);
 
   const handleCreate = () => {
     router.push("/pagina-web/filtros/crear");
@@ -363,7 +410,7 @@ export default function FiltrosPage() {
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = async (
+  const handleDrop = (
     e: React.DragEvent,
     targetFilter: DynamicFilter,
     scopeType: 'category' | 'menu' | 'submenu',
@@ -382,49 +429,139 @@ export default function FiltrosPage() {
       return;
     }
 
-    // Get filters for this scope
-    let scopeFilters: DynamicFilter[] = [];
-    if (scopeType === 'category') {
-      scopeFilters = filters.filter((f) => f.scope.categories.includes(scopeId));
-    } else if (scopeType === 'menu') {
-      scopeFilters = filters.filter((f) => f.scope.menus.includes(scopeId));
+    const scopeKey = `${scopeType}:${scopeId}`;
+    
+    // Get current ordered filters for this scope (puede ser del estado local o original)
+    let currentOrderedFilters: DynamicFilter[] = [];
+    if (reorderedFiltersByScope.has(scopeKey)) {
+      currentOrderedFilters = reorderedFiltersByScope.get(scopeKey)!;
     } else {
-      scopeFilters = filters.filter((f) => f.scope.submenus.includes(scopeId));
+      // Get filters for this scope
+      if (scopeType === 'category') {
+        currentOrderedFilters = filters.filter((f) => f.scope.categories.includes(scopeId));
+      } else if (scopeType === 'menu') {
+        currentOrderedFilters = filters.filter((f) => f.scope.menus.includes(scopeId));
+      } else {
+        currentOrderedFilters = filters.filter((f) => f.scope.submenus.includes(scopeId));
+      }
+      
+      // Sort by current order
+      currentOrderedFilters.sort((a, b) => {
+        let orderA = -1;
+        let orderB = -1;
+        
+        if (scopeType === 'category') {
+          orderA = a.order?.categories[scopeId] ?? -1;
+          orderB = b.order?.categories[scopeId] ?? -1;
+        } else if (scopeType === 'menu') {
+          orderA = a.order?.menus[scopeId] ?? -1;
+          orderB = b.order?.menus[scopeId] ?? -1;
+        } else {
+          orderA = a.order?.submenus[scopeId] ?? -1;
+          orderB = b.order?.submenus[scopeId] ?? -1;
+        }
+        
+        if (orderA === -1 && orderB === -1) return 0;
+        if (orderA === -1) return 1;
+        if (orderB === -1) return -1;
+        
+        return orderA - orderB;
+      });
+    }
+
+    // Validar que hay filtros en el scope
+    if (currentOrderedFilters.length === 0) {
+      console.error("No filters found in scope:", { scopeType, scopeId });
+      setDraggedFilter(null);
+      return;
     }
 
     // Reorder
-    const draggedIndex = scopeFilters.findIndex((f) => f.id === draggedFilter.filter.id);
-    const targetIndex = scopeFilters.findIndex((f) => f.id === targetFilter.id);
+    const draggedIndex = currentOrderedFilters.findIndex((f) => f.id === draggedFilter.filter.id);
+    const targetIndex = currentOrderedFilters.findIndex((f) => f.id === targetFilter.id);
 
-    const reordered = [...scopeFilters];
+    if (draggedIndex === -1 || targetIndex === -1) {
+      console.error("Could not find dragged or target filter in scope filters");
+      setDraggedFilter(null);
+      return;
+    }
+
+    const reordered = [...currentOrderedFilters];
     const [removed] = reordered.splice(draggedIndex, 1);
     reordered.splice(targetIndex, 0, removed);
 
-    // Build filterOrders array for API
-    const filterOrders = reordered.map((f, index) => ({
-      filterId: f.id,
-      order: index,
-    }));
-
-    // Update order via API
-    const success = await updateOrder(
-      {
-        scopeType,
-        scopeId,
-        filterOrders,
-      },
-      async () => {
-        // Refresh filters after successful order update
-        await refreshFilters();
-      }
-    );
-
-    if (success) {
-      setDraggedFilter(null);
-    }
+    // Actualizar estado local con el nuevo orden
+    const newReorderedMap = new Map(reorderedFiltersByScope);
+    newReorderedMap.set(scopeKey, reordered);
+    setReorderedFiltersByScope(newReorderedMap);
+    setHasOrderChanged(true);
+    setOrderError(null);
+    setDraggedFilter(null);
+    
+    console.log("Order changed - scopeKey:", scopeKey, "hasOrderChanged will be: true");
   };
 
   const handleDragEnd = () => {
+    setDraggedFilter(null);
+  };
+
+  // Guardar el nuevo orden
+  const handleSaveOrder = async () => {
+    setOrderError(null);
+    setUpdatingOrder(true);
+    
+    try {
+      // Guardar el orden de cada scope que tiene cambios
+      const savePromises: Promise<boolean>[] = [];
+      
+      reorderedFiltersByScope.forEach((reorderedFilters, scopeKey) => {
+        const [scopeType, scopeId] = scopeKey.split(':') as ['category' | 'menu' | 'submenu', string];
+        
+        // Build filterOrders array for API
+        const filterOrders = reorderedFilters.map((f, index) => ({
+          filterId: f.id,
+          order: index,
+        }));
+
+        savePromises.push(
+          updateOrder(
+            {
+              scopeType,
+              scopeId,
+              filterOrders,
+            },
+            async () => {
+              // Refresh filters after successful order update
+              await refreshFilters();
+            }
+          )
+        );
+      });
+
+      const results = await Promise.all(savePromises);
+      const allSuccess = results.every(r => r === true);
+
+      if (allSuccess) {
+        // Limpiar estado local después de guardar exitosamente
+        setReorderedFiltersByScope(new Map());
+        setHasOrderChanged(false);
+        toast.success("Orden de filtros guardado correctamente");
+      } else {
+        setOrderError("Error al guardar el orden de algunos filtros. Por favor, intenta nuevamente.");
+      }
+    } catch (error) {
+      console.error("Error al guardar el orden:", error);
+      setOrderError("Error al guardar el orden. Por favor, intenta nuevamente.");
+    } finally {
+      setUpdatingOrder(false);
+    }
+  };
+
+  // Cancelar cambios y restaurar orden original
+  const handleCancelOrder = () => {
+    setReorderedFiltersByScope(new Map());
+    setHasOrderChanged(false);
+    setOrderError(null);
     setDraggedFilter(null);
   };
 
@@ -498,6 +635,8 @@ export default function FiltrosPage() {
   ) => {
     const isDragging = draggedFilter?.filter.id === filter.id;
     const isSelected = selectedFilters.has(filter.id);
+    const scopeKey = `${scopeType}:${scopeId}`;
+    const hasLocalChanges = reorderedFiltersByScope.has(scopeKey);
 
     return (
       <div
@@ -510,8 +649,9 @@ export default function FiltrosPage() {
         className={cn(
           "group relative p-3 border rounded-lg cursor-move transition-all mb-2",
           "hover:border-primary hover:bg-primary/5",
-          isDragging && "opacity-50",
-          isSelected && "border-primary bg-primary/10"
+          isDragging && "opacity-50 scale-95",
+          isSelected && "border-primary bg-primary/10",
+          hasLocalChanges && "ring-2 ring-primary/20"
         )}
       >
         <div className="flex items-start gap-3">
@@ -587,31 +727,78 @@ export default function FiltrosPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Configuración de Filtros
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Gestiona los filtros dinámicos agrupados por categoría, menú y submenú
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {selectedFilters.size > 0 && (
-            <Button
-              variant="destructive"
-              onClick={handleDeleteMultiple}
-              disabled={categoriesLoading || filtersLoading}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Eliminar {selectedFilters.size} seleccionado(s)
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              Configuración de Filtros
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Gestiona los filtros dinámicos agrupados por categoría, menú y submenú
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedFilters.size > 0 && (
+              <Button
+                variant="destructive"
+                onClick={handleDeleteMultiple}
+                disabled={categoriesLoading || filtersLoading}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar {selectedFilters.size} seleccionado(s)
+              </Button>
+            )}
+            <Button onClick={handleCreate} disabled={categoriesLoading || filtersLoading}>
+              <Plus className="h-4 w-4 mr-2" />
+              Crear Filtro
             </Button>
-          )}
-          <Button onClick={handleCreate} disabled={categoriesLoading || filtersLoading}>
-            <Plus className="h-4 w-4 mr-2" />
-            Crear Filtro
-          </Button>
+          </div>
         </div>
+
+        {/* Botones de guardar/cancelar orden */}
+        {hasOrderChanged && (
+          <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border">
+            <div className="flex-1">
+              <p className="text-sm font-medium">Cambios en el orden de filtros pendientes</p>
+              <p className="text-xs text-muted-foreground">
+                Arrastra los filtros para cambiar su orden. Guarda los cambios cuando termines.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={handleCancelOrder}
+                disabled={updatingOrder}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSaveOrder}
+                disabled={updatingOrder}
+              >
+                {updatingOrder ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Guardar Orden
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Error de orden */}
+        {orderError && (
+          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <p className="text-sm text-destructive">{orderError}</p>
+          </div>
+        )}
       </div>
 
       {/* Tabs for different views */}

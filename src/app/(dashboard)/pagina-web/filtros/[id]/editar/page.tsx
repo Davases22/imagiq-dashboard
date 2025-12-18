@@ -101,6 +101,7 @@ export default function EditarFiltroPage() {
     try {
       // Build update payload matching API expectations
       // Only include operator if operatorMode is "column"
+      // No enviar order al actualizar scope - el backend lo maneja automáticamente
       const updatePayload: {
         sectionName: string;
         column: string;
@@ -109,7 +110,6 @@ export default function EditarFiltroPage() {
         valueConfig: DynamicFilter["valueConfig"];
         displayType: string;
         scope: DynamicFilter["scope"];
-        order: DynamicFilter["order"];
         isActive: boolean;
       } = {
         sectionName: filterData.sectionName,
@@ -119,8 +119,10 @@ export default function EditarFiltroPage() {
         displayType: filterData.displayType,
         scope: filterData.scope,
         isActive: filterData.isActive,
-        // Preserve order from existing filter
-        order: editingFilter?.order || filterData.order,
+        // No incluir order - el backend maneja automáticamente:
+        // - Scopes agregados: última posición
+        // - Scopes removidos: reajuste automático
+        // - Scopes mantenidos: orden preservado
       };
 
       // Only include operator if operatorMode is "column"
