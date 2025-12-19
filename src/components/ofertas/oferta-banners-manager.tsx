@@ -169,16 +169,6 @@ export function OfertaBannersManager({
                   placeholder="Ej: Banner Principal"
                 />
               </div>
-              <div>
-                <Label htmlFor="banner-link">URL de Enlace (opcional)</Label>
-                <Input
-                  id="banner-link"
-                  type="url"
-                  value={activeBanner.data.link_url}
-                  onChange={(e) => handleFieldChange("link_url", e.target.value)}
-                  placeholder="https://ejemplo.com"
-                />
-              </div>
             </div>
           </div>
 
