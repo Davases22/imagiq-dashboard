@@ -2232,6 +2232,48 @@ export interface InWebCampaignRequest {
   };
 }
 
+// Tipos para campañas InWeb
+export interface InWebCampaignResponse {
+  id: string;
+  campaign_name: string;
+  campaign_type: string;
+  channel: string;
+  audience: string;
+  cities: string[];
+  age_min: number;
+  age_max: number;
+  purchase_filter_operator: string;
+  purchase_filter_count: number | null;
+  content_type: string;
+  image_url: string | null;
+  content_url: string;
+  html_content: string | null;
+  preview_url: string;
+  display_style: string;
+  ttl: number;
+  urgency: string;
+  enable_fallback: boolean;
+  enable_frequency_cap: boolean;
+  max_per_day: number;
+  max_per_week: number;
+  send_immediately: boolean;
+  initial_date: string | null;
+  final_date: string | null;
+  enable_ab_test: boolean;
+  ab_test_percentage: number | null;
+  status: 'draft' | 'active' | 'paused' | 'completed';
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InWebCampaignsListResponse {
+  data: InWebCampaignResponse[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const campaignEndpoints = {
   // Crear campaña InWeb (con FormData para soportar upload de imágenes)
   createInWeb: (formData: FormData) =>
@@ -2239,5 +2281,33 @@ export const campaignEndpoints = {
       "/api/campaigns/inweb-campaigns/create",
       formData
     ),
+  
+  // Obtener campañas InWeb
+  getInWebCampaigns: (params?: { page?: number; limit?: number; status?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.status) searchParams.append('status', params.status);
+    
+    const queryString = searchParams.toString();
+    const endpoint = `/api/campaigns/inweb-campaigns${queryString ? `?${queryString}` : ''}`;
+    
+    return apiClient.get<InWebCampaignsListResponse>(endpoint);
+  },
+  
+  // Eliminar campaña InWeb
+  deleteInWebCampaign: (id: string) => {
+    return apiClient.delete<{ success: boolean; message?: string }>(
+      `/api/campaigns/inweb-campaigns/${id}`
+    );
+  },
+  
+  // Pausar/Activar campaña InWeb
+  updateInWebCampaignStatus: (id: string, status: 'draft' | 'active' | 'paused' | 'completed') => {
+    return apiClient.patch<InWebCampaignResponse>(
+      `/api/campaigns/inweb-campaigns/${id}`,
+      { status }
+    );
+  },
 };
 

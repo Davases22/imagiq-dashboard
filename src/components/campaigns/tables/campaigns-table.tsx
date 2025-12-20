@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,11 +12,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/tables/data-table";
 import { Campaign } from "@/types";
-import { mockCampaigns } from "@/lib/mock-data";
-import { MoreHorizontal, Mail, MessageSquare, Smartphone, Monitor } from "lucide-react";
+import { useInWebCampaigns } from "@/hooks/use-inweb-campaigns";
+import { MoreHorizontal, Mail, MessageSquare, Smartphone, Monitor, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 const getTypeIcon = (type: string) => {
   switch (type) {
@@ -41,13 +53,17 @@ const getTypeLabel = (type: string) => {
     case 'whatsapp':
       return 'WhatsApp';
     case 'in-web':
-      return 'In-Web';
+      return 'Inweb';
     default:
       return type;
   }
 };
 
-const campaignColumns: ColumnDef<Campaign>[] = [
+// Función para crear las columnas con handlers de acciones
+const createCampaignColumns = (
+  onDelete: (campaign: Campaign) => void,
+  onPause: (campaign: Campaign) => void
+): ColumnDef<Campaign>[] => [
   {
     accessorKey: "name",
     header: "Nombre",
@@ -149,6 +165,7 @@ const campaignColumns: ColumnDef<Campaign>[] = [
     enableHiding: false,
     cell: ({ row }) => {
       const campaign = row.original;
+      const isInWebCampaign = campaign.type === 'in-web';
 
       return (
         <DropdownMenu>
@@ -164,12 +181,29 @@ const campaignColumns: ColumnDef<Campaign>[] = [
             <DropdownMenuItem>Editar campaña</DropdownMenuItem>
             <DropdownMenuItem>Duplicar</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              {campaign.status === 'active' ? 'Pausar' : 'Activar'}
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">
-              Eliminar
-            </DropdownMenuItem>
+            {isInWebCampaign && campaign.status === 'active' && (
+              <DropdownMenuItem onClick={() => onPause(campaign)}>
+                Pausar
+              </DropdownMenuItem>
+            )}
+            {isInWebCampaign && (
+              <DropdownMenuItem 
+                className="text-red-600"
+                onClick={() => onDelete(campaign)}
+              >
+                Eliminar
+              </DropdownMenuItem>
+            )}
+            {!isInWebCampaign && (
+              <>
+                <DropdownMenuItem>
+                  {campaign.status === 'active' ? 'Pausar' : 'Activar'}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-red-600">
+                  Eliminar
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       );
@@ -181,7 +215,7 @@ const campaignTypes = [
   { label: "Email", value: "email" },
   { label: "SMS", value: "sms" },
   { label: "WhatsApp", value: "whatsapp" },
-  { label: "In-Web", value: "in-web" },
+  { label: "Inweb", value: "in-web" },
 ];
 
 const campaignStatuses = [
@@ -192,30 +226,161 @@ const campaignStatuses = [
 ];
 
 export function CampaignsTable() {
+  // Estado para diálogos de confirmación
+  const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
+  const [campaignToPause, setCampaignToPause] = useState<Campaign | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isPausing, setIsPausing] = useState(false);
+
+  // Obtener campañas InWeb desde la API
+  const { campaigns, isLoading, refetch, deleteCampaign, pauseCampaign } = useInWebCampaigns({
+    page: 1,
+    limit: 100, // Obtener todas las campañas por ahora
+  });
+
+  // Handlers para acciones
+  const handleDeleteClick = (campaign: Campaign) => {
+    if (campaign.type === 'in-web') {
+      setCampaignToDelete(campaign);
+    } else {
+      toast.info('La eliminación de campañas no InWeb aún no está implementada');
+    }
+  };
+
+  const handlePauseClick = (campaign: Campaign) => {
+    if (campaign.type === 'in-web' && campaign.status === 'active') {
+      setCampaignToPause(campaign);
+    } else {
+      toast.info('Solo se pueden pausar campañas InWeb activas');
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!campaignToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteCampaign(campaignToDelete.id);
+      setCampaignToDelete(null);
+    } catch (error) {
+      // Error ya manejado en el hook
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const confirmPause = async () => {
+    if (!campaignToPause) return;
+
+    setIsPausing(true);
+    try {
+      await pauseCampaign(campaignToPause.id);
+      setCampaignToPause(null);
+    } catch (error) {
+      // Error ya manejado en el hook
+    } finally {
+      setIsPausing(false);
+    }
+  };
+
+  // Crear columnas con handlers
+  const columns = useMemo(
+    () => createCampaignColumns(handleDeleteClick, handlePauseClick),
+    []
+  );
+
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle>Campañas</CardTitle>
-      </CardHeader>
-      <CardContent className="h-full">
-        <DataTable
-          columns={campaignColumns}
-          data={mockCampaigns}
-          searchKey="name"
-          filters={[
-            {
-              id: "type",
-              title: "Tipo",
-              options: campaignTypes,
-            },
-            {
-              id: "status",
-              title: "Estado",
-              options: campaignStatuses,
-            },
-          ]}
-        />
-      </CardContent>
-    </Card>
+    <>
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle>Campañas</CardTitle>
+        </CardHeader>
+        <CardContent className="h-full">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Cargando campañas...</span>
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={campaigns}
+              searchKey="name"
+              filters={[
+                {
+                  id: "type",
+                  title: "Tipo",
+                  options: campaignTypes,
+                },
+                {
+                  id: "status",
+                  title: "Estado",
+                  options: campaignStatuses,
+                },
+              ]}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Diálogo de confirmación de eliminación */}
+      <AlertDialog open={!!campaignToDelete} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar campaña?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la campaña{" "}
+              <span className="font-semibold">{campaignToDelete?.name}</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo de confirmación de pausar */}
+      <AlertDialog open={!!campaignToPause} onOpenChange={(open) => !open && setCampaignToPause(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Pausar campaña?</AlertDialogTitle>
+            <AlertDialogDescription>
+              La campaña <span className="font-semibold">{campaignToPause?.name}</span> será pausada.
+              Podrás reactivarla más tarde desde el menú de acciones.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPausing}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmPause}
+              disabled={isPausing}
+            >
+              {isPausing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Pausando...
+                </>
+              ) : (
+                "Pausar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
