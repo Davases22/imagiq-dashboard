@@ -9,9 +9,22 @@ import { Plus, Search, Users, Mail, Eye, MessageSquare, Smartphone, Monitor, Glo
 import { useRouter } from "next/navigation";
 import { BrandIcon } from "@/components/icons/BrandIcon";
 import Link from "next/link";
+import { useInWebCampaigns } from "@/hooks/use-inweb-campaigns";
+import { useMemo } from "react";
 
 export default function CampañasPage() {
   const router = useRouter();
+  
+  // Obtener campañas In-Web para contar las activas
+  const { campaigns: inWebCampaigns } = useInWebCampaigns({
+    page: 1,
+    limit: 100,
+  });
+
+  // Contar campañas activas de In-Web
+  const activeInWebCount = useMemo(() => {
+    return inWebCampaigns.filter(campaign => campaign.status === 'active').length;
+  }, [inWebCampaigns]);
 
   return (
     <div className="space-y-3">
@@ -125,10 +138,19 @@ export default function CampañasPage() {
                   <Monitor className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                   <div>
                     <div className="font-medium text-sm">In-Web</div>
-                    <div className="text-xs text-muted-foreground">2 campañas activas</div>
+                    <div className="text-xs text-muted-foreground">
+                      {activeInWebCount === 1 
+                        ? "1 campaña activa" 
+                        : `${activeInWebCount} campañas activas`}
+                    </div>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 px-2 text-xs"
+                  onClick={() => router.push('/marketing/campaigns/crear/inweb')}
+                >
                   Crear
                 </Button>
               </div>

@@ -2263,6 +2263,7 @@ export interface InWebCampaignResponse {
   ab_test_percentage: number | null;
   status: 'draft' | 'active' | 'paused' | 'completed';
   created_by: string;
+  created_by_email?: string;
   created_at: string;
   updated_at: string;
 }
@@ -2272,6 +2273,55 @@ export interface InWebCampaignsListResponse {
   total: number;
   page: number;
   limit: number;
+}
+
+// Request interface para actualizar campaña InWeb
+export interface InWebCampaignUpdateRequest {
+  campaign?: {
+    name?: string;
+    type?: string;
+  };
+  targeting?: {
+    audience?: string;
+    cities?: string[];
+    ageRange?: {
+      min?: number;
+      max?: number;
+    };
+    purchaseFilter?: {
+      operator?: string;
+      count?: number;
+    };
+  };
+  content?: {
+    type?: "image" | "html";
+    image?: string; // URL de imagen
+    url?: string;
+    previewUrl?: string;
+    htmlContent?: string;
+  };
+  behavior?: {
+    displayStyle?: string;
+    urgency?: string;
+    ttl?: number;
+    enableFallback?: boolean;
+  };
+  scheduling?: {
+    sendImmediately?: boolean;
+    initialDate?: string;
+    finalDate?: string;
+  };
+  enableFrequencyCap?: boolean;
+  frequencyCap?: {
+    maxPerDay?: number;
+    maxPerWeek?: number;
+  };
+  enableABTest?: boolean;
+  abTest?: {
+    enabled?: boolean;
+    percentage?: number;
+  };
+  status?: 'draft' | 'active' | 'paused' | 'completed';
 }
 
 export const campaignEndpoints = {
@@ -2307,6 +2357,29 @@ export const campaignEndpoints = {
     return apiClient.patch<InWebCampaignResponse>(
       `/api/campaigns/inweb-campaigns/${id}`,
       { status }
+    );
+  },
+  
+  // Obtener una campaña InWeb individual por ID
+  getInWebCampaign: (id: string) => {
+    return apiClient.get<InWebCampaignResponse>(
+      `/api/campaigns/inweb-campaigns/${id}`
+    );
+  },
+  
+  // Actualizar campaña InWeb (PATCH con JSON)
+  updateInWebCampaign: (id: string, data: InWebCampaignUpdateRequest) => {
+    return apiClient.patch<InWebCampaignResponse>(
+      `/api/campaigns/inweb-campaigns/${id}`,
+      data
+    );
+  },
+  
+  // Duplicar campaña InWeb
+  duplicateInWebCampaign: (id: string) => {
+    return apiClient.post<{ success: boolean; data?: InWebCampaignResponse; message?: string }>(
+      `/api/campaigns/inweb-campaigns/${id}/duplicate`,
+      {}
     );
   },
 };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/tables/data-table";
 import { Campaign } from "@/types";
 import { useInWebCampaigns } from "@/hooks/use-inweb-campaigns";
+import { campaignEndpoints } from "@/lib/api";
 import { MoreHorizontal, Mail, MessageSquare, Smartphone, Monitor, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -62,7 +64,10 @@ const getTypeLabel = (type: string) => {
 // Función para crear las columnas con handlers de acciones
 const createCampaignColumns = (
   onDelete: (campaign: Campaign) => void,
-  onPause: (campaign: Campaign) => void
+  onPause: (campaign: Campaign) => void,
+  onViewDetails: (campaign: Campaign) => void,
+  onEdit: (campaign: Campaign) => void,
+  onDuplicate: (campaign: Campaign) => void
 ): ColumnDef<Campaign>[] => [
   {
     accessorKey: "name",
@@ -177,10 +182,20 @@ const createCampaignColumns = (
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-            <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-            <DropdownMenuItem>Editar campaña</DropdownMenuItem>
-            <DropdownMenuItem>Duplicar</DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {isInWebCampaign && (
+              <>
+                <DropdownMenuItem onClick={() => onViewDetails(campaign)}>
+                  Ver detalles
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onEdit(campaign)}>
+                  Editar campaña
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onDuplicate(campaign)}>
+                  Duplicar
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             {isInWebCampaign && campaign.status === 'active' && (
               <DropdownMenuItem onClick={() => onPause(campaign)}>
                 Pausar
@@ -226,11 +241,15 @@ const campaignStatuses = [
 ];
 
 export function CampaignsTable() {
+  const router = useRouter();
+  
   // Estado para diálogos de confirmación
   const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
   const [campaignToPause, setCampaignToPause] = useState<Campaign | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPausing, setIsPausing] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  const [duplicatingCampaignId, setDuplicatingCampaignId] = useState<string | null>(null);
 
   // Obtener campañas InWeb desde la API
   const { campaigns, isLoading, refetch, deleteCampaign, pauseCampaign } = useInWebCampaigns({
@@ -252,6 +271,46 @@ export function CampaignsTable() {
       setCampaignToPause(campaign);
     } else {
       toast.info('Solo se pueden pausar campañas InWeb activas');
+    }
+  };
+
+  const handleViewDetails = (campaign: Campaign) => {
+    if (campaign.type === 'in-web') {
+      router.push(`/marketing/campaigns/inweb/${campaign.id}`);
+    }
+  };
+
+  const handleEdit = (campaign: Campaign) => {
+    if (campaign.type === 'in-web') {
+      router.push(`/marketing/campaigns/inweb/${campaign.id}/editar`);
+    }
+  };
+
+  const handleDuplicate = async (campaign: Campaign) => {
+    if (campaign.type !== 'in-web') {
+      toast.info('La duplicación solo está disponible para campañas InWeb');
+      return;
+    }
+
+    setIsDuplicating(true);
+    setDuplicatingCampaignId(campaign.id);
+
+    try {
+      const response = await campaignEndpoints.duplicateInWebCampaign(campaign.id);
+
+      if (response.success) {
+        toast.success('Campaña duplicada exitosamente');
+        // Refrescar la lista
+        await refetch();
+      } else {
+        toast.error(response.message || 'Error al duplicar la campaña');
+      }
+    } catch (error) {
+      console.error('Error duplicating campaign:', error);
+      toast.error('Error al duplicar la campaña. Por favor, intenta de nuevo.');
+    } finally {
+      setIsDuplicating(false);
+      setDuplicatingCampaignId(null);
     }
   };
 
@@ -285,7 +344,13 @@ export function CampaignsTable() {
 
   // Crear columnas con handlers
   const columns = useMemo(
-    () => createCampaignColumns(handleDeleteClick, handlePauseClick),
+    () => createCampaignColumns(
+      handleDeleteClick,
+      handlePauseClick,
+      handleViewDetails,
+      handleEdit,
+      handleDuplicate
+    ),
     []
   );
 
