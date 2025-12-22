@@ -134,7 +134,7 @@ export default function EditarCampaignInWebPage() {
         return operatorMap[operator] || "equal";
       };
 
-      const mapDisplayStyleFromBackend = (style: string): string => {
+      const mapDisplayStyleFromBackend = (style: string): "popup" | "slider" => {
         const styleMap: Record<string, "popup" | "slider"> = {
           modal: "popup",
           popup: "popup",
