@@ -86,6 +86,7 @@ export function FilterForm({
   // Refs to track previous values for dependency updates
   const prevColumnRef = useRef<string>(column);
   const prevOperatorRef = useRef<FilterOperator>(operator);
+  const prevColumnForDisplayTypeRef = useRef<string>(column);
 
   // Store initial values to compare for changes
   const initialValues = React.useRef<{
@@ -201,16 +202,23 @@ export function FilterForm({
 
   // Reset display type when operator or column changes using API defaultType
   useEffect(() => {
-    if (displayTypes && displayTypes.availableTypes.length > 0) {
+    if (displayTypes && displayTypes.availableTypes.length > 0 && displayTypes.defaultType) {
       const isCurrentValueAvailable = displayTypes.availableTypes.some(
         (type) => type.value === displayType
       );
+      const columnChanged = prevColumnForDisplayTypeRef.current !== column;
+      
       // Reset to default if current is not available OR if column changed
-      if ((!isCurrentValueAvailable || prevColumnRef.current !== column) && displayTypes.defaultType) {
+      // Only update if the new defaultType is different from current displayType to prevent infinite loops
+      if ((!isCurrentValueAvailable || columnChanged) && 
+          displayTypes.defaultType !== displayType) {
         setDisplayType(displayTypes.defaultType);
       }
+      
+      // Update ref after checking
+      prevColumnForDisplayTypeRef.current = column;
     }
-  }, [displayTypes, operator, column, operatorMode, displayType]);
+  }, [displayTypes, operator, column, operatorMode]); // Removed displayType from dependencies to prevent infinite loop
 
   // Reset value config when column changes
   useEffect(() => {
