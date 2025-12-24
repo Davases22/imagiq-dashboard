@@ -16,6 +16,7 @@ import {
   ChevronUp,
   User2,
   MapPin,
+  Newspaper
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -104,9 +105,14 @@ const navMain = [
     icon: Warehouse,
   },
   {
-    title: "Zonas de Cobertura",
+    title: "Cobertura",
     url: "/zonas-cobertura",
     icon: MapPin,
+  },
+  {
+    title: "T&C",
+    url: "/terminos-condiciones",
+    icon: Newspaper,
   },
 ];
 

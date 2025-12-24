@@ -1934,6 +1934,16 @@ export const pageEndpoints = {
     return apiClient.get<PagePaginationData>(url);
   },
 
+  // Listar documentos legales (T&C, políticas, etc.)
+  getLegal: (params: { page: number; limit: number; status?: string }) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append("page", String(params.page));
+    searchParams.append("limit", String(params.limit));
+    if (params.status) searchParams.append("status", params.status);
+    const url = `/api/multimedia/pages/legal?${searchParams.toString()}`;
+    return apiClient.get<PagePaginationData>(url);
+  },
+
   // Obtener página por ID con relaciones expandidas
   getById: (id: string, expand?: string[]) => {
     const searchParams = new URLSearchParams();
@@ -2090,6 +2100,20 @@ export const pageEndpoints = {
           // Si no tiene success pero tiene data, asumir éxito
           if (!data.success && data.data) {
             data.success = true;
+          }
+
+          // Si la respuesta es directamente un objeto página (tiene id y slug)
+          // Transformar a estructura esperada
+          if (!data.success && data.id && data.slug) {
+            return {
+              success: true,
+              data: {
+                page: data as Page,
+                created_banner_ids: [],
+                created_faq_ids: [],
+              },
+              message: "Página creada exitosamente",
+            } as CreateCompletePageResponse;
           }
 
           return data as CreateCompletePageResponse;
