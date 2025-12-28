@@ -335,10 +335,21 @@ export default function OfertasDestacadasPage() {
                       <GripVertical className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   </TableCell>
-                  <TableCell>
-                    <div className="font-medium">
-                      {oferta.nombre || oferta.nombre_modelo || oferta.nombre_market || oferta.producto_nombre || "-"}
-                    </div>
+                  <TableCell className="max-w-[200px]">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="font-medium truncate cursor-help">
+                            {oferta.nombre || oferta.nombre_modelo || oferta.nombre_market || oferta.producto_nombre || "-"}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-[300px] break-words">
+                            {oferta.nombre || oferta.nombre_modelo || oferta.nombre_market || oferta.producto_nombre || "-"}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </TableCell>
                   <TableCell>
                     {oferta.producto_imagen ? (
