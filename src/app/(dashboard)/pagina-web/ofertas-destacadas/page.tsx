@@ -8,6 +8,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
@@ -62,6 +72,9 @@ export default function OfertasDestacadasPage() {
   );
   const [hasOrderChanged, setHasOrderChanged] = useState(false);
   const [localOfertas, setLocalOfertas] = useState<OfertaConProducto[]>([]);
+  const [offerToDelete, setOfferToDelete] = useState<OfertaDestacada | null>(
+    null
+  );
 
   const {
     ofertas,
@@ -95,10 +108,20 @@ export default function OfertasDestacadasPage() {
     console.log("Editar oferta:", oferta);
   };
 
-  const handleDeleteOferta = async (uuid: string) => {
-    if (!confirm("¿Estás seguro de eliminar esta oferta destacada?")) return;
+  const handleDeleteClick = (oferta: OfertaDestacada) => {
+    setOfferToDelete(oferta);
+  };
 
-    const success = await deleteOferta(uuid);
+  const handleDeleteConfirmed = async () => {
+    if (!offerToDelete) return;
+
+    // Guardar referencia para toast y reseteo
+    const oferta = offerToDelete;
+
+    // Cerrar modal inmediatamente para mejor UX
+    setOfferToDelete(null);
+
+    const success = await deleteOferta(oferta.uuid);
     if (success) {
       toast.success("Oferta eliminada correctamente");
     } else {
@@ -302,11 +325,10 @@ export default function OfertasDestacadasPage() {
                     handleDrop(e, oferta)
                   }
                   onDragEnd={handleDragEnd}
-                  className={`cursor-move transition-all duration-200 ${
-                    draggedOferta?.uuid === oferta.uuid
-                      ? "opacity-50 scale-95"
-                      : ""
-                  }`}
+                  className={`cursor-move transition-all duration-200 ${draggedOferta?.uuid === oferta.uuid
+                    ? "opacity-50 scale-95"
+                    : ""
+                    }`}
                 >
                   <TableCell>
                     <Button variant="ghost" size="icon" className="cursor-grab">
@@ -373,20 +395,20 @@ export default function OfertasDestacadasPage() {
                           // Comparar el nombre actual con nombre_modelo primero (más específico)
                           !oferta.nombre && oferta.nombre_modelo
                             ? "modelo"
-                            : oferta.nombre_modelo && 
+                            : oferta.nombre_modelo &&
                               oferta.nombre === oferta.nombre_modelo
-                            ? "modelo"
-                            : "market"
+                              ? "modelo"
+                              : "market"
                         }
                         onValueChange={(value: "market" | "modelo") => {
                           // Solo actualizar si el valor es diferente al actual
                           const currentType =
                             !oferta.nombre && oferta.nombre_modelo
                               ? "modelo"
-                              : oferta.nombre_modelo && 
+                              : oferta.nombre_modelo &&
                                 oferta.nombre === oferta.nombre_modelo
-                              ? "modelo"
-                              : "market";
+                                ? "modelo"
+                                : "market";
                           if (value !== currentType) {
                             updateNombre(oferta.uuid, value);
                           }
@@ -397,14 +419,14 @@ export default function OfertasDestacadasPage() {
                           <SelectValue placeholder="Tipo de nombre" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem 
-                            value="market" 
+                          <SelectItem
+                            value="market"
                             disabled={!oferta.nombre_market}
                           >
                             Nombre de Market
                           </SelectItem>
-                          <SelectItem 
-                            value="modelo" 
+                          <SelectItem
+                            value="modelo"
                             disabled={!oferta.nombre_modelo}
                           >
                             Nombre de Modelo
@@ -437,7 +459,7 @@ export default function OfertasDestacadasPage() {
                         variant="ghost"
                         size="icon"
                         className="cursor-pointer text-destructive"
-                        onClick={() => handleDeleteOferta(oferta.uuid)}
+                        onClick={() => handleDeleteClick(oferta)}
                         disabled={!!deletingOferta}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -480,8 +502,8 @@ export default function OfertasDestacadasPage() {
             if (productosEnCategoria.length >= 3) {
               // Obtener nombre de la categoría para el mensaje
               const categoriaNombre = productosEnCategoria[0]?.categoria?.nombreVisible ||
-                                      productosEnCategoria[0]?.categoria?.nombre ||
-                                      "esta categoría";
+                productosEnCategoria[0]?.categoria?.nombre ||
+                "esta categoría";
               toast.error(`Máximo 3 productos por categoría. "${categoriaNombre}" ya tiene ${productosEnCategoria.length} productos.`);
               return;
             }
@@ -517,7 +539,7 @@ export default function OfertasDestacadasPage() {
                 (response.data as any)?.message || response.message;
               toast.error(
                 backendMessage ||
-                  "Error al agregar el producto"
+                "Error al agregar el producto"
               );
             }
           } catch (error) {
@@ -526,6 +548,34 @@ export default function OfertasDestacadasPage() {
           }
         }}
       />
+
+      {/* Modal de confirmación de eliminación con advertencia de reordenamiento */}
+      <AlertDialog open={!!offerToDelete} onOpenChange={() => setOfferToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro de eliminar esta oferta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará el producto <strong>{offerToDelete?.nombre || offerToDelete?.nombre_modelo || offerToDelete?.nombre_market || "seleccionado"}</strong> de las ofertas destacadas.
+              <br /><br />
+              <div className="p-3 bg-muted rounded-md text-sm border-l-4 border-yellow-500">
+                <strong>⚠️ Nota Importante:</strong><br />
+                Si eliminas la oferta <strong>#{offerToDelete?.orden}</strong>,
+                todas las ofertas posteriores (del <strong>#{offerToDelete?.orden ? offerToDelete.orden + 1 : "?"}</strong> en adelante)
+                se reordenarán automáticamente para llenar el espacio vacío.
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirmed}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Confirmar Eliminación
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
