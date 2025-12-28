@@ -37,6 +37,7 @@ import type {
   PagePaginationData,
 } from "@/types/page";
 import type { ProductCard, UpdateProductCardDto } from "@/types/product-card";
+import type { Faq, FaqPaginationData, CreateFaqDto, UpdateFaqDto } from "@/types/faq";
 
 // API Client configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -2405,6 +2406,41 @@ export const campaignEndpoints = {
       `/api/campaigns/inweb-campaigns/${id}/duplicate`,
       {}
     );
+  },
+};
+
+export const faqEndpoints = {
+  // Obtener todos los FAQs con paginación
+  getAll: (params?: { page?: number; limit?: number; activo?: boolean }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.activo !== undefined) searchParams.append('activo', params.activo.toString());
+    
+    const queryString = searchParams.toString();
+    const endpoint = `/api/multimedia/faqs${queryString ? `?${queryString}` : ''}`;
+    
+    return apiClient.get<FaqPaginationData>(endpoint);
+  },
+
+  // Obtener un FAQ por ID
+  getOne: (id: string) => {
+    return apiClient.get<Faq>(`/api/multimedia/faqs/${id}`);
+  },
+
+  // Crear un nuevo FAQ
+  create: (data: CreateFaqDto) => {
+    return apiClient.post<Faq>('/api/multimedia/faqs', data);
+  },
+
+  // Actualizar un FAQ existente
+  update: (id: string, data: Partial<UpdateFaqDto>) => {
+    return apiClient.put<Faq>(`/api/multimedia/faqs/${id}`, data);
+  },
+
+  // Eliminar un FAQ
+  delete: (id: string) => {
+    return apiClient.delete<{ message: string }>(`/api/multimedia/faqs/${id}`);
   },
 };
 
