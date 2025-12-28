@@ -16,7 +16,8 @@ import {
   ChevronUp,
   User2,
   MapPin,
-  Newspaper
+  Newspaper,
+  HelpCircle
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -113,6 +114,11 @@ const navMain = [
     title: "T&C",
     url: "/terminos-condiciones",
     icon: Newspaper,
+  },
+  {
+    title: "FAQs",
+    url: "/faqs",
+    icon: HelpCircle,
   },
 ];
 
