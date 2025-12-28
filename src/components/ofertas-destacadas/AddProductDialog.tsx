@@ -28,6 +28,7 @@ import Image from "next/image";
 interface Product {
   codigoMarketBase: string;
   nombreMarket: string | string[];
+  modelo?: string | string[];
   urlImagenes?: string[];
   imagePreviewUrl?: string[];
   imageDetailsUrls?: string[][];
@@ -184,7 +185,8 @@ export function AddProductDialog({
         </DialogHeader>
 
         {/* Selector de Categoría */}
-        <div className="space-y-2">
+        {/* Selector de Categoría REMOVIDO visualmente pero manteniendo lógica por defecto */}
+        {/* <div className="space-y-2">
           <Label htmlFor="categoria">Categoría (Máximo 3 productos por categoría)</Label>
           <Select
             value={categoriaSeleccionada}
@@ -221,7 +223,7 @@ export function AddProductDialog({
           <p className="text-xs text-muted-foreground">
             Cada categoría puede tener máximo 3 productos
           </p>
-        </div>
+        </div> */}
 
         {/* Buscador */}
         <div className="flex gap-2">
@@ -263,9 +265,16 @@ export function AddProductDialog({
 
           <div className="p-4 space-y-2">
             {products.map((product) => {
-              const nombre = Array.isArray(product.nombreMarket)
+              const nombreMarket = Array.isArray(product.nombreMarket)
                 ? product.nombreMarket[0]
                 : product.nombreMarket;
+
+              const nombreModelo = Array.isArray(product.modelo)
+                ? product.modelo[0]
+                : product.modelo;
+
+              // Priorizar modelo sobre nombreMarket
+              const nombre = nombreModelo || nombreMarket || "";
               // Buscar imagen en varios campos posibles
               const imagen =
                 (product.imagen_final_premium &&
