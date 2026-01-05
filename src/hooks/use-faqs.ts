@@ -24,6 +24,7 @@ interface UseFaqsResult {
     total: number;
     activos: number;
     inactivos: number;
+    sinRespuesta: number;
   };
 }
 
@@ -56,6 +57,7 @@ export function useFaqs(options: UseFaqsOptions = {}): UseFaqsResult {
     total: 0,
     activos: 0,
     inactivos: 0,
+    sinRespuesta: 0,
   });
 
   const fetchFaqs = useCallback(async (page: number) => {
@@ -82,10 +84,12 @@ export function useFaqs(options: UseFaqsOptions = {}): UseFaqsResult {
 
         // Calcular stats
         const activosCount = paginationData.data.filter(faq => faq.activo).length;
+        const sinRespuestaCount = paginationData.data.filter(faq => faq.respuesta === 'sin respuesta').length;
         setStats({
           total: paginationData.meta.total,
           activos: activosCount,
           inactivos: paginationData.meta.total - activosCount,
+          sinRespuesta: sinRespuestaCount,
         });
       } else {
         setError(response.message || "Error al cargar FAQs");

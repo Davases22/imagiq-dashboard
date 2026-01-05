@@ -42,4 +42,5 @@ export interface FaqStatsResponse {
   total: number;
   activos: number;
   inactivos: number;
+  sinRespuesta: number; // Cantidad de FAQs con respuesta "sin respuesta"
 }
