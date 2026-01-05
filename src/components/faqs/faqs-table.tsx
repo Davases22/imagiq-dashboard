@@ -156,13 +156,25 @@ export function FaqsTable({ onEdit, onRefetch }: FaqsTableProps) {
     {
       accessorKey: "respuesta",
       header: "Respuesta",
-      cell: ({ row }) => (
-        <div className="max-w-[400px]">
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {row.getValue("respuesta")}
-          </p>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const respuesta = row.getValue("respuesta") as string;
+        const esSinRespuesta = respuesta === "sin respuesta";
+
+        return (
+          <div className="max-w-[400px]">
+            {esSinRespuesta ? (
+              <Badge variant="destructive" className="gap-1">
+                <XCircle className="h-3 w-3" />
+                Sin respuesta
+              </Badge>
+            ) : (
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {respuesta}
+              </p>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "activo",
