@@ -76,6 +76,16 @@ export function ProductCardsLocalManager({ sectionId }: ProductCardsLocalManager
     const description = formData.get("description") as string
     const cta_text = formData.get("cta_text") as string
     const cta_url = formData.get("cta_url") as string
+    const text_styles_raw = formData.get("text_styles") as string
+
+    // Parsear text_styles desde JSON
+    let text_styles
+    try {
+      text_styles = text_styles_raw ? JSON.parse(text_styles_raw) : undefined
+    } catch (error) {
+      console.error("Error parsing text_styles:", error)
+      text_styles = undefined
+    }
 
     const newCard = {
       sectionId,
@@ -85,6 +95,7 @@ export function ProductCardsLocalManager({ sectionId }: ProductCardsLocalManager
       description: description || undefined,
       cta_text: cta_text || undefined,
       cta_url: cta_url || undefined,
+      text_styles: text_styles || undefined,
     }
 
     addProductCard(newCard)
@@ -102,6 +113,16 @@ export function ProductCardsLocalManager({ sectionId }: ProductCardsLocalManager
     const description = formData.get("description") as string
     const cta_text = formData.get("cta_text") as string
     const cta_url = formData.get("cta_url") as string
+    const text_styles_raw = formData.get("text_styles") as string
+
+    // Parsear text_styles desde JSON
+    let text_styles
+    try {
+      text_styles = text_styles_raw ? JSON.parse(text_styles_raw) : undefined
+    } catch (error) {
+      console.error("Error parsing text_styles:", error)
+      text_styles = editingCard.text_styles // Mantener el valor anterior si hay error
+    }
 
     updateProductCard(editingCard.tempId, {
       image: image || editingCard.image,
@@ -111,6 +132,7 @@ export function ProductCardsLocalManager({ sectionId }: ProductCardsLocalManager
       description: description || undefined,
       cta_text: cta_text || undefined,
       cta_url: cta_url || undefined,
+      text_styles: text_styles || undefined,
     })
 
     toast.success("Product Card actualizado")

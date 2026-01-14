@@ -51,11 +51,16 @@ export const useCategories = (): UseCategoriesReturn => {
         const mappedCategories = mapBackendCategoriesToFrontend(response.data);
         setCategories(mappedCategories);
       } else {
-        setError(response.message || "Error al cargar categorías");
+        const errorMsg = response.message || "Error al cargar categorías";
+        console.warn("Categories error:", errorMsg);
+        setError(errorMsg);
+        // No throw - permitir que la app continúe
       }
     } catch (err) {
-      console.error("Error fetching categories:", err);
+      console.warn("Error fetching categories (non-fatal):", err);
       setError("Error de conexión al cargar categorías");
+      // No throw - permitir que la app continúe funcionando
+      setCategories([]); // Establecer array vacío en lugar de fallar
     } finally {
       setLoading(false);
     }

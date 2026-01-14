@@ -565,6 +565,11 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
             if (card.cta_url) formData.append("cta_url", card.cta_url)
             if (card.image) formData.append("image", card.image)
             if (card.image_url) formData.append("image_url", card.image_url)
+            
+            // Agregar text_styles como JSON si existen
+            if (card.text_styles) {
+              formData.append("text_styles", JSON.stringify(card.text_styles))
+            }
 
             const createdCard = await productCardEndpoints.create(formData)
             const realCardId = createdCard.data?.id || (createdCard as any).id
