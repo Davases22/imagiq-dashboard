@@ -548,12 +548,12 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         throw new Error("No se pudo obtener el ID de la página creada")
       }
 
-      // 6. Crear product cards si existen
+      // 6. Crear/Actualizar product cards si existen
       if (productCards.length > 0) {
         // Mapa para relacionar tempId con ID real
         const cardIdMap = new Map<string, string>()
 
-        // Crear cada product card
+        // Crear o actualizar cada product card
         for (const card of productCards) {
           try {
             const formData = new FormData()
@@ -571,14 +571,27 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
               formData.append("text_styles", JSON.stringify(card.text_styles))
             }
 
-            const createdCard = await productCardEndpoints.create(formData)
-            const realCardId = createdCard.data?.id || (createdCard as any).id
+            // Verificar si es una card nueva o existente
+            const isNewCard = card.tempId.startsWith('temp-')
+            let realCardId: string
+
+            if (isNewCard) {
+              // CREAR nueva product card
+              const createdCard = await productCardEndpoints.create(formData)
+              realCardId = createdCard.data?.id || (createdCard as any).id
+              console.log(`✅ Product card creada: "${card.title}" (${realCardId})`)
+            } else {
+              // ACTUALIZAR product card existente
+              realCardId = card.tempId // Ya es el ID real
+              await productCardEndpoints.update(realCardId, formData)
+              console.log(`✅ Product card actualizada: "${card.title}" (${realCardId})`)
+            }
 
             if (realCardId) {
               cardIdMap.set(card.tempId, realCardId)
             }
           } catch (error) {
-            console.error(`❌ Error creando product card "${card.title}":`, error)
+            console.error(`❌ Error ${card.tempId.startsWith('temp-') ? 'creando' : 'actualizando'} product card "${card.title}":`, error)
             // Continuar con las demás aunque una falle
           }
         }
