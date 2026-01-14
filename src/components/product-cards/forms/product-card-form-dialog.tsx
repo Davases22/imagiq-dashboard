@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { ProductCardImageUpload } from "./product-card-image-upload"
 import { ProductCardFormFields } from "./product-card-form-fields"
-import type { ProductCard } from "@/types/product-card"
+import type { ProductCard, ProductCardTextStyles } from "@/types/product-card"
 
 interface ProductCardFormDialogProps {
   open: boolean
@@ -31,6 +31,12 @@ export function ProductCardFormDialog({
   const [ctaUrl, setCtaUrl] = useState("")
   const [image, setImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [textStyles, setTextStyles] = useState<ProductCardTextStyles>({
+    title: { color: "#ffffff" },
+    subtitle: { color: "#ffffff" },
+    description: { color: "#ffffff" },
+    cta: { color: "#000000", backgroundColor: "#ffffff" },
+  })
 
   useEffect(() => {
     if (productCard) {
@@ -41,6 +47,23 @@ export function ProductCardFormDialog({
       setCtaUrl(productCard.cta_url || "")
       setImagePreview(productCard.image_url || null)
       setImage(null)
+      
+      // Cargar text_styles si existen
+      if (productCard.text_styles) {
+        setTextStyles({
+          title: productCard.text_styles.title || { color: "#ffffff" },
+          subtitle: productCard.text_styles.subtitle || { color: "#ffffff" },
+          description: productCard.text_styles.description || { color: "#ffffff" },
+          cta: productCard.text_styles.cta || { color: "#000000", backgroundColor: "#ffffff" },
+        })
+      } else {
+        setTextStyles({
+          title: { color: "#ffffff" },
+          subtitle: { color: "#ffffff" },
+          description: { color: "#ffffff" },
+          cta: { color: "#000000", backgroundColor: "#ffffff" },
+        })
+      }
     } else {
       setTitle("")
       setSubtitle("")
@@ -49,6 +72,12 @@ export function ProductCardFormDialog({
       setCtaUrl("")
       setImage(null)
       setImagePreview(null)
+      setTextStyles({
+        title: { color: "#ffffff" },
+        subtitle: { color: "#ffffff" },
+        description: { color: "#ffffff" },
+        cta: { color: "#000000", backgroundColor: "#ffffff" },
+      })
     }
   }, [productCard, open])
 
@@ -103,6 +132,9 @@ export function ProductCardFormDialog({
     if (ctaUrl.trim()) formData.append("cta_url", ctaUrl.trim())
     if (image) formData.append("image", image)
 
+    // Agregar text_styles como JSON string
+    formData.append("text_styles", JSON.stringify(textStyles))
+
     formData.append("status", "active")
 
     const result = await onSubmit(formData)
@@ -143,6 +175,8 @@ export function ProductCardFormDialog({
             onDescriptionChange={setDescription}
             onCtaTextChange={setCtaText}
             onCtaUrlChange={setCtaUrl}
+            textStyles={textStyles}
+            onTextStylesChange={setTextStyles}
             disabled={isLoading}
           />
 
