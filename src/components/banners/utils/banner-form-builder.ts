@@ -118,28 +118,51 @@ function appendNewFiles(formData: FormData, files: BannerMediaFiles): void {
 
 /**
  * Agrega URLs de medios existentes al FormData (solo para edición)
- * Solo se agregan si NO hay un archivo nuevo para reemplazarlas
+ * - Si hay URL existente y no hay archivo nuevo: envía la URL para mantenerla
+ * - Si NO hay URL existente (fue eliminada) y no hay archivo nuevo: envía string vacío para indicar eliminación
+ * - Si hay archivo nuevo: no envía URL (el archivo reemplazará)
  */
 function appendExistingUrls(
   formData: FormData,
   files: BannerMediaFiles,
-  existingUrls: ExistingMediaUrls
+  existingUrls: ExistingMediaUrls,
+  originalUrls?: ExistingMediaUrls
 ): void {
-  // Solo agregar URLs si no hay archivos nuevos que las reemplacen
-  if (!files.desktop_image && existingUrls.desktop_image_url) {
-    formData.append("desktop_image_url", existingUrls.desktop_image_url);
+  // Desktop Image
+  if (!files.desktop_image) {
+    if (existingUrls.desktop_image_url) {
+      formData.append("desktop_image_url", existingUrls.desktop_image_url);
+    } else if (originalUrls?.desktop_image_url) {
+      // Había URL original pero fue eliminada - enviar marcador de eliminación
+      formData.append("desktop_image_url", "");
+    }
   }
 
-  if (!files.mobile_image && existingUrls.mobile_image_url) {
-    formData.append("mobile_image_url", existingUrls.mobile_image_url);
+  // Mobile Image
+  if (!files.mobile_image) {
+    if (existingUrls.mobile_image_url) {
+      formData.append("mobile_image_url", existingUrls.mobile_image_url);
+    } else if (originalUrls?.mobile_image_url) {
+      formData.append("mobile_image_url", "");
+    }
   }
 
-  if (!files.desktop_video && existingUrls.desktop_video_url) {
-    formData.append("desktop_video_url", existingUrls.desktop_video_url);
+  // Desktop Video
+  if (!files.desktop_video) {
+    if (existingUrls.desktop_video_url) {
+      formData.append("desktop_video_url", existingUrls.desktop_video_url);
+    } else if (originalUrls?.desktop_video_url) {
+      formData.append("desktop_video_url", "");
+    }
   }
 
-  if (!files.mobile_video && existingUrls.mobile_video_url) {
-    formData.append("mobile_video_url", existingUrls.mobile_video_url);
+  // Mobile Video
+  if (!files.mobile_video) {
+    if (existingUrls.mobile_video_url) {
+      formData.append("mobile_video_url", existingUrls.mobile_video_url);
+    } else if (originalUrls?.mobile_video_url) {
+      formData.append("mobile_video_url", "");
+    }
   }
 }
 
@@ -159,17 +182,19 @@ export function buildCreateBannerFormData(
 
 /**
  * Construye el FormData completo para editar un banner
+ * @param originalUrls URLs originales del servidor (para detectar eliminaciones)
  */
 export function buildUpdateBannerFormData(
   bannerId: string,
   fields: BannerFormFields,
   files: BannerMediaFiles,
   existingUrls: ExistingMediaUrls,
-  status: "draft" | "active"
+  status: "draft" | "active",
+  originalUrls?: ExistingMediaUrls
 ): FormData {
   const formData = new FormData();
   appendTextFields(formData, fields, status, bannerId);
-  appendExistingUrls(formData, files, existingUrls);
+  appendExistingUrls(formData, files, existingUrls, originalUrls);
   appendNewFiles(formData, files);
   return formData;
 }

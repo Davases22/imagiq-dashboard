@@ -41,6 +41,7 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
     isFetching,
     handleFieldChange,
     handleFileChange,
+    handleRemoveExistingMedia,
     handleCoordinatesChange,
     handleCoordinatesMobileChange,
     handleSubmit,
@@ -240,6 +241,7 @@ export function BannerFormPage({ mode, bannerId, initialPlacement }: BannerFormP
                   existingUrls={existingUrls}
                   placement={formData.placement}
                   onFileChange={handleFileChange}
+                  onRemoveExistingMedia={handleRemoveExistingMedia}
                 />
               </CardContent>
             </Card>

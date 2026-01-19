@@ -65,6 +65,14 @@ export function OfertaBannersManager({
     onBannersChange(updated)
   }
 
+  const handleRemoveExistingMedia = (field: string) => {
+    const urlField = `${field}_url` as keyof BannerData
+    const updated = banners.map((b) =>
+      b.id === activeBannerId ? { ...b, data: { ...b.data, [urlField]: undefined } } : b
+    )
+    onBannersChange(updated)
+  }
+
   const handleContentBlocksChange = (blocks: ContentBlock[]) => {
     const updated = banners.map((b) =>
       b.id === activeBannerId ? { ...b, contentBlocks: blocks } : b
@@ -189,6 +197,7 @@ export function OfertaBannersManager({
               }}
               placement={activeBanner.data.placement}
               onFileChange={handleFileChange}
+              onRemoveExistingMedia={handleRemoveExistingMedia}
             />
           </div>
 

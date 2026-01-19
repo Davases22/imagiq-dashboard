@@ -24,6 +24,7 @@ interface BannerMediaUploadProps {
   };
   readonly placement: string;
   readonly onFileChange: (field: string, file: File | undefined) => void;
+  readonly onRemoveExistingMedia?: (field: string) => void;
 }
 
 interface MediaFieldProps {
@@ -243,7 +244,7 @@ function MediaField({
   );
 }
 
-export function BannerMediaUpload({ files, existingUrls, placement, onFileChange }: BannerMediaUploadProps) {
+export function BannerMediaUpload({ files, existingUrls, placement, onFileChange, onRemoveExistingMedia }: BannerMediaUploadProps) {
   // Para product-detail, mostrar solo una opción general (formato vertical)
   const isSingleMedia = placement === "product-detail";
 
@@ -269,6 +270,12 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
     return isDesktop ? specs.desktop : specs.mobile;
   };
 
+  // Helper para manejar eliminación de medios (limpia archivo Y URL existente)
+  const handleRemove = (field: string) => {
+    onFileChange(field, undefined);
+    onRemoveExistingMedia?.(field);
+  };
+
   if (isSingleMedia) {
     return (
       <div className="grid gap-4 md:grid-cols-2">
@@ -280,7 +287,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
           existingUrl={existingUrls?.desktop_image_url}
           isVideo={false}
           onFileChange={(file) => onFileChange("desktop_image", file)}
-          onRemove={() => onFileChange("desktop_image", undefined)}
+          onRemove={() => handleRemove("desktop_image")}
           expectedDimensions={getDimensions(true)}
         />
 
@@ -292,7 +299,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
           existingUrl={existingUrls?.desktop_video_url}
           isVideo={true}
           onFileChange={(file) => onFileChange("desktop_video", file)}
-          onRemove={() => onFileChange("desktop_video", undefined)}
+          onRemove={() => handleRemove("desktop_video")}
         />
       </div>
     );
@@ -309,7 +316,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
         existingUrl={existingUrls?.desktop_image_url}
         isVideo={false}
         onFileChange={(file) => onFileChange("desktop_image", file)}
-        onRemove={() => onFileChange("desktop_image", undefined)}
+        onRemove={() => handleRemove("desktop_image")}
         expectedDimensions={getDimensions(true)}
       />
 
@@ -321,7 +328,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
         existingUrl={existingUrls?.mobile_image_url}
         isVideo={false}
         onFileChange={(file) => onFileChange("mobile_image", file)}
-        onRemove={() => onFileChange("mobile_image", undefined)}
+        onRemove={() => handleRemove("mobile_image")}
         expectedDimensions={getDimensions(false)}
       />
 
@@ -333,7 +340,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
         existingUrl={existingUrls?.desktop_video_url}
         isVideo={true}
         onFileChange={(file) => onFileChange("desktop_video", file)}
-        onRemove={() => onFileChange("desktop_video", undefined)}
+        onRemove={() => handleRemove("desktop_video")}
       />
 
       <MediaField
@@ -344,7 +351,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
         existingUrl={existingUrls?.mobile_video_url}
         isVideo={true}
         onFileChange={(file) => onFileChange("mobile_video", file)}
-        onRemove={() => onFileChange("mobile_video", undefined)}
+        onRemove={() => handleRemove("mobile_video")}
       />
     </div>
   );
