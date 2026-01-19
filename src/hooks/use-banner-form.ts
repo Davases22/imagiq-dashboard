@@ -81,6 +81,8 @@ export function useBannerForm({
   });
 
   const [existingUrls, setExistingUrls] = useState<ExistingMediaUrls>({});
+  // URLs originales del servidor (para detectar eliminaciones)
+  const [originalUrls, setOriginalUrls] = useState<ExistingMediaUrls>({});
 
   // NUEVO: Estado para posiciones basadas en porcentajes
   const [positionDesktop, setPositionDesktop] = useState<BannerPosition>(
@@ -109,12 +111,15 @@ export function useBannerForm({
             const banner = response.data;
 
             // Guardar URLs existentes
-            setExistingUrls({
+            const urls = {
               desktop_image_url: banner.desktop_image_url,
               desktop_video_url: banner.desktop_video_url,
               mobile_image_url: banner.mobile_image_url,
               mobile_video_url: banner.mobile_video_url,
-            });
+            };
+            setExistingUrls(urls);
+            // Guardar copia de URLs originales para detectar eliminaciones
+            setOriginalUrls(urls);
 
             // Parsear placement para extraer categoría, subcategoría y submenú
             const { categoryName, subcategoryName, submenuName } =
@@ -213,6 +218,12 @@ export function useBannerForm({
 
   const handleFileChange = (field: string, file: File | undefined) => {
     setFormData((prev) => ({ ...prev, [field]: file }));
+  };
+
+  // Handler para eliminar URLs existentes de medios (para que se eliminen de Cloudinary)
+  const handleRemoveExistingMedia = (field: string) => {
+    const urlField = `${field}_url` as keyof ExistingMediaUrls;
+    setExistingUrls((prev) => ({ ...prev, [urlField]: undefined }));
   };
 
   const handleCoordinatesChange = (newCoordinates: string) => {
@@ -322,7 +333,8 @@ export function useBannerForm({
       fields,
       files,
       existingUrls,
-      status
+      status,
+      originalUrls
     );
     return bannerEndpoints.update(data);
   };
@@ -365,6 +377,7 @@ export function useBannerForm({
     isFetching,
     handleFieldChange,
     handleFileChange,
+    handleRemoveExistingMedia,
     handleCoordinatesChange,
     handleCoordinatesMobileChange,
     handleSubmit,
