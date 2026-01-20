@@ -17,10 +17,11 @@ interface StripoEditorCallbacks {
 }
 
 // Hook to keep callbacks stable
-function useCallbackRef<T extends (...args: unknown[]) => unknown>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function useCallbackRef<T extends (...args: any[]) => any>(
   callback: T | undefined
-): React.MutableRefObject<T | undefined> {
-  const ref = useRef(callback);
+): React.RefObject<T | undefined> {
+  const ref = useRef<T | undefined>(callback);
   useEffect(() => {
     ref.current = callback;
   }, [callback]);
@@ -382,7 +383,7 @@ export function useStripoEditor(callbacks?: StripoEditorCallbacks) {
           getTemplateData(),
         ]);
 
-        const template = await stripoEndpoints.saveTemplate({
+        const response = await stripoEndpoints.saveTemplate({
           name,
           subject,
           htmlContent: compiledHtml,
@@ -390,6 +391,11 @@ export function useStripoEditor(callbacks?: StripoEditorCallbacks) {
           ...options,
         });
 
+        if (!response.success || !response.data) {
+          throw new Error(response.message || "Error al guardar la plantilla");
+        }
+
+        const template = response.data;
         setState((prev) => ({ ...prev, isLoading: false }));
         onTemplateSavedRef.current?.(template);
         return template;
@@ -427,12 +433,17 @@ export function useStripoEditor(callbacks?: StripoEditorCallbacks) {
           getTemplateData(),
         ]);
 
-        const template = await stripoEndpoints.updateTemplate(id, {
+        const response = await stripoEndpoints.updateTemplate(id, {
           ...data,
           htmlContent: compiledHtml,
           designJson: { html: templateData.html, css: templateData.css },
         });
 
+        if (!response.success || !response.data) {
+          throw new Error(response.message || "Error al actualizar la plantilla");
+        }
+
+        const template = response.data;
         setState((prev) => ({ ...prev, isLoading: false }));
         onTemplateSavedRef.current?.(template);
         return template;

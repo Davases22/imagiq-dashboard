@@ -14,7 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Save, ArrowLeft, LayoutTemplate } from "lucide-react";
+import { Loader2, Save, ArrowLeft, LayoutTemplate, FolderOpen, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { EmailTemplate, stripoEndpoints } from "@/lib/api";
 
@@ -45,6 +46,9 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
   const [stripoTemplates, setStripoTemplates] = useState<StripoPublicTemplate[]>([]);
   const [isLoadingStripoTemplates, setIsLoadingStripoTemplates] = useState(false);
   const [isLoadingStripoPublicTemplate, setIsLoadingStripoPublicTemplate] = useState(false);
+  const [savedTemplates, setSavedTemplates] = useState<EmailTemplate[]>([]);
+  const [isLoadingSavedTemplates, setIsLoadingSavedTemplates] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("stripo");
 
   const {
     isLoading,
@@ -109,6 +113,28 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
     loadStripoTemplates();
   }, [showTemplateSelector, stripoTemplates.length]);
 
+  // Load saved templates from database when selector opens
+  useEffect(() => {
+    const loadSavedTemplates = async () => {
+      if (showTemplateSelector && savedTemplates.length === 0) {
+        setIsLoadingSavedTemplates(true);
+        try {
+          const response = await stripoEndpoints.listTemplates({});
+          console.log("Saved templates response:", response);
+          if (response.success && response.data) {
+            setSavedTemplates(response.data);
+          }
+        } catch (error) {
+          console.error("Error loading saved templates:", error);
+        } finally {
+          setIsLoadingSavedTemplates(false);
+        }
+      }
+    };
+
+    loadSavedTemplates();
+  }, [showTemplateSelector, savedTemplates.length]);
+
   const handleSelectStripoTemplate = async (template: StripoPublicTemplate) => {
     console.log("Selected template:", template);
 
@@ -119,6 +145,9 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
     }
 
     setShowTemplateSelector(false);
+    setCurrentTemplateId(undefined); // Reset - Stripo templates are not saved yet
+    setTemplateName(""); // Clear name so user enters a new one
+    setTemplateSubject(""); // Clear subject
     setIsLoadingTemplate(true);
     setIsLoadingStripoPublicTemplate(true); // Prevent loadEditor from running
     try {
@@ -180,7 +209,11 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
       if (isValidTemplateId && !initialHtml) {
         setIsLoadingTemplate(true);
         try {
-          const template = await stripoEndpoints.getTemplate(templateId);
+          const response = await stripoEndpoints.getTemplate(templateId);
+          if (!response.success || !response.data) {
+            throw new Error("Error al cargar la plantilla");
+          }
+          const template = response.data;
           setTemplateName(template.name);
           setTemplateSubject(template.subject);
 
@@ -261,6 +294,27 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
       toast.error("Error al actualizar la plantilla");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (e: React.MouseEvent, templateId: string, templateName: string) => {
+    e.stopPropagation(); // Prevent selecting the template when clicking delete
+
+    if (!confirm(`¿Estás seguro de que deseas eliminar la plantilla "${templateName}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await stripoEndpoints.deleteTemplate(templateId);
+      if (response.success) {
+        toast.success("Plantilla eliminada correctamente");
+        // Remove from local state
+        setSavedTemplates(prev => prev.filter(t => t.id !== templateId));
+      } else {
+        throw new Error(response.message || "Error al eliminar");
+      }
+    } catch {
+      toast.error("Error al eliminar la plantilla");
     }
   };
 
@@ -400,61 +454,150 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
           <DialogHeader className="pb-4 flex-shrink-0">
             <DialogTitle className="flex items-center gap-2 text-xl">
               <LayoutTemplate className="h-6 w-6" />
-              Selecciona una Plantilla ({stripoTemplates.length} disponibles)
+              Selecciona una Plantilla
             </DialogTitle>
             <DialogDescription>
-              Elige una plantilla prediseñada de Stripo para comenzar o inicia desde cero
+              Elige una plantilla prediseñada o usa una de tus plantillas guardadas
             </DialogDescription>
           </DialogHeader>
 
-          {isLoadingStripoTemplates ? (
-            <div className="flex items-center justify-center py-12 flex-1">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2 text-muted-foreground">Cargando plantillas...</span>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto min-h-0 pr-2">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
-                {/* Empty template option */}
-                <div
-                  className="cursor-pointer hover:ring-2 hover:ring-primary rounded-xl transition-all group bg-muted/50 flex flex-col items-center justify-center p-4 min-h-[280px]"
-                  onClick={() => {
-                    setShowTemplateSelector(false);
-                  }}
-                >
-                  <div className="flex-1 flex items-center justify-center">
-                    <LayoutTemplate className="h-20 w-20 text-muted-foreground group-hover:text-primary" />
-                  </div>
-                  <p className="text-base font-medium text-center mt-3">Desde cero</p>
-                </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="stripo" className="flex items-center gap-2">
+                <LayoutTemplate className="h-4 w-4" />
+                Plantillas de Stripo ({stripoTemplates.length})
+              </TabsTrigger>
+              <TabsTrigger value="saved" className="flex items-center gap-2">
+                <FolderOpen className="h-4 w-4" />
+                Mis Plantillas ({savedTemplates.length})
+              </TabsTrigger>
+            </TabsList>
 
-                {/* Stripo public templates */}
-                {(Array.isArray(stripoTemplates) ? stripoTemplates : []).map((template) => (
+            {/* Stripo Templates Tab */}
+            <TabsContent value="stripo" className="flex-1 overflow-y-auto min-h-0 pr-2 mt-0">
+              {isLoadingStripoTemplates ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-2 text-muted-foreground">Cargando plantillas...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+                  {/* Empty template option */}
                   <div
-                    key={template.id}
-                    className="cursor-pointer hover:ring-2 hover:ring-primary rounded-xl transition-all group overflow-hidden bg-white border shadow-sm hover:shadow-lg"
-                    onClick={() => handleSelectStripoTemplate(template)}
+                    className="cursor-pointer hover:ring-2 hover:ring-primary rounded-xl transition-all group bg-muted/50 flex flex-col items-center justify-center p-4 min-h-[280px]"
+                    onClick={() => {
+                      setShowTemplateSelector(false);
+                    }}
                   >
-                    <p className="text-sm font-semibold text-center py-3 px-3 border-b bg-gray-100 text-gray-900 line-clamp-1">{template.name || 'Sin nombre'}</p>
-                    {template.thumbnailUrl || template.previewUrl ? (
-                      <div className="w-full aspect-[3/4] overflow-hidden bg-gray-100">
-                        <img
-                          src={template.thumbnailUrl || template.previewUrl}
-                          alt={template.name}
-                          className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform"
-                          loading="lazy"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-full aspect-[3/4] bg-muted flex items-center justify-center">
-                        <LayoutTemplate className="h-16 w-16 text-muted-foreground" />
-                      </div>
-                    )}
+                    <div className="flex-1 flex items-center justify-center">
+                      <LayoutTemplate className="h-20 w-20 text-muted-foreground group-hover:text-primary" />
+                    </div>
+                    <p className="text-base font-medium text-center mt-3">Desde cero</p>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+
+                  {/* Stripo public templates */}
+                  {(Array.isArray(stripoTemplates) ? stripoTemplates : []).map((template) => (
+                    <div
+                      key={template.id}
+                      className="cursor-pointer hover:ring-2 hover:ring-primary rounded-xl transition-all group overflow-hidden bg-white border shadow-sm hover:shadow-lg"
+                      onClick={() => handleSelectStripoTemplate(template)}
+                    >
+                      <p className="text-sm font-semibold text-center py-3 px-3 border-b bg-gray-100 text-gray-900 line-clamp-1">{template.name || 'Sin nombre'}</p>
+                      {template.thumbnailUrl || template.previewUrl ? (
+                        <div className="w-full aspect-[3/4] overflow-hidden bg-gray-100">
+                          <img
+                            src={template.thumbnailUrl || template.previewUrl}
+                            alt={template.name}
+                            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform"
+                            loading="lazy"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-full aspect-[3/4] bg-muted flex items-center justify-center">
+                          <LayoutTemplate className="h-16 w-16 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Saved Templates Tab */}
+            <TabsContent value="saved" className="flex-1 overflow-y-auto min-h-0 pr-2 mt-0">
+              {isLoadingSavedTemplates ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-2 text-muted-foreground">Cargando plantillas guardadas...</span>
+                </div>
+              ) : savedTemplates.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <FolderOpen className="h-16 w-16 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium text-muted-foreground">No tienes plantillas guardadas</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Crea una plantilla desde cero o selecciona una de Stripo y guárdala
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+                  {savedTemplates.map((template) => (
+                    <div
+                      key={template.id}
+                      className="cursor-pointer hover:ring-2 hover:ring-primary rounded-xl transition-all group overflow-hidden bg-white border shadow-sm hover:shadow-lg"
+                      onClick={() => {
+                        setShowTemplateSelector(false);
+                        setCurrentTemplateId(template.id);
+                        setTemplateName(template.name);
+                        setTemplateSubject(template.subject);
+                        setIsLoadingTemplate(true);
+
+                        const designData = template.designJson as { html?: string; css?: string } | undefined;
+                        const html = designData?.html || template.htmlContent;
+                        const css = designData?.css || "";
+
+                        resetAndReinitialize("stripo-editor-container", { html, css })
+                          .then(() => {
+                            toast.success(`Plantilla "${template.name}" cargada`);
+                          })
+                          .catch(() => {
+                            toast.error("Error al cargar la plantilla");
+                          })
+                          .finally(() => {
+                            setIsLoadingTemplate(false);
+                          });
+                      }}
+                    >
+                      <div className="flex items-center justify-between py-2 px-3 border-b bg-gray-100">
+                        <p className="text-sm font-semibold text-gray-900 line-clamp-1 flex-1">{template.name}</p>
+                        <button
+                          onClick={(e) => handleDeleteTemplate(e, template.id, template.name)}
+                          className="ml-2 p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Eliminar plantilla"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      {template.thumbnailUrl ? (
+                        <div className="w-full aspect-[3/4] overflow-hidden bg-gray-100">
+                          <img
+                            src={template.thumbnailUrl}
+                            alt={template.name}
+                            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform"
+                            loading="lazy"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-full aspect-[3/4] bg-muted flex flex-col items-center justify-center p-4">
+                          <LayoutTemplate className="h-12 w-12 text-muted-foreground mb-2" />
+                          <p className="text-xs text-muted-foreground text-center line-clamp-2">{template.subject}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </div>
