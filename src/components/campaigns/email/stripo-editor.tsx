@@ -74,7 +74,8 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
       if (showTemplateSelector && stripoTemplates.length === 0) {
         setIsLoadingStripoTemplates(true);
         try {
-          const response = await stripoEndpoints.getPublicTemplates({ type: 'BASIC', limit: 20 });
+          // Load FREE templates (max 100)
+          const response = await stripoEndpoints.getPublicTemplates({ limit: 100 });
           console.log("Stripo templates response:", response);
           if (response.success && response.data) {
             // Handle both array and object with templates key
@@ -87,12 +88,12 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
               console.log("First template structure:", rawTemplates[0]);
             }
 
-            // Map templates to ensure we have the right id field (Stripo might use templateId)
+            // Map templates - Stripo uses templateId and logo fields
             const templates = rawTemplates.map((t: Record<string, unknown>) => ({
-              id: (t.id || t.templateId || t.template_id) as number,
+              id: (t.templateId || t.id || t.template_id) as number,
               name: (t.name || t.title || 'Sin nombre') as string,
-              previewUrl: (t.previewUrl || t.preview_url || t.preview) as string | undefined,
-              thumbnailUrl: (t.thumbnailUrl || t.thumbnail_url || t.thumbnail) as string | undefined,
+              previewUrl: (t.logo || t.previewUrl || t.preview_url || t.preview) as string | undefined,
+              thumbnailUrl: (t.logo || t.thumbnailUrl || t.thumbnail_url || t.thumbnail) as string | undefined,
             }));
 
             setStripoTemplates(templates);
@@ -395,11 +396,11 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
 
       {/* Template Selector Dialog */}
       <Dialog open={showTemplateSelector} onOpenChange={setShowTemplateSelector}>
-        <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <LayoutTemplate className="h-5 w-5" />
-              Selecciona una Plantilla
+        <DialogContent className="!max-w-[95vw] w-full h-[90vh] flex flex-col p-6">
+          <DialogHeader className="pb-4 flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <LayoutTemplate className="h-6 w-6" />
+              Selecciona una Plantilla ({stripoTemplates.length} disponibles)
             </DialogTitle>
             <DialogDescription>
               Elige una plantilla prediseñada de Stripo para comenzar o inicia desde cero
@@ -407,54 +408,51 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
           </DialogHeader>
 
           {isLoadingStripoTemplates ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-12 flex-1">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <span className="ml-2 text-muted-foreground">Cargando plantillas...</span>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 py-4">
-              {/* Empty template option */}
-              <Card
-                className="cursor-pointer hover:border-primary hover:shadow-md transition-all group"
-                onClick={() => {
-                  setShowTemplateSelector(false);
-                }}
-              >
-                <CardContent className="p-4 flex flex-col items-center text-center">
-                  <div className="w-full aspect-[4/5] bg-muted rounded-md flex items-center justify-center mb-3 group-hover:bg-primary/10">
-                    <LayoutTemplate className="h-12 w-12 text-muted-foreground group-hover:text-primary" />
-                  </div>
-                  <h3 className="font-semibold text-sm">Empezar desde cero</h3>
-                </CardContent>
-              </Card>
-
-              {/* Stripo public templates */}
-              {(Array.isArray(stripoTemplates) ? stripoTemplates : []).map((template) => (
-                <Card
-                  key={template.id}
-                  className="cursor-pointer hover:border-primary hover:shadow-md transition-all group overflow-hidden"
-                  onClick={() => handleSelectStripoTemplate(template)}
+            <div className="flex-1 overflow-y-auto min-h-0 pr-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+                {/* Empty template option */}
+                <div
+                  className="cursor-pointer hover:ring-2 hover:ring-primary rounded-xl transition-all group bg-muted/50 flex flex-col items-center justify-center p-4 min-h-[280px]"
+                  onClick={() => {
+                    setShowTemplateSelector(false);
+                  }}
                 >
-                  <CardContent className="p-0">
+                  <div className="flex-1 flex items-center justify-center">
+                    <LayoutTemplate className="h-20 w-20 text-muted-foreground group-hover:text-primary" />
+                  </div>
+                  <p className="text-base font-medium text-center mt-3">Desde cero</p>
+                </div>
+
+                {/* Stripo public templates */}
+                {(Array.isArray(stripoTemplates) ? stripoTemplates : []).map((template) => (
+                  <div
+                    key={template.id}
+                    className="cursor-pointer hover:ring-2 hover:ring-primary rounded-xl transition-all group overflow-hidden bg-white border shadow-sm hover:shadow-lg"
+                    onClick={() => handleSelectStripoTemplate(template)}
+                  >
+                    <p className="text-sm font-semibold text-center py-3 px-3 border-b bg-gray-100 text-gray-900 line-clamp-1">{template.name || 'Sin nombre'}</p>
                     {template.thumbnailUrl || template.previewUrl ? (
-                      <div className="w-full aspect-[4/5] overflow-hidden bg-muted">
+                      <div className="w-full aspect-[3/4] overflow-hidden bg-gray-100">
                         <img
                           src={template.thumbnailUrl || template.previewUrl}
                           alt={template.name}
                           className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform"
+                          loading="lazy"
                         />
                       </div>
                     ) : (
-                      <div className="w-full aspect-[4/5] bg-muted flex items-center justify-center">
-                        <LayoutTemplate className="h-12 w-12 text-muted-foreground" />
+                      <div className="w-full aspect-[3/4] bg-muted flex items-center justify-center">
+                        <LayoutTemplate className="h-16 w-16 text-muted-foreground" />
                       </div>
                     )}
-                    <div className="p-3">
-                      <h3 className="font-semibold text-sm truncate">{template.name}</h3>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </DialogContent>
