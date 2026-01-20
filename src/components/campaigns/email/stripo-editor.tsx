@@ -93,7 +93,8 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
             }
 
             // Map templates - Stripo uses templateId and logo fields
-            const templates = rawTemplates.map((t: Record<string, unknown>) => ({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const templates = rawTemplates.map((t: any) => ({
               id: (t.templateId || t.id || t.template_id) as number,
               name: (t.name || t.title || 'Sin nombre') as string,
               previewUrl: (t.logo || t.previewUrl || t.preview_url || t.preview) as string | undefined,
@@ -116,7 +117,7 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
   // Load saved templates from database when selector opens
   useEffect(() => {
     const loadSavedTemplates = async () => {
-      if (showTemplateSelector && savedTemplates.length === 0) {
+      if (showTemplateSelector) {
         setIsLoadingSavedTemplates(true);
         try {
           const response = await stripoEndpoints.listTemplates({});
@@ -133,7 +134,7 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
     };
 
     loadSavedTemplates();
-  }, [showTemplateSelector, savedTemplates.length]);
+  }, [showTemplateSelector]);
 
   const handleSelectStripoTemplate = async (template: StripoPublicTemplate) => {
     console.log("Selected template:", template);
@@ -190,6 +191,9 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
     }
   };
 
+  // Track if we've already loaded a template to prevent double loading
+  const hasLoadedTemplateRef = useRef(false);
+
   useEffect(() => {
     const loadEditor = async () => {
       // Skip if we're loading a Stripo public template (will initialize from handleSelectStripoTemplate)
@@ -198,7 +202,8 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
         return;
       }
 
-      if (!containerRef.current || isInitialized) {
+      // Skip if already initialized or already loaded a template
+      if (!containerRef.current || isInitialized || hasLoadedTemplateRef.current) {
         return;
       }
 
@@ -208,6 +213,7 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
 
       if (isValidTemplateId && !initialHtml) {
         setIsLoadingTemplate(true);
+        hasLoadedTemplateRef.current = true;
         try {
           const response = await stripoEndpoints.getTemplate(templateId);
           if (!response.success || !response.data) {
@@ -216,6 +222,7 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
           const template = response.data;
           setTemplateName(template.name);
           setTemplateSubject(template.subject);
+          setCurrentTemplateId(template.id);
 
           // Get the HTML from designJson if available, otherwise use htmlContent
           const designData = template.designJson as { html?: string; css?: string } | undefined;
@@ -228,13 +235,15 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
             css,
           });
         } catch {
-          toast.error("Error al cargar la plantilla");
-          // Initialize empty editor on error
+          toast.error("Error al cargar la plantilla. La plantilla puede haber sido eliminada.");
+          // Initialize empty editor on error and clear the invalid template ID
+          setCurrentTemplateId(undefined);
           initializeEditor("stripo-editor-container", {});
         } finally {
           setIsLoadingTemplate(false);
         }
       } else {
+        hasLoadedTemplateRef.current = true;
         // Initialize with provided HTML or empty
         initializeEditor("stripo-editor-container", {
           templateId,
@@ -544,27 +553,40 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
                     <div
                       key={template.id}
                       className="cursor-pointer hover:ring-2 hover:ring-primary rounded-xl transition-all group overflow-hidden bg-white border shadow-sm hover:shadow-lg"
-                      onClick={() => {
+                      onClick={async () => {
                         setShowTemplateSelector(false);
-                        setCurrentTemplateId(template.id);
-                        setTemplateName(template.name);
-                        setTemplateSubject(template.subject);
                         setIsLoadingTemplate(true);
 
-                        const designData = template.designJson as { html?: string; css?: string } | undefined;
-                        const html = designData?.html || template.htmlContent;
-                        const css = designData?.css || "";
+                        try {
+                          // Fetch full template data to ensure we have designJson
+                          const response = await stripoEndpoints.getTemplate(template.id);
+                          if (!response.success || !response.data) {
+                            throw new Error("Error al cargar la plantilla");
+                          }
+                          const fullTemplate = response.data;
 
-                        resetAndReinitialize("stripo-editor-container", { html, css })
-                          .then(() => {
-                            toast.success(`Plantilla "${template.name}" cargada`);
-                          })
-                          .catch(() => {
-                            toast.error("Error al cargar la plantilla");
-                          })
-                          .finally(() => {
-                            setIsLoadingTemplate(false);
-                          });
+                          setCurrentTemplateId(fullTemplate.id);
+                          setTemplateName(fullTemplate.name);
+                          setTemplateSubject(fullTemplate.subject);
+
+                          const designData = fullTemplate.designJson as { html?: string; css?: string } | undefined;
+                          const html = designData?.html || fullTemplate.htmlContent;
+                          const css = designData?.css || "";
+
+                          console.log("Loading saved template - html length:", html?.length, "css length:", css?.length);
+
+                          if (!html) {
+                            throw new Error("La plantilla no tiene contenido HTML");
+                          }
+
+                          await resetAndReinitialize("stripo-editor-container", { html, css });
+                          toast.success(`Plantilla "${fullTemplate.name}" cargada`);
+                        } catch (error) {
+                          console.error("Error loading saved template:", error);
+                          toast.error("Error al cargar la plantilla");
+                        } finally {
+                          setIsLoadingTemplate(false);
+                        }
                       }}
                     >
                       <div className="flex items-center justify-between py-2 px-3 border-b bg-gray-100">
