@@ -115,9 +115,11 @@ export default function CampañasPage() {
                     <div className="text-xs text-muted-foreground">3 campañas activas</div>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
-                  Crear
-                </Button>
+                <Link href="/marketing/campaigns/crear/email">
+                  <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
+                    Crear
+                  </Button>
+                </Link>
               </div>
 
               <div className="flex items-center justify-between p-2.5 rounded-lg border dark:border-gray-700">
