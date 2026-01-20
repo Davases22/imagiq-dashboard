@@ -2444,3 +2444,124 @@ export const faqEndpoints = {
   },
 };
 
+// ==================== STRIPO EMAIL EDITOR ====================
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  htmlContent: string;
+  plainTextContent?: string;
+  designJson?: Record<string, unknown>;
+  variables?: Record<string, unknown>;
+  category?: string;
+  status?: string;
+  description?: string;
+  thumbnailUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaveEmailTemplateRequest {
+  name: string;
+  subject: string;
+  description?: string;
+  htmlContent?: string;
+  plainTextContent?: string;
+  designJson?: Record<string, unknown>;
+  variables?: Record<string, unknown>;
+  category?: string;
+  status?: string;
+  thumbnailUrl?: string;
+}
+
+export interface UpdateEmailTemplateRequest {
+  name?: string;
+  subject?: string;
+  description?: string;
+  htmlContent?: string;
+  plainTextContent?: string;
+  designJson?: Record<string, unknown>;
+  variables?: Record<string, unknown>;
+  category?: string;
+  status?: string;
+  thumbnailUrl?: string;
+}
+
+export const stripoEndpoints = {
+  // Obtener token de autenticación para Stripo
+  getToken: (emailId?: string) => {
+    return apiClient.post<{ token: string }>('/api/messaging/stripo/token', { emailId });
+  },
+
+  // Obtener auth data para la librería de templates de Stripo
+  getAuthData: () => {
+    return apiClient.get<{
+      pluginId: string;
+      secretKey: string;
+      userId: string;
+      role: string;
+    }>('/api/messaging/stripo/auth-data');
+  },
+
+  // Guardar un nuevo template de email
+  saveTemplate: (data: SaveEmailTemplateRequest) => {
+    return apiClient.post<EmailTemplate>('/api/messaging/email-templates', data);
+  },
+
+  // Actualizar un template existente
+  updateTemplate: (id: string, data: UpdateEmailTemplateRequest) => {
+    return apiClient.patch<EmailTemplate>(`/api/messaging/email-templates/${id}`, data);
+  },
+
+  // Obtener un template por ID
+  getTemplate: (id: string) => {
+    return apiClient.get<EmailTemplate>(`/api/messaging/email-templates/${id}`);
+  },
+
+  // Listar todos los templates
+  listTemplates: (params?: { category?: string; status?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.category) searchParams.append('category', params.category);
+    if (params?.status) searchParams.append('status', params.status);
+
+    const queryString = searchParams.toString();
+    const endpoint = `/api/messaging/email-templates${queryString ? `?${queryString}` : ''}`;
+
+    return apiClient.get<EmailTemplate[]>(endpoint);
+  },
+
+  // Eliminar un template
+  deleteTemplate: (id: string) => {
+    return apiClient.delete<{ success: boolean; message: string }>(`/api/messaging/email-templates/${id}`);
+  },
+
+  // Obtener templates públicos de Stripo
+  getPublicTemplates: (params?: { type?: 'BASIC' | 'FREE' | 'PREMIUM'; limit?: number; page?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.page) searchParams.append('page', params.page.toString());
+
+    const queryString = searchParams.toString();
+    const endpoint = `/api/messaging/stripo/public-templates${queryString ? `?${queryString}` : ''}`;
+
+    return apiClient.get<Array<{
+      id: number;
+      name: string;
+      previewUrl?: string;
+      thumbnailUrl?: string;
+    }>>(endpoint);
+  },
+
+  // Obtener detalle de un template público (HTML y CSS)
+  getPublicTemplateDetail: (templateId: number) => {
+    return apiClient.get<{
+      id: number;
+      name: string;
+      html: string;
+      css: string;
+    }>(`/api/messaging/stripo/public-templates/${templateId}`);
+  },
+};
+
