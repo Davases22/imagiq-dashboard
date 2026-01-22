@@ -14,10 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Save, ArrowLeft, LayoutTemplate, FolderOpen, Trash2 } from "lucide-react";
+import { Loader2, Save, ArrowLeft, LayoutTemplate, FolderOpen, Trash2, Send, Pencil, Copy } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { EmailTemplate, stripoEndpoints } from "@/lib/api";
+import { SendEmailModal } from "./send-email-modal";
 
 interface StripoPublicTemplate {
   id: number;
@@ -49,6 +50,17 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
   const [savedTemplates, setSavedTemplates] = useState<EmailTemplate[]>([]);
   const [isLoadingSavedTemplates, setIsLoadingSavedTemplates] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("stripo");
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [emailHtmlContent, setEmailHtmlContent] = useState("");
+
+  // Rename template state
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [renameTemplateId, setRenameTemplateId] = useState<string>("");
+  const [renameTemplateName, setRenameTemplateName] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
+
+  // Flag to track if Stripo templates have been loaded
+  const stripoTemplatesLoadedRef = useRef(false);
 
   const {
     isLoading,
@@ -72,47 +84,52 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
     },
   });
 
-  // Load Stripo public templates when selector opens
+  // Load Stripo public templates ONCE when component mounts (pre-cache)
   useEffect(() => {
     const loadStripoTemplates = async () => {
-      if (showTemplateSelector && stripoTemplates.length === 0) {
-        setIsLoadingStripoTemplates(true);
-        try {
-          // Load FREE templates (max 100)
-          const response = await stripoEndpoints.getPublicTemplates({ limit: 100 });
-          console.log("Stripo templates response:", response);
-          if (response.success && response.data) {
-            // Handle both array and object with templates key
-            const rawTemplates = Array.isArray(response.data)
-              ? response.data
-              : ((response.data as unknown as { templates?: StripoPublicTemplate[] }).templates || []);
+      // Only load once
+      if (stripoTemplatesLoadedRef.current) return;
+      stripoTemplatesLoadedRef.current = true;
 
-            // Log first template to see its structure
-            if (rawTemplates.length > 0) {
-              console.log("First template structure:", rawTemplates[0]);
-            }
+      setIsLoadingStripoTemplates(true);
+      try {
+        // Load FREE templates (max 100)
+        const response = await stripoEndpoints.getPublicTemplates({ limit: 100 });
+        console.log("Stripo templates response:", response);
+        if (response.success && response.data) {
+          // Handle both array and object with templates key
+          const rawTemplates = Array.isArray(response.data)
+            ? response.data
+            : ((response.data as unknown as { templates?: StripoPublicTemplate[] }).templates || []);
 
-            // Map templates - Stripo uses templateId and logo fields
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const templates = rawTemplates.map((t: any) => ({
-              id: (t.templateId || t.id || t.template_id) as number,
-              name: (t.name || t.title || 'Sin nombre') as string,
-              previewUrl: (t.logo || t.previewUrl || t.preview_url || t.preview) as string | undefined,
-              thumbnailUrl: (t.logo || t.thumbnailUrl || t.thumbnail_url || t.thumbnail) as string | undefined,
-            }));
-
-            setStripoTemplates(templates);
+          // Log first template to see its structure
+          if (rawTemplates.length > 0) {
+            console.log("First template structure:", rawTemplates[0]);
           }
-        } catch (error) {
-          console.error("Error loading Stripo templates:", error);
-        } finally {
-          setIsLoadingStripoTemplates(false);
+
+          // Map templates - Stripo uses templateId and logo fields
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const templates = rawTemplates.map((t: any) => ({
+            id: (t.templateId || t.id || t.template_id) as number,
+            name: (t.name || t.title || 'Sin nombre') as string,
+            previewUrl: (t.logo || t.previewUrl || t.preview_url || t.preview) as string | undefined,
+            thumbnailUrl: (t.logo || t.thumbnailUrl || t.thumbnail_url || t.thumbnail) as string | undefined,
+          }));
+
+          setStripoTemplates(templates);
         }
+      } catch (error) {
+        console.error("Error loading Stripo templates:", error);
+        // Reset flag so it can retry on next mount
+        stripoTemplatesLoadedRef.current = false;
+      } finally {
+        setIsLoadingStripoTemplates(false);
       }
     };
 
+    // Pre-load Stripo templates when component mounts
     loadStripoTemplates();
-  }, [showTemplateSelector, stripoTemplates.length]);
+  }, []);
 
   // Load saved templates from database when selector opens
   useEffect(() => {
@@ -194,22 +211,47 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
   // Track if we've already loaded a template to prevent double loading
   const hasLoadedTemplateRef = useRef(false);
 
+  // Reset ref on component mount/unmount
+  useEffect(() => {
+    // Reset ref on mount to ensure fresh state
+    hasLoadedTemplateRef.current = false;
+    return () => {
+      hasLoadedTemplateRef.current = false;
+    };
+  }, []);
+
   useEffect(() => {
     const loadEditor = async () => {
+      console.log("loadEditor - starting", {
+        isLoadingStripoPublicTemplate,
+        showTemplateSelector,
+        isInitialized,
+        hasLoaded: hasLoadedTemplateRef.current,
+        hasContainer: !!containerRef.current,
+        templateId
+      });
+
       // Skip if we're loading a Stripo public template (will initialize from handleSelectStripoTemplate)
       if (isLoadingStripoPublicTemplate) {
         console.log("loadEditor - skipping, loading Stripo public template");
         return;
       }
 
+      // Skip if template selector is open (user needs to select a template first)
+      if (showTemplateSelector) {
+        console.log("loadEditor - skipping, template selector is open");
+        return;
+      }
+
       // Skip if already initialized or already loaded a template
       if (!containerRef.current || isInitialized || hasLoadedTemplateRef.current) {
+        console.log("loadEditor - skipping, already initialized or loaded", { isInitialized, hasLoaded: hasLoadedTemplateRef.current });
         return;
       }
 
       // If we have a valid templateId (not "undefined" string or empty), load the template from database first
       const isValidTemplateId = templateId && templateId !== "undefined" && templateId !== "null" && templateId.trim() !== "";
-      console.log("loadEditor - templateId:", templateId, "isValidTemplateId:", isValidTemplateId);
+      console.log("loadEditor - proceeding to initialize", { templateId, isValidTemplateId });
 
       if (isValidTemplateId && !initialHtml) {
         setIsLoadingTemplate(true);
@@ -254,7 +296,7 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
     };
 
     loadEditor();
-  }, [initializeEditor, templateId, initialHtml, initialCss, isInitialized, isLoadingStripoPublicTemplate]);
+  }, [initializeEditor, templateId, initialHtml, initialCss, isInitialized, isLoadingStripoPublicTemplate, showTemplateSelector]);
 
   const handleSave = () => {
     if (currentTemplateId) {
@@ -306,6 +348,37 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
     }
   };
 
+  // Handle open send modal
+  const handleOpenSendModal = async () => {
+    if (!isInitialized) {
+      toast.error("El editor no está listo");
+      return;
+    }
+
+    try {
+      // Get compiled HTML using Stripo API
+      if (!window.StripoEditorApi) {
+        toast.error("Editor no disponible");
+        return;
+      }
+
+      window.StripoEditorApi.actionsApi.compileEmail({
+        callback: (error, html) => {
+          if (error) {
+            toast.error("Error al compilar el email");
+            console.error("Compile error:", error);
+            return;
+          }
+          setEmailHtmlContent(html);
+          setShowSendModal(true);
+        },
+      });
+    } catch (error) {
+      console.error("Error preparing email:", error);
+      toast.error("Error al preparar el email");
+    }
+  };
+
   const handleDeleteTemplate = async (e: React.MouseEvent, templateId: string, templateName: string) => {
     e.stopPropagation(); // Prevent selecting the template when clicking delete
 
@@ -327,11 +400,83 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
     }
   };
 
+  // Handle rename template
+  const handleOpenRenameDialog = (e: React.MouseEvent, template: EmailTemplate) => {
+    e.stopPropagation();
+    setRenameTemplateId(template.id);
+    setRenameTemplateName(template.name);
+    setShowRenameDialog(true);
+  };
+
+  const handleRenameTemplate = async () => {
+    if (!renameTemplateName.trim()) {
+      toast.error("El nombre no puede estar vacío");
+      return;
+    }
+
+    setIsRenaming(true);
+    try {
+      const response = await stripoEndpoints.updateTemplate(renameTemplateId, {
+        name: renameTemplateName,
+      });
+      if (response.success) {
+        toast.success("Plantilla renombrada correctamente");
+        // Update local state
+        setSavedTemplates(prev =>
+          prev.map(t => (t.id === renameTemplateId ? { ...t, name: renameTemplateName } : t))
+        );
+        setShowRenameDialog(false);
+      } else {
+        throw new Error(response.message || "Error al renombrar");
+      }
+    } catch {
+      toast.error("Error al renombrar la plantilla");
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
+  // Handle duplicate template
+  const handleDuplicateTemplate = async (e: React.MouseEvent, template: EmailTemplate) => {
+    e.stopPropagation();
+
+    try {
+      // Fetch full template data
+      const response = await stripoEndpoints.getTemplate(template.id);
+      if (!response.success || !response.data) {
+        throw new Error("Error al cargar la plantilla");
+      }
+
+      const fullTemplate = response.data;
+      const designData = fullTemplate.designJson as { html?: string; css?: string } | undefined;
+
+      // Create a new template with the same content using saveTemplate
+      const createResponse = await stripoEndpoints.saveTemplate({
+        name: `${fullTemplate.name} (Copia)`,
+        subject: fullTemplate.subject,
+        htmlContent: designData?.html || fullTemplate.htmlContent,
+        designJson: fullTemplate.designJson,
+        status: "draft",
+        category: fullTemplate.category,
+      });
+
+      if (createResponse.success && createResponse.data) {
+        toast.success("Plantilla duplicada correctamente");
+        // Add to local state
+        setSavedTemplates(prev => [createResponse.data!, ...prev]);
+      } else {
+        throw new Error(createResponse.message || "Error al duplicar");
+      }
+    } catch {
+      toast.error("Error al duplicar la plantilla");
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-x-hidden" style={{ maxWidth: '100%' }}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-background">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-background">
+        <div className="flex items-center gap-3">
           {onBack && (
             <Button variant="ghost" size="sm" onClick={onBack}>
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -339,15 +484,24 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
             </Button>
           )}
           <div>
-            <h1 className="text-xl font-semibold">
+            <h1 className="text-lg font-semibold">
               {currentTemplateId ? "Editar Plantilla" : "Crear Plantilla de Email"}
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Diseña tu email usando el editor visual
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleOpenSendModal}
+            disabled={!isInitialized || isLoading || isLoadingTemplate}
+            className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
+          >
+            <Send className="mr-2 h-4 w-4" />
+            Enviar
+          </Button>
           <Button
             variant="outline"
             onClick={() => setShowTemplateSelector(true)}
@@ -367,8 +521,8 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
         </div>
       </div>
 
-      {/* Loading state */}
-      {(isLoading || isLoadingTemplate) && (
+      {/* Loading state - hide when template selector is open */}
+      {(isLoading || isLoadingTemplate) && !showTemplateSelector && (
         <div className="flex items-center justify-center flex-1 bg-muted/50">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -405,10 +559,13 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
       <div
         id="stripo-editor-container"
         ref={containerRef}
-        className="flex-1 overflow-hidden"
+        className="flex-1 relative"
         style={{
-          display: isLoading || isLoadingTemplate || error ? "none" : "block",
-          minHeight: "600px",
+          display: isLoading || isLoadingTemplate || error || showTemplateSelector ? "none" : "block",
+          height: "calc(100vh - 70px)",
+          marginTop: "10px",
+          overflowX: "hidden",
+          overflowY: "auto",
         }}
       />
 
@@ -591,13 +748,29 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
                     >
                       <div className="flex items-center justify-between py-2 px-3 border-b bg-gray-100">
                         <p className="text-sm font-semibold text-gray-900 line-clamp-1 flex-1">{template.name}</p>
-                        <button
-                          onClick={(e) => handleDeleteTemplate(e, template.id, template.name)}
-                          className="ml-2 p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors"
-                          title="Eliminar plantilla"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center gap-1 ml-2">
+                          <button
+                            onClick={(e) => handleOpenRenameDialog(e, template)}
+                            className="p-1 rounded hover:bg-blue-100 text-gray-400 hover:text-blue-600 transition-colors"
+                            title="Renombrar plantilla"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={(e) => handleDuplicateTemplate(e, template)}
+                            className="p-1 rounded hover:bg-green-100 text-gray-400 hover:text-green-600 transition-colors"
+                            title="Duplicar plantilla"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteTemplate(e, template.id, template.name)}
+                            className="p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Eliminar plantilla"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                       {template.thumbnailUrl ? (
                         <div className="w-full aspect-[3/4] overflow-hidden bg-gray-100">
@@ -620,6 +793,50 @@ export function StripoEditor({ templateId, initialHtml, initialCss, onBack, onSa
               )}
             </TabsContent>
           </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Email Modal */}
+      <SendEmailModal
+        open={showSendModal}
+        onOpenChange={setShowSendModal}
+        htmlContent={emailHtmlContent}
+        templateName={templateName}
+        defaultSubject={templateSubject}
+      />
+
+      {/* Rename Template Dialog */}
+      <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Renombrar Plantilla</DialogTitle>
+            <DialogDescription>
+              Ingresa un nuevo nombre para la plantilla
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="rename-template">Nombre de la Plantilla</Label>
+            <Input
+              id="rename-template"
+              placeholder="Nombre de la plantilla"
+              value={renameTemplateName}
+              onChange={(e) => setRenameTemplateName(e.target.value)}
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRenameDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleRenameTemplate} disabled={isRenaming}>
+              {isRenaming ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Pencil className="mr-2 h-4 w-4" />
+              )}
+              Renombrar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

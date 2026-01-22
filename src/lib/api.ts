@@ -2565,3 +2565,54 @@ export const stripoEndpoints = {
   },
 };
 
+// ==================== EMAIL SENDING ====================
+
+export interface EmailRecipient {
+  email: string;
+  name?: string;
+  variables?: Record<string, string>;
+}
+
+export interface SendBulkEmailRequest {
+  recipients: EmailRecipient[];
+  subject: string;
+  htmlContent: string;
+  fromEmail?: string;
+  fromName?: string;
+}
+
+export interface SendBulkEmailResponse {
+  success: boolean;
+  message?: string;
+  sent: number;
+  failed: number;
+  errors?: string[];
+}
+
+export interface EmailUserResponse {
+  id: string;
+  nombre: string;
+  apellido: string;
+  email: string;
+}
+
+export const emailEndpoints = {
+  // Obtener usuarios para envío de emails
+  getUsers: () => {
+    return apiClient.get<EmailUserResponse[]>('/api/messaging/email/users');
+  },
+
+  // Enviar emails masivos
+  sendBulk: (data: SendBulkEmailRequest) => {
+    return apiClient.post<SendBulkEmailResponse>('/api/messaging/email/bulk', data);
+  },
+
+  // Enviar email de prueba
+  sendTest: (data: { to: string; subject: string; htmlContent: string }) => {
+    return apiClient.post<{ success: boolean; messageId?: string; error?: string }>(
+      '/api/messaging/email/test',
+      data
+    );
+  },
+};
+

@@ -504,8 +504,11 @@ export function useStripoEditor(callbacks?: StripoEditorCallbacks) {
     [initializeEditor]
   );
 
-  // Cleanup on unmount
+  // Reset refs on mount and cleanup on unmount
   useEffect(() => {
+    // Reset initialized ref on mount to ensure fresh state
+    initializedRef.current = false;
+
     return () => {
       if (window.StripoEditorApi && initializedRef.current) {
         try {
@@ -513,8 +516,8 @@ export function useStripoEditor(callbacks?: StripoEditorCallbacks) {
         } catch {
           // Ignore cleanup errors
         }
-        initializedRef.current = false;
       }
+      initializedRef.current = false;
     };
   }, []);
 

@@ -30,7 +30,7 @@ export default function EditEmailTemplatePage() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] -m-6">
+    <div className="h-[calc(100vh-4rem)] -m-6 pt-2 overflow-hidden" style={{ maxWidth: '100vw' }}>
       <StripoEditor
         templateId={templateId}
         onBack={handleBack}
