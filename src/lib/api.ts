@@ -2565,3 +2565,177 @@ export const stripoEndpoints = {
   },
 };
 
+// ==================== SMS ENDPOINTS ====================
+
+export interface SmsResult {
+  success: boolean;
+  messageId?: string;
+  phoneNumber: string;
+  error?: string;
+}
+
+export interface BulkSmsResult {
+  total: number;
+  successful: number;
+  failed: number;
+  results: SmsResult[];
+}
+
+export interface SendSmsRequest {
+  phoneNumber: string;
+  message: string;
+  messageType?: 'Transactional' | 'Promotional';
+  senderId?: string;
+}
+
+export interface SendBulkSmsRequest {
+  recipients: Array<{
+    phoneNumber: string;
+    customMessage?: string;
+  }>;
+  message: string;
+  messageType?: 'Transactional' | 'Promotional';
+  senderId?: string;
+}
+
+export interface SendOtpRequest {
+  phoneNumber: string;
+  otp: string;
+  senderId?: string;
+}
+
+export interface SmsTemplate {
+  id: string;
+  name: string;
+  message: string;
+  category: 'promotional' | 'transactional' | 'reminder' | 'alert';
+  status: 'active' | 'inactive' | 'draft';
+  variables: string[];
+  characterCount: number;
+  segmentCount: number;
+  totalSent: number;
+  successfulSent: number;
+  failedSent: number;
+  lastUsedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSmsTemplateRequest {
+  name: string;
+  message: string;
+  category?: 'promotional' | 'transactional' | 'reminder' | 'alert';
+}
+
+export interface UpdateSmsTemplateRequest {
+  name?: string;
+  message?: string;
+  category?: 'promotional' | 'transactional' | 'reminder' | 'alert';
+  status?: 'active' | 'inactive' | 'draft';
+}
+
+export interface SmsTemplateStats {
+  totalSent: number;
+  successfulSent: number;
+  failedSent: number;
+  successRate: number;
+  lastUsedAt: string | null;
+}
+
+export const smsEndpoints = {
+  // Enviar SMS individual
+  send: (data: SendSmsRequest) => {
+    return apiClient.post<SmsResult>('/api/messaging/sms/send', data);
+  },
+
+  // Enviar SMS masivo
+  sendBulk: (data: SendBulkSmsRequest) => {
+    return apiClient.post<BulkSmsResult>('/api/messaging/sms/send-bulk', data);
+  },
+
+  // Enviar OTP
+  sendOtp: (data: SendOtpRequest) => {
+    return apiClient.post<SmsResult>('/api/messaging/sms/otp', data);
+  },
+
+  // Validar número de teléfono
+  validatePhone: (phoneNumber: string) => {
+    return apiClient.post<{ phoneNumber: string; isValid: boolean }>(
+      '/api/messaging/sms/validate-phone',
+      { phoneNumber }
+    );
+  },
+
+  // Formatear número de teléfono a E.164
+  formatPhone: (phoneNumber: string, countryCode?: string) => {
+    return apiClient.post<{ original: string; formatted: string; countryCode: string }>(
+      '/api/messaging/sms/format-phone',
+      { phoneNumber, countryCode }
+    );
+  },
+
+  // Health check del servicio SMS
+  health: () => {
+    return apiClient.get<{ status: string; provider: string; region: string; timestamp: string }>(
+      '/api/messaging/sms/health'
+    );
+  },
+};
+
+// ==================== SMS TEMPLATES ENDPOINTS ====================
+
+export const smsTemplateEndpoints = {
+  // Crear template
+  create: (data: CreateSmsTemplateRequest) => {
+    return apiClient.post<SmsTemplate>('/api/messaging/sms-templates', data);
+  },
+
+  // Listar todos los templates
+  list: () => {
+    return apiClient.get<SmsTemplate[]>('/api/messaging/sms-templates');
+  },
+
+  // Obtener un template por ID
+  get: (id: string) => {
+    return apiClient.get<SmsTemplate>(`/api/messaging/sms-templates/${id}`);
+  },
+
+  // Actualizar template
+  update: (id: string, data: UpdateSmsTemplateRequest) => {
+    return apiClient.patch<SmsTemplate>(`/api/messaging/sms-templates/${id}`, data);
+  },
+
+  // Eliminar template
+  delete: (id: string) => {
+    return apiClient.delete<{ success: boolean }>(`/api/messaging/sms-templates/${id}`);
+  },
+
+  // Obtener estadísticas de un template
+  getStats: (id: string) => {
+    return apiClient.get<SmsTemplateStats>(`/api/messaging/sms-templates/${id}/stats`);
+  },
+
+  // Enviar SMS usando un template
+  send: (templateId: string, phoneNumber: string, variables?: Record<string, string>) => {
+    return apiClient.post<SmsResult>(`/api/messaging/sms-templates/${templateId}/send`, {
+      phoneNumber,
+      variables,
+    });
+  },
+
+  // Enviar SMS masivo usando un template
+  sendBulk: (
+    templateId: string,
+    recipients: Array<{ phoneNumber: string; variables?: Record<string, string> }>
+  ) => {
+    return apiClient.post<BulkSmsResult>(`/api/messaging/sms-templates/${templateId}/send-bulk`, {
+      recipients,
+    });
+  },
+
+  // Seed templates por defecto para e-commerce
+  seedDefaults: () => {
+    return apiClient.post<{ created: number; skipped: number }>('/api/messaging/sms-templates/seed', {});
+  },
+};
+

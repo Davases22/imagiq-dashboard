@@ -1,373 +1,1036 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Smartphone, Save, Send, Eye, Clock, Target, Users, AlertCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  ArrowLeft,
+  MessageSquare,
+  Save,
+  Variable,
+  Link2,
+  Sparkles,
+  BarChart3,
+  Clock,
+  CheckCircle2,
+  Loader2,
+  Send,
+  Users,
+  Search,
+  Download,
+  Phone,
+  FileText,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Database,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { SmsPreview } from "@/components/campaigns/sms/sms-preview";
+import { toast } from "sonner";
+import { smsTemplateEndpoints, SmsTemplate } from "@/lib/api";
 
-export default function CrearCampaignSmsPage() {
+const MAX_SMS_LENGTH = 160;
+const MAX_CONCATENATED_LENGTH = 153;
+
+const VARIABLES = [
+  { label: "Nombre", value: "nombre", example: "Juan" },
+  { label: "Apellido", value: "apellido", example: "Pérez" },
+];
+
+const CATEGORIES = [
+  { value: "promotional", label: "Promocional", description: "Ofertas y descuentos" },
+  { value: "transactional", label: "Transaccional", description: "Confirmaciones y actualizaciones" },
+  { value: "reminder", label: "Recordatorio", description: "Citas y vencimientos" },
+  { value: "alert", label: "Alerta", description: "Notificaciones urgentes" },
+];
+
+interface Recipient {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email?: string;
+}
+
+export default function CrearSmsTemplatePage() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [name, setName] = useState("");
+  const [message, setMessage] = useState("");
+  const [category, setCategory] = useState("promotional");
 
-  const [smsData, setSmsData] = useState({
-    // Campaign Info
-    campaignName: "",
-    campaignType: "promotional",
-    targetAudience: "all",
+  // Estados para templates existentes
+  const [templates, setTemplates] = useState<SmsTemplate[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
-    // SMS Settings
-    fromNumber: "",
-    message: "",
-    companyName: "Tu Empresa",
+  // Estados para envío de SMS
+  const [showSendDialog, setShowSendDialog] = useState(false);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [selectedRecipientsMap, setSelectedRecipientsMap] = useState<Map<string, Recipient>>(new Map());
+  const [recipientSearch, setRecipientSearch] = useState("");
+  const [isLoadingRecipients, setIsLoadingRecipients] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [savedTemplateId, setSavedTemplateId] = useState<string | null>(null);
 
-    // Personalization
-    usePersonalization: false,
-    includeOptOut: true,
+  // Cargar templates al montar
+  useEffect(() => {
+    loadTemplates();
+  }, []);
 
-    // Scheduling
-    sendImmediately: true,
-    scheduledDate: null as Date | null,
+  // Cargar templates desde la API
+  const loadTemplates = async () => {
+    setIsLoadingTemplates(true);
+    try {
+      const response = await smsTemplateEndpoints.list();
+      if (response.success && response.data) {
+        setTemplates(response.data);
+      }
+    } catch (error) {
+      console.error("Error loading templates:", error);
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
 
-    // Compliance
-    includeCompanyName: true,
-    optOutMessage: "Reply STOP to opt-out",
+  // Cargar templates por defecto (seed)
+  const handleSeedTemplates = async () => {
+    setIsLoading(true);
+    try {
+      const response = await smsTemplateEndpoints.seedDefaults();
+      if (response.success && response.data) {
+        toast.success(`${response.data.created} templates creados, ${response.data.skipped} ya existían`);
+        loadTemplates();
+      } else {
+        toast.error("Error al crear templates por defecto");
+      }
+    } catch (error) {
+      toast.error("Error al crear templates por defecto");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    // A/B Testing
-    enableABTest: false,
-    abTestPercentage: 50
-  });
+  // Seleccionar un template existente
+  const handleSelectTemplate = (templateId: string) => {
+    const template = templates.find(t => t.id === templateId);
+    if (template) {
+      setSelectedTemplateId(templateId);
+      setSavedTemplateId(templateId);
+      setName(template.name);
+      setMessage(template.message);
+      setCategory(template.category);
+      setIsEditing(true);
+    }
+  };
+
+  // Limpiar formulario para nuevo template
+  const handleNewTemplate = () => {
+    setSelectedTemplateId(null);
+    setSavedTemplateId(null);
+    setName("");
+    setMessage("");
+    setCategory("promotional");
+    setIsEditing(false);
+  };
+
+  // Eliminar template
+  const handleDeleteTemplate = async () => {
+    if (!selectedTemplateId) return;
+
+    if (!confirm("¿Estás seguro de eliminar este template?")) return;
+
+    setIsLoading(true);
+    try {
+      const response = await smsTemplateEndpoints.delete(selectedTemplateId);
+      if (response.success) {
+        toast.success("Template eliminado");
+        handleNewTemplate();
+        loadTemplates();
+      } else {
+        toast.error("Error al eliminar el template");
+      }
+    } catch (error) {
+      toast.error("Error al eliminar el template");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Calcular estadísticas del mensaje
-  const fullMessage = `${smsData.message}${smsData.includeOptOut ? ` ${smsData.optOutMessage}.` : ""}`;
-  const messageLength = fullMessage.length;
-  const isOverLimit = messageLength > 160;
-  const segments = messageLength <= 160 ? 1 : Math.ceil(messageLength / 153);
+  const characterCount = message.length;
+  const isOverLimit = characterCount > MAX_SMS_LENGTH;
+  const segmentCount = characterCount <= MAX_SMS_LENGTH
+    ? 1
+    : Math.ceil(characterCount / MAX_CONCATENATED_LENGTH);
+  const remainingChars = characterCount <= MAX_SMS_LENGTH
+    ? MAX_SMS_LENGTH - characterCount
+    : MAX_CONCATENATED_LENGTH - (characterCount % MAX_CONCATENATED_LENGTH);
 
-  const handleGoBack = () => {
-    router.push('/marketing/campaigns');
-  };
+  // Detectar variables usadas
+  const variablesUsed = VARIABLES.filter(v => message.includes(`{{${v.value}}}`));
 
-  const handleSave = () => {
-    console.log("Guardando campaña SMS:", smsData);
-  };
-
-  const handleSend = () => {
-    console.log("Enviando campaña SMS:", smsData);
+  // Preview con variables reemplazadas
+  const getPreviewMessage = () => {
+    let preview = message;
+    VARIABLES.forEach(v => {
+      preview = preview.replace(new RegExp(`\\{\\{${v.value}\\}\\}`, 'g'), v.example);
+    });
+    return preview;
   };
 
   const handleInsertVariable = (variable: string) => {
-    const newMessage = smsData.message + `{{${variable}}}`;
-    setSmsData(prev => ({ ...prev, message: newMessage }));
+    setMessage(prev => prev + `{{${variable}}}`);
   };
 
+  const handleInsertLink = () => {
+    const link = prompt("Ingresa la URL del enlace:");
+    if (link) {
+      setMessage(prev => prev + ` ${link}`);
+    }
+  };
+
+  // Cargar destinatarios desde la API
+  const loadRecipients = useCallback(async (search?: string) => {
+    setIsLoadingRecipients(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/recipients?limit=200${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+        {
+          headers: {
+            "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const recipientsList: Recipient[] = (data.users || [])
+          .filter((user: { telefono?: string }) => user.telefono)
+          .map((user: { id: string; nombre: string; apellido: string; email: string; telefono: string }) => ({
+            id: user.id,
+            name: `${user.nombre || ""} ${user.apellido || ""}`.trim() || user.email,
+            firstName: user.nombre || "",
+            lastName: user.apellido || "",
+            phone: user.telefono,
+            email: user.email,
+          }));
+        setRecipients(recipientsList);
+      } else {
+        console.error("Error loading recipients:", response.statusText);
+        toast.error("Error al cargar destinatarios");
+      }
+    } catch (error) {
+      console.error("Error loading recipients:", error);
+      toast.error("Error al cargar destinatarios");
+    } finally {
+      setIsLoadingRecipients(false);
+    }
+  }, []);
+
+  // Toggle selección de destinatario
+  const toggleRecipient = (recipient: Recipient) => {
+    setSelectedRecipientsMap((prev) => {
+      const newMap = new Map(prev);
+      if (newMap.has(recipient.id)) {
+        newMap.delete(recipient.id);
+      } else {
+        newMap.set(recipient.id, recipient);
+      }
+      return newMap;
+    });
+  };
+
+  // Seleccionar todos (de la búsqueda actual)
+  const selectAllRecipients = () => {
+    setSelectedRecipientsMap((prev) => {
+      const newMap = new Map(prev);
+      recipients.forEach((r) => newMap.set(r.id, r));
+      return newMap;
+    });
+  };
+
+  // Deseleccionar todos
+  const deselectAllRecipients = () => {
+    setSelectedRecipientsMap(new Map());
+  };
+
+  // Guardar template (crear o actualizar)
+  const handleSave = async (): Promise<SmsTemplate | null> => {
+    if (!name.trim()) {
+      toast.error("Por favor ingresa un nombre para el template");
+      return null;
+    }
+    if (!message.trim()) {
+      toast.error("Por favor ingresa el mensaje del template");
+      return null;
+    }
+
+    setIsLoading(true);
+    try {
+      let response;
+
+      if (isEditing && selectedTemplateId) {
+        // Actualizar template existente
+        response = await smsTemplateEndpoints.update(selectedTemplateId, {
+          name,
+          message,
+          category: category as 'promotional' | 'transactional' | 'reminder' | 'alert',
+        });
+        if (response.success && response.data) {
+          toast.success("Template actualizado exitosamente");
+          loadTemplates();
+          return response.data;
+        }
+      } else {
+        // Crear nuevo template
+        response = await smsTemplateEndpoints.create({
+          name,
+          message,
+          category: category as 'promotional' | 'transactional' | 'reminder' | 'alert',
+        });
+        if (response.success && response.data) {
+          toast.success("Template guardado exitosamente");
+          setSavedTemplateId(response.data.id);
+          setSelectedTemplateId(response.data.id);
+          setIsEditing(true);
+          loadTemplates();
+          return response.data;
+        }
+      }
+
+      toast.error(response.message || "Error al guardar el template");
+      return null;
+    } catch (error) {
+      toast.error("Error al guardar el template");
+      console.error(error);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Enviar SMS
+  const handleSendSms = async () => {
+    if (selectedRecipientsMap.size === 0) {
+      toast.error("Selecciona al menos un destinatario");
+      return;
+    }
+
+    if (!message.trim()) {
+      toast.error("Por favor escribe un mensaje");
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      // Primero guardar el template si no existe
+      let templateId = savedTemplateId;
+      if (!templateId) {
+        const savedTemplate = await handleSave();
+        if (!savedTemplate) {
+          setIsSending(false);
+          return;
+        }
+        templateId = savedTemplate.id;
+      }
+
+      // Preparar destinatarios con variables (nombre y apellido desde la BD)
+      // Usamos el Map que guarda los usuarios completos seleccionados
+      const selectedUsers = Array.from(selectedRecipientsMap.values());
+
+      const recipientsData = selectedUsers.map((r) => ({
+        phoneNumber: r.phone,
+        variables: {
+          nombre: r.firstName,
+          apellido: r.lastName,
+        },
+      }));
+
+      console.log("[SMS] ===== ENVIO SMS DEBUG =====");
+      console.log("[SMS] selectedRecipientsMap size:", selectedRecipientsMap.size);
+      console.log("[SMS] Selected recipients IDs:", Array.from(selectedRecipientsMap.keys()));
+      console.log("[SMS] All recipients count:", recipients.length);
+      console.log("[SMS] All recipients:", recipients.map(r => ({ id: r.id, name: r.name, phone: r.phone })));
+      console.log("[SMS] Filtered selectedUsers count:", selectedUsers.length);
+      console.log("[SMS] Filtered selectedUsers:", selectedUsers.map(r => ({ id: r.id, name: r.name, phone: r.phone })));
+      console.log("[SMS] recipientsData to send count:", recipientsData.length);
+      console.log("[SMS] recipientsData to send:", JSON.stringify(recipientsData, null, 2));
+      console.log("[SMS] ===========================");
+
+      // Enviar SMS masivo usando el template
+      const response = await smsTemplateEndpoints.sendBulk(templateId, recipientsData);
+
+      if (response.success && response.data) {
+        const { successful, failed, total } = response.data;
+        if (failed === 0) {
+          toast.success(`${successful} SMS enviados correctamente`);
+        } else if (successful === 0) {
+          toast.error(`Error: No se pudo enviar ningún SMS`);
+        } else {
+          toast.warning(`${successful}/${total} SMS enviados. ${failed} fallaron.`);
+        }
+        setShowSendDialog(false);
+        setSelectedRecipientsMap(new Map());
+        // Recargar templates para actualizar estadísticas
+        loadTemplates();
+      } else {
+        toast.error(response.message || "Error al enviar SMS");
+      }
+    } catch (error) {
+      console.error("Error sending SMS:", error);
+      toast.error("Error al enviar los SMS");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const progressPercentage = Math.min((characterCount / MAX_SMS_LENGTH) * 100, 100);
+  const progressColor = characterCount > MAX_SMS_LENGTH
+    ? "bg-orange-500"
+    : characterCount > 140
+    ? "bg-yellow-500"
+    : "bg-green-500";
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={handleGoBack}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Crear Campaña SMS</h1>
-          <p className="text-muted-foreground">
-            Configura tu campaña de mensajes de texto
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Form */}
-        <div className="space-y-3">
-          {/* Campaign Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
-                Información de la Campaña
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="campaignName">Nombre de la Campaña</Label>
-                <Input
-                  id="campaignName"
-                  placeholder="Ej: Oferta Flash - Viernes Negro"
-                  value={smsData.campaignName}
-                  onChange={(e) => setSmsData(prev => ({ ...prev, campaignName: e.target.value }))}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="campaignType">Tipo de Campaña</Label>
-                  <Select
-                    value={smsData.campaignType}
-                    onValueChange={(value) => setSmsData(prev => ({ ...prev, campaignType: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="promotional">Promocional</SelectItem>
-                      <SelectItem value="transactional">Transaccional</SelectItem>
-                      <SelectItem value="reminder">Recordatorio</SelectItem>
-                      <SelectItem value="alert">Alerta</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="targetAudience">Audiencia</Label>
-                  <Select
-                    value={smsData.targetAudience}
-                    onValueChange={(value) => setSmsData(prev => ({ ...prev, targetAudience: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar audiencia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos los usuarios</SelectItem>
-                      <SelectItem value="customers">Solo clientes</SelectItem>
-                      <SelectItem value="opted-in">Usuarios opt-in SMS</SelectItem>
-                      <SelectItem value="vip">Clientes VIP</SelectItem>
-                      <SelectItem value="location">Por ubicación</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* SMS Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Smartphone className="h-5 w-5" />
-                Configuración del SMS
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fromNumber">Número de Envío</Label>
-                  <Select
-                    value={smsData.fromNumber}
-                    onValueChange={(value) => setSmsData(prev => ({ ...prev, fromNumber: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar número" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="+1234567890">+1 (234) 567-8900</SelectItem>
-                      <SelectItem value="+1234567891">+1 (234) 567-8901</SelectItem>
-                      <SelectItem value="shortcode">Short Code 12345</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="companyName">Nombre de la Empresa</Label>
-                  <Input
-                    id="companyName"
-                    placeholder="Tu Empresa"
-                    value={smsData.companyName}
-                    onChange={(e) => setSmsData(prev => ({ ...prev, companyName: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="message">Mensaje</Label>
-                  <Badge variant={isOverLimit ? "destructive" : "secondary"}>
-                    {messageLength}/160 chars • {segments} SMS
-                  </Badge>
-                </div>
-                <Textarea
-                  id="message"
-                  rows={4}
-                  placeholder="Escribe tu mensaje SMS aquí..."
-                  value={smsData.message}
-                  onChange={(e) => setSmsData(prev => ({ ...prev, message: e.target.value }))}
-                  className={isOverLimit ? "border-red-500" : ""}
-                />
-                {isOverLimit && (
-                  <div className="flex items-center gap-2 text-sm text-red-600">
-                    <AlertCircle className="h-4 w-4" />
-                    Mensaje muy largo. Se enviará como {segments} SMS separados.
-                  </div>
-                )}
-              </div>
-
-              {/* Variables de Personalización */}
-              <div className="space-y-2">
-                <Label>Variables de Personalización</Label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { label: "Nombre", value: "nombre" },
-                    { label: "Apellido", value: "apellido" },
-                    { label: "Empresa", value: "empresa" },
-                    { label: "Descuento", value: "descuento" }
-                  ].map((variable) => (
-                    <Button
-                      key={variable.value}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleInsertVariable(variable.value)}
-                    >
-                      {variable.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Compliance */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Cumplimiento y Regulaciones</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="includeOptOut"
-                  checked={smsData.includeOptOut}
-                  onCheckedChange={(checked) => setSmsData(prev => ({ ...prev, includeOptOut: checked }))}
-                />
-                <Label htmlFor="includeOptOut">Incluir opción de opt-out (Requerido)</Label>
-              </div>
-
-              {smsData.includeOptOut && (
-                <div className="space-y-2">
-                  <Label htmlFor="optOutMessage">Mensaje de Opt-out</Label>
-                  <Input
-                    id="optOutMessage"
-                    value={smsData.optOutMessage}
-                    onChange={(e) => setSmsData(prev => ({ ...prev, optOutMessage: e.target.value }))}
-                  />
-                </div>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <div className="container max-w-7xl mx-auto py-6 px-4">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/marketing/campaigns")}
+            className="rounded-full"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <MessageSquare className="h-6 w-6 text-primary" />
+              {isEditing ? "Editar" : "Crear"} Template SMS
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              {isEditing ? "Modifica tu template existente" : "Crea un template reutilizable para tus campañas de SMS"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {isEditing && (
+              <Button
+                variant="outline"
+                onClick={handleDeleteTemplate}
+                disabled={isLoading}
+                className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                Eliminar
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={handleSave}
+              disabled={isLoading}
+              className="gap-2"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
               )}
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="includeCompanyName"
-                  checked={smsData.includeCompanyName}
-                  onCheckedChange={(checked) => setSmsData(prev => ({ ...prev, includeCompanyName: checked }))}
-                />
-                <Label htmlFor="includeCompanyName">Incluir nombre de la empresa</Label>
-              </div>
-
-              <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                <div className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Nota:</strong> Asegúrate de cumplir con las regulaciones locales de SMS marketing.
-                  Solo envía mensajes a usuarios que han dado su consentimiento explícito.
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Scheduling */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Programación
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="sendImmediately"
-                  checked={smsData.sendImmediately}
-                  onCheckedChange={(checked) => setSmsData(prev => ({ ...prev, sendImmediately: checked }))}
-                />
-                <Label htmlFor="sendImmediately">Enviar inmediatamente</Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="enableABTest"
-                  checked={smsData.enableABTest}
-                  onCheckedChange={(checked) => setSmsData(prev => ({ ...prev, enableABTest: checked }))}
-                />
-                <Label htmlFor="enableABTest">Habilitar prueba A/B</Label>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={handleSave} className="flex-1">
-              <Save className="mr-2 h-4 w-4" />
-              Guardar Borrador
+              {isEditing ? "Actualizar" : "Guardar"}
             </Button>
-            <Button onClick={handleSend} className="flex-1">
-              <Send className="mr-2 h-4 w-4" />
+            <Button
+              onClick={() => {
+                loadRecipients();
+                setShowSendDialog(true);
+              }}
+              disabled={!message.trim()}
+              className="gap-2 bg-green-600 hover:bg-green-700"
+            >
+              <Send className="h-4 w-4" />
               Enviar SMS
             </Button>
           </div>
         </div>
 
-        {/* Preview */}
-        <div className="space-y-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5" />
-                Vista Previa
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SmsPreview
-                fromNumber={smsData.fromNumber}
-                message={smsData.message}
-                companyName={smsData.companyName}
-                includeOptOut={smsData.includeOptOut}
-              />
-            </CardContent>
-          </Card>
+        <div className="grid lg:grid-cols-7 gap-6">
+          {/* Sidebar de Templates - 2 columnas */}
+          <div className="lg:col-span-2 space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Templates
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={loadTemplates}
+                    disabled={isLoadingTemplates}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isLoadingTemplates ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button
+                  variant={!selectedTemplateId ? "secondary" : "ghost"}
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={handleNewTemplate}
+                >
+                  <Plus className="h-4 w-4" />
+                  Nuevo Template
+                </Button>
 
-          {/* Message Analysis */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Análisis del Mensaje</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-3 bg-muted rounded-lg">
-                  <div className="text-2xl font-bold">{messageLength}</div>
-                  <div className="text-sm text-muted-foreground">Caracteres</div>
-                </div>
-                <div className="text-center p-3 bg-muted rounded-lg">
-                  <div className="text-2xl font-bold">{segments}</div>
-                  <div className="text-sm text-muted-foreground">Segmentos</div>
-                </div>
-              </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={handleSeedTemplates}
+                  disabled={isLoading}
+                >
+                  <Database className="h-4 w-4" />
+                  Cargar Por Defecto
+                </Button>
 
-              <Separator />
+                <Separator className="my-2" />
 
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Costo estimado por SMS:</span>
-                  <span className="font-medium">$0.05</span>
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-1 pr-2">
+                    {isLoadingTemplates ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : templates.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4">
+                        No hay templates guardados
+                      </p>
+                    ) : (
+                      templates.map((template) => (
+                        <button
+                          key={template.id}
+                          onClick={() => handleSelectTemplate(template.id)}
+                          className={`w-full text-left p-2 rounded-md text-xs transition-colors ${
+                            selectedTemplateId === template.id
+                              ? "bg-primary/10 border border-primary/30"
+                              : "hover:bg-muted"
+                          }`}
+                        >
+                          <div className="font-medium truncate">{template.name}</div>
+                          <div className="flex items-center gap-1 mt-1">
+                            <Badge variant="outline" className="text-[10px] px-1 py-0">
+                              {template.category}
+                            </Badge>
+                            {template.totalSent > 0 && (
+                              <span className="text-[10px] text-muted-foreground">
+                                {template.totalSent} enviados
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Editor - 3 columnas */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Nombre y Categoría */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Información del Template</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nombre del Template</Label>
+                  <Input
+                    id="name"
+                    placeholder="Ej: Promoción Fin de Semana Samsung"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="text-base"
+                  />
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span>Costo total estimado:</span>
-                  <span className="font-medium">${(segments * 0.05).toFixed(2)}</span>
+
+                <div className="space-y-2">
+                  <Label>Categoría</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.value}
+                        type="button"
+                        onClick={() => setCategory(cat.value)}
+                        className={`p-3 rounded-lg border-2 text-left transition-all ${
+                          category === cat.value
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="font-medium text-sm">{cat.label}</div>
+                        <div className="text-xs text-muted-foreground">{cat.description}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            {/* Editor del Mensaje */}
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Mensaje SMS</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={isOverLimit ? "destructive" : characterCount > 140 ? "secondary" : "outline"}
+                      className="font-mono"
+                    >
+                      {characterCount}/{MAX_SMS_LENGTH}
+                    </Badge>
+                    {segmentCount > 1 && (
+                      <Badge variant="secondary">
+                        {segmentCount} SMS
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Textarea
+                  rows={5}
+                  placeholder="Escribe tu mensaje SMS aquí...&#10;&#10;Ejemplo: Hola {{nombre}}, aprovecha {{descuento}}% de descuento en {{producto}}. Válido hasta {{fecha}}. {{link}}"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className={`text-base resize-none ${isOverLimit ? "border-orange-500 focus-visible:ring-orange-500" : ""}`}
+                />
+
+                {/* Barra de progreso */}
+                <div className="space-y-1">
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${progressColor}`}
+                      style={{ width: `${progressPercentage}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>
+                      {isOverLimit
+                        ? `Se enviará como ${segmentCount} SMS concatenados`
+                        : `${remainingChars} caracteres restantes`}
+                    </span>
+                    <span>{segmentCount} segmento{segmentCount > 1 ? "s" : ""}</span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Variables */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-sm">
+                    <Variable className="h-4 w-4" />
+                    Variables de Personalización
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {VARIABLES.map((variable) => (
+                      <Button
+                        key={variable.value}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleInsertVariable(variable.value)}
+                        className="h-7 text-xs font-medium"
+                      >
+                        <Sparkles className="h-3 w-3 mr-1 text-primary" />
+                        {variable.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Insertar Link */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleInsertLink}
+                  className="gap-2"
+                >
+                  <Link2 className="h-4 w-4" />
+                  Insertar Link
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Preview y Stats - 2 columnas */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Preview del teléfono */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Vista Previa</CardTitle>
+                <CardDescription>Así se verá tu mensaje en el teléfono</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mx-auto max-w-[260px]">
+                  {/* Phone frame */}
+                  <div className="bg-gray-900 rounded-[2.5rem] p-2.5 shadow-xl">
+                    <div className="bg-black rounded-[2rem] overflow-hidden">
+                      {/* Notch */}
+                      <div className="h-6 bg-black flex items-center justify-center">
+                        <div className="w-16 h-4 bg-black rounded-full" />
+                      </div>
+                      {/* Screen */}
+                      <div className="bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 min-h-[280px] p-3">
+                        {/* SMS Header */}
+                        <div className="text-center mb-3">
+                          <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 mb-1.5">
+                            <MessageSquare className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="text-xs font-medium">Samsung</div>
+                          <div className="text-[10px] text-muted-foreground">SMS</div>
+                        </div>
+
+                        {/* Message bubble */}
+                        {message ? (
+                          <div className="bg-white dark:bg-gray-700 rounded-2xl rounded-tl-sm p-2.5 shadow-sm max-w-[90%]">
+                            <p className="text-xs whitespace-pre-wrap break-words leading-relaxed">
+                              {getPreviewMessage() || "Tu mensaje aparecerá aquí..."}
+                            </p>
+                            <div className="text-[9px] text-muted-foreground mt-1.5 text-right">
+                              Ahora
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center text-muted-foreground text-xs py-6">
+                            Escribe un mensaje para ver la vista previa
+                          </div>
+                        )}
+                      </div>
+                      {/* Home indicator */}
+                      <div className="h-6 bg-black flex items-center justify-center">
+                        <div className="w-24 h-1 bg-gray-600 rounded-full" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Estadísticas */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Análisis
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-center p-3 bg-muted/50 rounded-lg">
+                    <div className="text-2xl font-bold text-primary">{characterCount}</div>
+                    <div className="text-xs text-muted-foreground">Caracteres</div>
+                  </div>
+                  <div className="text-center p-3 bg-muted/50 rounded-lg">
+                    <div className="text-2xl font-bold text-primary">{segmentCount}</div>
+                    <div className="text-xs text-muted-foreground">Segmentos</div>
+                  </div>
+                </div>
+
+                {variablesUsed.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Variables detectadas</Label>
+                      <div className="flex flex-wrap gap-1">
+                        {variablesUsed.map((v) => (
+                          <Badge key={v.value} variant="secondary" className="text-xs">
+                            <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
+                            {v.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <Separator />
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Costo por SMS:</span>
+                    <span className="font-medium">~$0.02 USD</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Costo por mensaje:</span>
+                    <span className="font-medium">~${(segmentCount * 0.02).toFixed(2)} USD</span>
+                  </div>
+                </div>
+
+                {/* Estadísticas del template si existe */}
+                {isEditing && selectedTemplateId && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Estadísticas del template</Label>
+                      {(() => {
+                        const template = templates.find(t => t.id === selectedTemplateId);
+                        if (!template) return null;
+                        return (
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded">
+                              <div className="text-lg font-bold text-blue-600">{template.totalSent}</div>
+                              <div className="text-[10px] text-muted-foreground">Enviados</div>
+                            </div>
+                            <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded">
+                              <div className="text-lg font-bold text-green-600">{template.successfulSent}</div>
+                              <div className="text-[10px] text-muted-foreground">Exitosos</div>
+                            </div>
+                            <div className="p-2 bg-red-50 dark:bg-red-950/30 rounded">
+                              <div className="text-lg font-bold text-red-600">{template.failedSent}</div>
+                              <div className="text-[10px] text-muted-foreground">Fallidos</div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Tips */}
+            <Card className="border-dashed">
+              <CardContent className="pt-6">
+                <div className="space-y-3 text-sm">
+                  <div className="flex gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <span className="text-muted-foreground">
+                      Los SMS promocionales tienen mejor tasa de apertura entre 10am-2pm
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Sparkles className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <span className="text-muted-foreground">
+                      Personaliza con el nombre del cliente para aumentar la conversión
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
+
+      {/* Dialog de envío de SMS */}
+      <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
+        <DialogContent className="!max-w-3xl h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Enviar SMS
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona los destinatarios para enviar tu mensaje SMS
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Info del mensaje */}
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+              <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <MessageSquare className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground uppercase font-medium">Mensaje a enviar</p>
+                <p className="font-medium truncate">
+                  {name || "Sin nombre"} - {characterCount} caracteres ({segmentCount} SMS)
+                </p>
+              </div>
+              <Badge variant={category === "transactional" ? "default" : "secondary"}>
+                {CATEGORIES.find(c => c.value === category)?.label}
+              </Badge>
+            </div>
+
+            {/* Buscador y controles */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nombre o teléfono..."
+                  value={recipientSearch}
+                  onChange={(e) => setRecipientSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      loadRecipients(recipientSearch);
+                    }
+                  }}
+                  className="pl-9"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => loadRecipients(recipientSearch)}
+                disabled={isLoadingRecipients}
+              >
+                {isLoadingRecipients ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={selectAllRecipients}>
+                Seleccionar todos
+              </Button>
+              <Button variant="outline" size="sm" onClick={deselectAllRecipients}>
+                Limpiar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const csvContent = [
+                    ["Nombre", "Teléfono", "Email"].join(","),
+                    ...recipients.map(r => [`"${r.name.replace(/"/g, '""')}"`, `"${r.phone}"`, `"${r.email || ""}"`].join(","))
+                  ].join("\n");
+                  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `destinatarios-sms-${new Date().toISOString().split("T")[0]}.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  toast.success(`${recipients.length} contactos exportados a CSV`);
+                }}
+                disabled={recipients.length === 0}
+                className="gap-1"
+              >
+                <Download className="h-4 w-4" />
+                CSV
+              </Button>
+            </div>
+
+            {/* Contador de seleccionados */}
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {selectedRecipientsMap.size} de {recipients.length} destinatarios seleccionados
+              </span>
+              {selectedRecipientsMap.size > 0 && (
+                <Badge variant="secondary" className="ml-auto">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  {selectedRecipientsMap.size} seleccionados
+                </Badge>
+              )}
+            </div>
+
+            {/* Lista de destinatarios */}
+            <ScrollArea className="flex-1 border rounded-lg h-[350px]">
+              <div className="p-2 space-y-1">
+                {isLoadingRecipients ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-muted-foreground">Cargando destinatarios...</span>
+                  </div>
+                ) : recipients.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Haz clic en Buscar para cargar destinatarios</p>
+                    <p className="text-xs mt-1">Solo se mostrarán usuarios con número de teléfono</p>
+                  </div>
+                ) : (
+                  recipients.map((recipient) => (
+                    <div
+                      key={recipient.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                        selectedRecipientsMap.has(recipient.id)
+                          ? "bg-primary/10 border border-primary/20"
+                          : "hover:bg-muted"
+                      }`}
+                      onClick={() => toggleRecipient(recipient)}
+                    >
+                      <Checkbox
+                        checked={selectedRecipientsMap.has(recipient.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        onCheckedChange={() => toggleRecipient(recipient)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium truncate">{recipient.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          <span className="truncate">{recipient.phone}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+
+            {/* Resumen de costos */}
+            {selectedRecipientsMap.size > 0 && (
+              <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Costo estimado total:</span>
+                  <span className="font-bold text-green-600 ml-2">
+                    ~${(selectedRecipientsMap.size * segmentCount * 0.02).toFixed(2)} USD
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {selectedRecipientsMap.size} destinatarios × {segmentCount} SMS × $0.02
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSendDialog(false);
+                setSelectedRecipientsMap(new Map());
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSendSms}
+              disabled={isSending || selectedRecipientsMap.size === 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Enviar a {selectedRecipientsMap.size} destinatario(s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
