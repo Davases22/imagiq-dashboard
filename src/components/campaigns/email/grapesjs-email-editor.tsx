@@ -83,8 +83,11 @@ export function GrapesJSEmailEditor({
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [showTemplatesDialog, setShowTemplatesDialog] = useState(false);
-  const [savedTemplates, setSavedTemplates] = useState<EmailTemplate[]>([]);
+  const [predefinedTemplates, setPredefinedTemplates] = useState<EmailTemplate[]>([]);
+  const [userTemplates, setUserTemplates] = useState<EmailTemplate[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [templateFilter, setTemplateFilter] = useState<"all" | "predefined" | "saved">("all");
 
   // Estados para envío de emails
   const [showSendDialog, setShowSendDialog] = useState(false);
@@ -94,24 +97,31 @@ export function GrapesJSEmailEditor({
   const [isSending, setIsSending] = useState(false);
   const [emailSubject, setEmailSubject] = useState("");
 
-  // Cargar templates guardados (template + samsung)
+  // Cargar templates: predefinidos (template + samsung) y guardados por usuario (marketing)
   const loadSavedTemplates = useCallback(async () => {
     setIsLoadingTemplates(true);
     try {
-      // Cargar templates predefinidos y templates de Samsung
-      const [templatesResponse, samsungResponse] = await Promise.all([
+      // Cargar templates predefinidos (template + samsung) y templates del usuario (marketing)
+      const [templatesResponse, samsungResponse, userResponse] = await Promise.all([
         stripoEndpoints.listTemplates({ category: "template" }),
         stripoEndpoints.listTemplates({ category: "samsung" }),
+        stripoEndpoints.listTemplates({ category: "marketing" }),
       ]);
 
-      const allTemplates: EmailTemplate[] = [];
+      const predefined: EmailTemplate[] = [];
       if (templatesResponse.success && templatesResponse.data) {
-        allTemplates.push(...templatesResponse.data);
+        predefined.push(...templatesResponse.data);
       }
       if (samsungResponse.success && samsungResponse.data) {
-        allTemplates.push(...samsungResponse.data);
+        predefined.push(...samsungResponse.data);
       }
-      setSavedTemplates(allTemplates);
+      setPredefinedTemplates(predefined);
+
+      const user: EmailTemplate[] = [];
+      if (userResponse.success && userResponse.data) {
+        user.push(...userResponse.data);
+      }
+      setUserTemplates(user);
     } catch (error) {
       console.error("Error loading templates:", error);
     } finally {
@@ -277,6 +287,11 @@ export function GrapesJSEmailEditor({
     } else if (template.htmlContent) {
       editor.setComponents(template.htmlContent);
     }
+
+    // Actualizar el estado con la info del template aplicado para poder guardarlo
+    setCurrentTemplateId(template.id);
+    setTemplateName(template.name);
+    setTemplateSubject(template.subject);
 
     setShowTemplatesDialog(false);
     toast.success(`Template "${template.name}" aplicado`);
@@ -1132,63 +1147,207 @@ export function GrapesJSEmailEditor({
       </Dialog>
 
       {/* Templates Dialog */}
-      <Dialog open={showTemplatesDialog} onOpenChange={setShowTemplatesDialog}>
+      <Dialog open={showTemplatesDialog} onOpenChange={(open) => {
+        setShowTemplatesDialog(open);
+        if (!open) {
+          setTemplateSearch("");
+          setTemplateFilter("all");
+        }
+      }}>
         <DialogContent className="!max-w-4xl h-[80vh]">
           <DialogHeader>
             <DialogTitle>Seleccionar Template</DialogTitle>
             <DialogDescription>
-              Elige un template guardado para usar como base de tu email
+              Elige un template predefinido o uno de tus templates guardados
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 h-[calc(80vh-120px)]">
+          {/* Filtros de categoría */}
+          <div className="flex items-center gap-2 border-b pb-3">
+            <Button
+              variant={templateFilter === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTemplateFilter("all")}
+              className="gap-2"
+            >
+              Todos
+              <Badge variant="secondary" className={templateFilter === "all" ? "bg-primary-foreground/20" : ""}>
+                {predefinedTemplates.length + userTemplates.length}
+              </Badge>
+            </Button>
+            <Button
+              variant={templateFilter === "predefined" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTemplateFilter("predefined")}
+              className="gap-2"
+            >
+              <LayoutTemplate className="h-4 w-4" />
+              Predefinidos
+              <Badge variant="secondary" className={templateFilter === "predefined" ? "bg-primary-foreground/20" : ""}>
+                {predefinedTemplates.length}
+              </Badge>
+            </Button>
+            <Button
+              variant={templateFilter === "saved" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTemplateFilter("saved")}
+              className="gap-2"
+            >
+              <Save className="h-4 w-4" />
+              Mis Guardados
+              <Badge variant="secondary" className={templateFilter === "saved" ? "bg-primary-foreground/20" : ""}>
+                {userTemplates.length}
+              </Badge>
+            </Button>
+          </div>
+          {/* Buscador de templates */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar template por nombre..."
+              value={templateSearch}
+              onChange={(e) => setTemplateSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <ScrollArea className="flex-1 h-[calc(80vh-240px)]">
             {isLoadingTemplates ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            ) : savedTemplates.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">No hay templates guardados</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Guarda tu primer template con la categoría &quot;template&quot; para verlo aquí
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4">
-                {savedTemplates.map((template) => (
-                  <div
-                    key={template.id}
-                    className="group relative border rounded-lg overflow-hidden hover:border-primary transition-colors cursor-pointer"
-                    onClick={() => applyTemplate(template)}
-                  >
-                    <div className="aspect-[4/3] bg-muted relative overflow-hidden">
-                      {template.thumbnailUrl ? (
-                        <img
-                          src={template.thumbnailUrl}
-                          alt={template.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <FileText className="h-12 w-12 text-muted-foreground" />
+            ) : (() => {
+              // Filtrar templates por búsqueda y categoría
+              const searchTerm = templateSearch.toLowerCase().trim();
+
+              // Aplicar filtro de categoría primero
+              const showPredefined = templateFilter === "all" || templateFilter === "predefined";
+              const showUser = templateFilter === "all" || templateFilter === "saved";
+
+              // Luego aplicar filtro de búsqueda
+              const filteredPredefined = showPredefined
+                ? (searchTerm
+                    ? predefinedTemplates.filter(t =>
+                        t.name.toLowerCase().includes(searchTerm) ||
+                        t.subject.toLowerCase().includes(searchTerm)
+                      )
+                    : predefinedTemplates)
+                : [];
+              const filteredUser = showUser
+                ? (searchTerm
+                    ? userTemplates.filter(t =>
+                        t.name.toLowerCase().includes(searchTerm) ||
+                        t.subject.toLowerCase().includes(searchTerm)
+                      )
+                    : userTemplates)
+                : [];
+
+              if (predefinedTemplates.length === 0 && userTemplates.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">No hay templates disponibles</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Guarda tu primer template para verlo aquí
+                    </p>
+                  </div>
+                );
+              }
+
+              if (filteredPredefined.length === 0 && filteredUser.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Search className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">No se encontraron templates</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {searchTerm
+                        ? `No hay templates que coincidan con "${templateSearch}"`
+                        : templateFilter === "saved"
+                          ? "Aún no tienes templates guardados"
+                          : "No hay templates predefinidos disponibles"
+                      }
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-6 p-4">
+                  {/* Sección: Templates Predefinidos */}
+                  {filteredPredefined.length > 0 && (
+                    <div>
+                      {templateFilter === "all" && (
+                        <div className="flex items-center gap-2 mb-3">
+                          <LayoutTemplate className="h-5 w-5 text-primary" />
+                          <h3 className="text-lg font-semibold">Templates Predefinidos</h3>
+                          <Badge variant="secondary">{filteredPredefined.length}</Badge>
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Button size="sm" variant="secondary">
-                          Usar Template
-                        </Button>
+                      <div className="space-y-2">
+                        {filteredPredefined.map((template) => (
+                          <div
+                            key={template.id}
+                            className="flex items-center gap-3 p-3 border rounded-lg hover:border-primary hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => applyTemplate(template)}
+                          >
+                            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                              <FileText className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-sm truncate">{template.name}</h4>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {template.subject}
+                              </p>
+                            </div>
+                            <Button size="sm" variant="outline" className="flex-shrink-0">
+                              Usar
+                            </Button>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <div className="p-3">
-                      <h4 className="font-medium text-sm truncate">{template.name}</h4>
-                      <p className="text-xs text-muted-foreground truncate mt-1">
-                        {template.subject}
-                      </p>
+                  )}
+
+                  {/* Separador si hay ambos tipos */}
+                  {templateFilter === "all" && filteredPredefined.length > 0 && filteredUser.length > 0 && (
+                    <div className="border-t pt-6" />
+                  )}
+
+                  {/* Sección: Mis Templates Guardados */}
+                  {filteredUser.length > 0 && (
+                    <div>
+                      {templateFilter === "all" && (
+                        <div className="flex items-center gap-2 mb-3">
+                          <Save className="h-5 w-5 text-green-600" />
+                          <h3 className="text-lg font-semibold">Mis Templates Guardados</h3>
+                          <Badge variant="outline" className="border-green-600 text-green-600">{filteredUser.length}</Badge>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        {filteredUser.map((template) => (
+                          <div
+                            key={template.id}
+                            className="flex items-center gap-3 p-3 border rounded-lg hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-950/20 transition-colors cursor-pointer"
+                            onClick={() => applyTemplate(template)}
+                          >
+                            <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                              <FileText className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-sm truncate">{template.name}</h4>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {template.subject}
+                              </p>
+                            </div>
+                            <Button size="sm" variant="outline" className="flex-shrink-0 border-green-600 text-green-600 hover:bg-green-600 hover:text-white">
+                              Usar
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  )}
+                </div>
+              );
+            })()}
           </ScrollArea>
         </DialogContent>
       </Dialog>
@@ -1207,6 +1366,24 @@ export function GrapesJSEmailEditor({
           </DialogHeader>
 
           <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Info de la plantilla a enviar */}
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+              <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <LayoutTemplate className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground uppercase font-medium">Plantilla a enviar</p>
+                <p className="font-medium truncate">
+                  {templateName || "Sin nombre (plantilla nueva)"}
+                </p>
+              </div>
+              {templateSubject && (
+                <Badge variant="outline" className="flex-shrink-0">
+                  {templateSubject.length > 30 ? templateSubject.substring(0, 30) + "..." : templateSubject}
+                </Badge>
+              )}
+            </div>
+
             {/* Asunto del email */}
             <div className="space-y-2">
               <Label htmlFor="email-subject">Asunto del Email *</Label>
@@ -1219,8 +1396,8 @@ export function GrapesJSEmailEditor({
             </div>
 
             {/* Buscador y controles */}
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar por nombre o email..."
@@ -1247,6 +1424,32 @@ export function GrapesJSEmailEditor({
               </Button>
               <Button variant="outline" size="sm" onClick={deselectAllRecipients}>
                 Limpiar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Exportar a CSV
+                  const csvContent = [
+                    ["Nombre", "Email"].join(","),
+                    ...recipients.map(r => [`"${r.name.replace(/"/g, '""')}"`, `"${r.email}"`].join(","))
+                  ].join("\n");
+                  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `destinatarios-email-${new Date().toISOString().split("T")[0]}.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  toast.success(`${recipients.length} correos exportados a CSV`);
+                }}
+                disabled={recipients.length === 0}
+                className="gap-1"
+              >
+                <Download className="h-4 w-4" />
+                Exportar CSV
               </Button>
             </div>
 

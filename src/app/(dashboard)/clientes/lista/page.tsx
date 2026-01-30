@@ -23,8 +23,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -44,8 +42,6 @@ import {
   Eye,
   Mail,
   Tag,
-  Trash2,
-  UserPlus,
   Phone,
   Loader2,
   ChevronLeft,
@@ -87,6 +83,8 @@ export default function ClientesListaPage() {
   const [sortBy, setSortBy] = useState<string>("recent")
   const [users, setUsers] = useState<DatabaseUser[]>([])
   const [totalUsers, setTotalUsers] = useState(0)
+  const [totalRegistered, setTotalRegistered] = useState(0)
+  const [totalGuest, setTotalGuest] = useState(0)
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedUser, setSelectedUser] = useState<DatabaseUser | null>(null)
@@ -133,6 +131,8 @@ export default function ClientesListaPage() {
         const data = await response.json()
         setUsers(data.users || [])
         setTotalUsers(data.total || 0)
+        setTotalRegistered(data.totalRegistered || 0)
+        setTotalGuest(data.totalGuest || 0)
       } else {
         console.error('Error response:', await response.text())
       }
@@ -196,10 +196,6 @@ export default function ClientesListaPage() {
     }
   }
 
-  // Count users by rol
-  const registeredCount = users.filter(u => u.rol === 2).length
-  const guestCount = users.filter(u => u.rol === 3).length
-
   return (
     <div className="space-y-3">
       {/* Header */}
@@ -219,13 +215,38 @@ export default function ClientesListaPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button
+            variant="outline"
+            onClick={() => {
+              // Exportar a CSV
+              const csvContent = [
+                ["Nombre", "Apellido", "Email", "Teléfono", "Documento", "Rol", "Estado", "Fecha Registro", "Último Login"].join(","),
+                ...users.map(u => [
+                  `"${(u.nombre || "").replace(/"/g, '""')}"`,
+                  `"${(u.apellido || "").replace(/"/g, '""')}"`,
+                  `"${u.email || ""}"`,
+                  `"${u.codigo_pais ? `+${u.codigo_pais.replace(/^\++/, '')} ` : ""}${u.telefono || ""}"`,
+                  `"${u.tipo_documento && u.numero_documento ? `${u.tipo_documento}: ${u.numero_documento}` : ""}"`,
+                  `"${u.rol === 2 ? "Registrado" : "Invitado"}"`,
+                  `"${u.activo ? "Activo" : "Inactivo"}"`,
+                  `"${u.fecha_creacion ? formatDateShort(u.fecha_creacion) : ""}"`,
+                  `"${u.ultimo_login ? formatDate(u.ultimo_login) : "Nunca"}"`
+                ].join(","))
+              ].join("\n");
+              const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `clientes-${new Date().toISOString().split("T")[0]}.csv`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }}
+            disabled={users.length === 0}
+          >
             <Download className="mr-2 h-4 w-4" />
             Exportar
-          </Button>
-          <Button>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Agregar Cliente
           </Button>
         </div>
       </div>
@@ -251,7 +272,7 @@ export default function ClientesListaPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{registeredCount}</div>
+            <div className="text-2xl font-bold text-green-600">{totalRegistered}</div>
           </CardContent>
         </Card>
         <Card>
@@ -262,7 +283,7 @@ export default function ClientesListaPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-500">{guestCount}</div>
+            <div className="text-2xl font-bold text-gray-500">{totalGuest}</div>
           </CardContent>
         </Card>
       </div>
@@ -333,7 +354,7 @@ export default function ClientesListaPage() {
           )}
 
           <div className="rounded-md border overflow-x-auto">
-            <Table>
+            <Table className="text-xs">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">
@@ -350,13 +371,12 @@ export default function ClientesListaPage() {
                   <TableHead>Verificación</TableHead>
                   <TableHead>Fecha Registro</TableHead>
                   <TableHead>Último Login</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
+                    <TableCell colSpan={9} className="text-center py-8">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" />
                         <span>Cargando usuarios...</span>
@@ -365,7 +385,7 @@ export default function ClientesListaPage() {
                   </TableRow>
                 ) : users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       No se encontraron usuarios
                     </TableCell>
                   </TableRow>
@@ -375,7 +395,7 @@ export default function ClientesListaPage() {
                     const fullName = [user.nombre, user.apellido].filter(Boolean).join(" ") || "Sin nombre"
                     return (
                       <TableRow key={user.id}>
-                        <TableCell>
+                        <TableCell className="py-2">
                           <Checkbox
                             checked={selectedCustomers.includes(user.id)}
                             onCheckedChange={(checked) =>
@@ -383,52 +403,52 @@ export default function ClientesListaPage() {
                             }
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-2">
                           <div className="flex flex-col">
-                            <span className="font-medium">{fullName}</span>
-                            <span className="text-xs text-muted-foreground">{user.id.slice(0, 8)}...</span>
+                            <span className="font-medium text-xs">{fullName}</span>
+                            <span className="text-[10px] text-muted-foreground">{user.id.slice(0, 8)}...</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1 text-sm">
-                              <Mail className="h-3 w-3 text-muted-foreground" />
-                              {user.email || "N/A"}
+                        <TableCell className="py-2">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1 text-xs">
+                              <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <span className="truncate max-w-[150px]">{user.email || "N/A"}</span>
                             </div>
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Phone className="h-3 w-3" />
-                              {user.codigo_pais ? `+${user.codigo_pais} ` : ""}{user.telefono || "N/A"}
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Phone className="h-3 w-3 flex-shrink-0" />
+                              {user.codigo_pais ? `+${user.codigo_pais.replace(/^\++/, '')} ` : ""}{user.telefono || "N/A"}
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <span className="text-sm">
+                        <TableCell className="py-2">
+                          <span className="text-xs">
                             {user.tipo_documento && user.numero_documento
                               ? `${user.tipo_documento}: ${user.numero_documento}`
                               : "N/A"}
                           </span>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
+                        <TableCell className="py-2">
+                          <div className="flex items-center gap-1">
                             <div className={`h-2 w-2 rounded-full ${rolConfig.color}`} />
-                            <span className="text-sm">{rolConfig.label}</span>
+                            <span className="text-xs">{rolConfig.label}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <Badge variant={user.activo ? "default" : "secondary"} className="w-fit text-xs">
+                        <TableCell className="py-2">
+                          <div className="flex flex-col gap-0.5">
+                            <Badge variant={user.activo ? "default" : "secondary"} className="w-fit text-[10px] px-1.5 py-0">
                               {user.activo ? "Activo" : "Inactivo"}
                             </Badge>
                             {user.bloqueado && (
-                              <Badge variant="destructive" className="w-fit text-xs">
+                              <Badge variant="destructive" className="w-fit text-[10px] px-1.5 py-0">
                                 Bloqueado
                               </Badge>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1 text-xs">
+                        <TableCell className="py-2">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1 text-[10px]">
                               {user.email_verificado ? (
                                 <CheckCircle className="h-3 w-3 text-green-500" />
                               ) : (
@@ -436,7 +456,7 @@ export default function ClientesListaPage() {
                               )}
                               Email
                             </div>
-                            <div className="flex items-center gap-1 text-xs">
+                            <div className="flex items-center gap-1 text-[10px]">
                               {user.telefono_verificado ? (
                                 <CheckCircle className="h-3 w-3 text-green-500" />
                               ) : (
@@ -446,46 +466,43 @@ export default function ClientesListaPage() {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            {formatDateShort(user.fecha_creacion)}
+                        <TableCell className="py-2">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3 flex-shrink-0" />
+                            <span className="whitespace-nowrap">{formatDateShort(user.fecha_creacion)}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">
-                            {user.ultimo_login ? formatDate(user.ultimo_login) : "Nunca"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => { setSelectedUser(user); setShowProfileModal(true); }}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Ver perfil
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Mail className="mr-2 h-4 w-4" />
-                                Enviar email
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Shield className="mr-2 h-4 w-4" />
-                                {user.bloqueado ? "Desbloquear" : "Bloquear"}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        <TableCell className="py-2">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              {user.ultimo_login ? (
+                                <div className="flex flex-col text-xs text-muted-foreground">
+                                  <span>{formatDateShort(user.ultimo_login)}</span>
+                                  <span className="text-[10px]">
+                                    {new Intl.DateTimeFormat("es-CO", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    }).format(new Date(user.ultimo_login))}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Nunca</span>
+                              )}
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setSelectedUser(user); setShowProfileModal(true); }}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Ver perfil
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
                       </TableRow>
                     )
@@ -580,7 +597,7 @@ export default function ClientesListaPage() {
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">
-                      {selectedUser.codigo_pais ? `+${selectedUser.codigo_pais} ` : ""}
+                      {selectedUser.codigo_pais ? `+${selectedUser.codigo_pais.replace(/^\++/, '')} ` : ""}
                       {selectedUser.telefono || "N/A"}
                     </span>
                     {selectedUser.telefono_verificado ? (
