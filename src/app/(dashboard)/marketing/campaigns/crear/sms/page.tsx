@@ -26,7 +26,6 @@ import {
   Link2,
   Sparkles,
   BarChart3,
-  Clock,
   CheckCircle2,
   Loader2,
   Send,
@@ -39,12 +38,13 @@ import {
   RefreshCw,
   Trash2,
   Database,
+  Smile,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { smsTemplateEndpoints, SmsTemplate } from "@/lib/api";
 
-const MAX_SMS_LENGTH = 160;
+const MAX_SMS_LENGTH = 159;
 const MAX_CONCATENATED_LENGTH = 153;
 
 const VARIABLES = [
@@ -57,6 +57,69 @@ const CATEGORIES = [
   { value: "transactional", label: "Transaccional", description: "Confirmaciones y actualizaciones" },
   { value: "reminder", label: "Recordatorio", description: "Citas y vencimientos" },
   { value: "alert", label: "Alerta", description: "Notificaciones urgentes" },
+];
+
+const EMOJI_CATEGORIES = [
+  {
+    name: "Populares",
+    emojis: ["🎉", "🔥", "⭐", "💥", "🚀", "💰", "🎁", "✨", "❤️", "👍", "✅", "🙌"],
+  },
+  {
+    name: "Caras",
+    emojis: ["😀", "😃", "😄", "😁", "😊", "🥰", "😍", "🤩", "😎", "🤗", "🤔", "😉", "😋", "🥳", "😇", "🙂", "😏", "😌", "🤭", "😜", "🤪", "😝", "🤑", "🤠"],
+  },
+  {
+    name: "Gestos",
+    emojis: ["👍", "👎", "👏", "🙌", "🤝", "👊", "✊", "🤞", "✌️", "🤟", "🤙", "👋", "🖐️", "✋", "👌", "🤏", "👆", "👇", "👈", "👉", "💪", "🦾", "🙏", "💅"],
+  },
+  {
+    name: "Corazones",
+    emojis: ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝", "💟", "♥️", "😍", "🥰", "😘", "😻"],
+  },
+  {
+    name: "Celebración",
+    emojis: ["🎉", "🎊", "🎈", "🎁", "🎀", "🏆", "🥇", "🥈", "🥉", "🏅", "🎖️", "🎗️", "🎄", "🎃", "🎂", "🍰", "🧁", "🥂", "🍾", "🎇", "🎆", "✨", "🌟", "💫"],
+  },
+  {
+    name: "Dinero",
+    emojis: ["💰", "💵", "💴", "💶", "💷", "💸", "💳", "🪙", "💎", "💲", "🤑", "🏦", "🏧", "💹", "📈", "📉", "🛒", "🛍️", "🏷️", "🎫", "🧾", "💼", "📊", "🔖"],
+  },
+  {
+    name: "Tecnología",
+    emojis: ["📱", "💻", "🖥️", "⌨️", "🖱️", "💾", "💿", "📀", "🎮", "🕹️", "📷", "📸", "📹", "🎥", "📺", "📻", "🎧", "🎤", "🔊", "📡", "⌚", "⏰", "⏱️", "🔋"],
+  },
+  {
+    name: "Compras",
+    emojis: ["🛒", "🛍️", "🏷️", "💳", "🧾", "📦", "🎁", "📮", "📬", "📭", "📪", "🚚", "🚛", "✈️", "🏠", "🏪", "🏬", "🏭", "🔖", "🎫", "🛎️", "🔑", "🗝️", "📋"],
+  },
+  {
+    name: "Naturaleza",
+    emojis: ["🌸", "🌺", "🌻", "🌹", "🌷", "🌱", "🌿", "☘️", "🍀", "🌴", "🌵", "🌾", "🌈", "☀️", "🌙", "⭐", "🌟", "✨", "⚡", "🔥", "💧", "🌊", "❄️", "☁️"],
+  },
+  {
+    name: "Comida",
+    emojis: ["🍕", "🍔", "🍟", "🌭", "🍿", "🧂", "🥓", "🍳", "🧇", "🥞", "🧈", "🍞", "🥐", "🥖", "🥨", "🧀", "🍖", "🍗", "🥩", "🥚", "🍜", "🍝", "🍣", "🍱"],
+  },
+  {
+    name: "Bebidas",
+    emojis: ["☕", "🍵", "🧃", "🥤", "🧋", "🍶", "🍺", "🍻", "🥂", "🍷", "🥃", "🍸", "🍹", "🧉", "🍾", "🫖", "🥛", "🍼", "🫗", "🧊", "💧", "🚰", "🍯", "🫙"],
+  },
+  {
+    name: "Animales",
+    emojis: ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🐤", "🦆", "🦅", "🦉", "🦇", "🐺"],
+  },
+  {
+    name: "Símbolos",
+    emojis: ["✅", "❌", "⭕", "❗", "❓", "💯", "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "⚫", "⚪", "🟤", "▶️", "⏸️", "⏹️", "⏺️", "⏭️", "⏮️", "🔀", "🔁", "🔂"],
+  },
+  {
+    name: "Flechas",
+    emojis: ["⬆️", "⬇️", "⬅️", "➡️", "↗️", "↘️", "↙️", "↖️", "↕️", "↔️", "↩️", "↪️", "⤴️", "⤵️", "🔃", "🔄", "🔙", "🔚", "🔛", "🔜", "🔝", "➕", "➖", "➗"],
+  },
+  {
+    name: "Objetos",
+    emojis: ["⌚", "📱", "💻", "⌨️", "🖥️", "🖨️", "🖱️", "🖲️", "💽", "💾", "💿", "📀", "📼", "📷", "📸", "📹", "🎥", "📽️", "🎞️", "📞", "☎️", "📟", "📠", "📺"],
+  },
 ];
 
 interface Recipient {
@@ -89,6 +152,7 @@ export default function CrearSmsTemplatePage() {
   const [isLoadingRecipients, setIsLoadingRecipients] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [savedTemplateId, setSavedTemplateId] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Cargar templates al montar
   useEffect(() => {
@@ -177,7 +241,15 @@ export default function CrearSmsTemplatePage() {
   };
 
   // Calcular estadísticas del mensaje
-  const characterCount = message.length;
+  // Reemplazar variables con 10 caracteres para estimar el largo real
+  const getEstimatedMessage = () => {
+    let estimated = message;
+    VARIABLES.forEach(v => {
+      estimated = estimated.replace(new RegExp(`\\{\\{${v.value}\\}\\}`, 'g'), 'X'.repeat(15));
+    });
+    return estimated;
+  };
+  const characterCount = getEstimatedMessage().length;
   const isOverLimit = characterCount > MAX_SMS_LENGTH;
   const segmentCount = characterCount <= MAX_SMS_LENGTH
     ? 1
@@ -207,6 +279,10 @@ export default function CrearSmsTemplatePage() {
     if (link) {
       setMessage(prev => prev + ` ${link}`);
     }
+  };
+
+  const handleInsertEmoji = (emoji: string) => {
+    setMessage(prev => prev + emoji);
   };
 
   // Cargar destinatarios desde la API
@@ -474,8 +550,8 @@ export default function CrearSmsTemplatePage() {
 
         <div className="grid lg:grid-cols-7 gap-6">
           {/* Sidebar de Templates - 2 columnas */}
-          <div className="lg:col-span-2 space-y-4">
-            <Card>
+          <div className="lg:col-span-2">
+            <Card className="h-full">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -517,7 +593,7 @@ export default function CrearSmsTemplatePage() {
 
                 <Separator className="my-2" />
 
-                <ScrollArea className="h-[400px]">
+                <ScrollArea className="h-[580px]">
                   <div className="space-y-1 pr-2">
                     {isLoadingTemplates ? (
                       <div className="flex items-center justify-center py-4">
@@ -559,7 +635,7 @@ export default function CrearSmsTemplatePage() {
           </div>
 
           {/* Editor - 3 columnas */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-3 flex flex-col gap-6">
             {/* Nombre y Categoría */}
             <Card>
               <CardHeader className="pb-4">
@@ -601,7 +677,7 @@ export default function CrearSmsTemplatePage() {
             </Card>
 
             {/* Editor del Mensaje */}
-            <Card>
+            <Card className="flex-1">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">Mensaje SMS</CardTitle>
@@ -623,7 +699,7 @@ export default function CrearSmsTemplatePage() {
               <CardContent className="space-y-4">
                 <Textarea
                   rows={5}
-                  placeholder="Escribe tu mensaje SMS aquí...&#10;&#10;Ejemplo: Hola {{nombre}}, aprovecha {{descuento}}% de descuento en {{producto}}. Válido hasta {{fecha}}. {{link}}"
+                  placeholder="Escribe tu mensaje SMS aquí...&#10;&#10;Ejemplo: Hola {{nombre}} {{apellido}}, tenemos ofertas especiales para ti. Visita nuestra tienda!"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   className={`text-base resize-none ${isOverLimit ? "border-orange-500 focus-visible:ring-orange-500" : ""}`}
@@ -671,22 +747,74 @@ export default function CrearSmsTemplatePage() {
                   </div>
                 </div>
 
-                {/* Insertar Link */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleInsertLink}
-                  className="gap-2"
-                >
-                  <Link2 className="h-4 w-4" />
-                  Insertar Link
-                </Button>
+                {/* Insertar Link y Emojis */}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleInsertLink}
+                    className="gap-2"
+                  >
+                    <Link2 className="h-4 w-4" />
+                    Insertar Link
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="gap-2"
+                  >
+                    <Smile className="h-4 w-4" />
+                    Emojis
+                  </Button>
+                </div>
+
+                {/* Emoji Modal */}
+                <Dialog open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+                  <DialogContent className="max-w-2xl max-h-[80vh]">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Smile className="h-5 w-5" />
+                        Seleccionar Emoji
+                      </DialogTitle>
+                      <DialogDescription>
+                        Haz clic en un emoji para insertarlo en tu mensaje
+                      </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="h-[50vh] pr-4">
+                      <div className="space-y-4">
+                        {EMOJI_CATEGORIES.map((category) => (
+                          <div key={category.name}>
+                            <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                              {category.name}
+                            </h4>
+                            <div className="grid grid-cols-12 gap-1">
+                              {category.emojis.map((emoji: string, index: number) => (
+                                <button
+                                  key={`${category.name}-${index}`}
+                                  type="button"
+                                  onClick={() => {
+                                    handleInsertEmoji(emoji);
+                                    setShowEmojiPicker(false);
+                                  }}
+                                  className="text-2xl hover:bg-muted p-2 rounded transition-colors"
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           </div>
 
           {/* Preview y Stats - 2 columnas */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 flex flex-col gap-6">
             {/* Preview del teléfono */}
             <Card>
               <CardHeader className="pb-4">
@@ -740,106 +868,71 @@ export default function CrearSmsTemplatePage() {
             </Card>
 
             {/* Estadísticas */}
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
+            <Card className="flex-1">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
                   Análisis
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center p-3 bg-muted/50 rounded-lg">
-                    <div className="text-2xl font-bold text-primary">{characterCount}</div>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="text-center p-2.5 bg-muted/50 rounded-lg">
+                    <div className="text-xl font-bold text-primary">{characterCount}</div>
                     <div className="text-xs text-muted-foreground">Caracteres</div>
                   </div>
-                  <div className="text-center p-3 bg-muted/50 rounded-lg">
-                    <div className="text-2xl font-bold text-primary">{segmentCount}</div>
+                  <div className="text-center p-2.5 bg-muted/50 rounded-lg">
+                    <div className="text-xl font-bold text-primary">{segmentCount}</div>
                     <div className="text-xs text-muted-foreground">Segmentos</div>
                   </div>
                 </div>
 
-                {variablesUsed.length > 0 && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Variables detectadas</Label>
-                      <div className="flex flex-wrap gap-1">
-                        {variablesUsed.map((v) => (
-                          <Badge key={v.value} variant="secondary" className="text-xs">
-                            <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
-                            {v.label}
-                          </Badge>
-                        ))}
+                {(() => {
+                  const template = isEditing && selectedTemplateId
+                    ? templates.find(t => t.id === selectedTemplateId)
+                    : null;
+                  return (
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                        <div className="text-lg font-bold text-blue-600">{template?.totalSent || 0}</div>
+                        <div className="text-[10px] text-muted-foreground">Enviados</div>
+                      </div>
+                      <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded-lg">
+                        <div className="text-lg font-bold text-green-600">{template?.successfulSent || 0}</div>
+                        <div className="text-[10px] text-muted-foreground">Exitosos</div>
+                      </div>
+                      <div className="p-2 bg-red-50 dark:bg-red-950/30 rounded-lg">
+                        <div className="text-lg font-bold text-red-600">{template?.failedSent || 0}</div>
+                        <div className="text-[10px] text-muted-foreground">Fallidos</div>
                       </div>
                     </div>
-                  </>
-                )}
+                  );
+                })()}
 
                 <Separator />
 
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Costo por SMS:</span>
-                    <span className="font-medium">~$0.02 USD</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Costo por mensaje:</span>
-                    <span className="font-medium">~${(segmentCount * 0.02).toFixed(2)} USD</span>
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">Variables:</span>
+                    {variablesUsed.length > 0 ? (
+                      variablesUsed.map((v) => (
+                        <Badge key={v.value} variant="secondary" className="text-[10px] px-1.5 py-0">
+                          {v.label}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground">Ninguna</span>
+                    )}
                   </div>
                 </div>
 
-                {/* Estadísticas del template si existe */}
-                {isEditing && selectedTemplateId && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Estadísticas del template</Label>
-                      {(() => {
-                        const template = templates.find(t => t.id === selectedTemplateId);
-                        if (!template) return null;
-                        return (
-                          <div className="grid grid-cols-3 gap-2 text-center">
-                            <div className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded">
-                              <div className="text-lg font-bold text-blue-600">{template.totalSent}</div>
-                              <div className="text-[10px] text-muted-foreground">Enviados</div>
-                            </div>
-                            <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded">
-                              <div className="text-lg font-bold text-green-600">{template.successfulSent}</div>
-                              <div className="text-[10px] text-muted-foreground">Exitosos</div>
-                            </div>
-                            <div className="p-2 bg-red-50 dark:bg-red-950/30 rounded">
-                              <div className="text-lg font-bold text-red-600">{template.failedSent}</div>
-                              <div className="text-[10px] text-muted-foreground">Fallidos</div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Tips */}
-            <Card className="border-dashed">
-              <CardContent className="pt-6">
-                <div className="space-y-3 text-sm">
-                  <div className="flex gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                    <span className="text-muted-foreground">
-                      Los SMS promocionales tienen mejor tasa de apertura entre 10am-2pm
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Sparkles className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                    <span className="text-muted-foreground">
-                      Personaliza con el nombre del cliente para aumentar la conversión
-                    </span>
-                  </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Costo por mensaje:</span>
+                  <span className="font-medium">~${(segmentCount * 0.02).toFixed(2)} USD</span>
                 </div>
               </CardContent>
             </Card>
+
           </div>
         </div>
       </div>
