@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { StripoEditor } from "@/components/campaigns/email/stripo-editor";
+import { GrapesJSEmailEditor } from "@/components/campaigns/email/grapesjs-email-editor";
 import { EmailTemplate } from "@/lib/api";
 
 export default function CrearCampaignEmailPage() {
@@ -12,13 +12,12 @@ export default function CrearCampaignEmailPage() {
   };
 
   const handleSaved = (template: EmailTemplate) => {
-    // Redirect to edit page after first save
     router.push(`/marketing/campaigns/templates/email/${template.id}/edit`);
   };
 
   return (
     <div className="h-[calc(100vh-4rem)] -m-6">
-      <StripoEditor onBack={handleBack} onSaved={handleSaved} />
+      <GrapesJSEmailEditor onBack={handleBack} onSaved={handleSaved} />
     </div>
   );
 }

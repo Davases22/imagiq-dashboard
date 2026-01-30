@@ -130,7 +130,12 @@ export default function CampañasPage() {
                     <div className="text-xs text-muted-foreground">1 campaña activa</div>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => router.push('/marketing/campaigns/crear/sms')}
+                >
                   Crear
                 </Button>
               </div>
