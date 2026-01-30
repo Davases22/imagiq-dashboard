@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { StripoEditor } from "@/components/campaigns/email/stripo-editor";
+import { GrapesJSEmailEditor } from "@/components/campaigns/email/grapesjs-email-editor";
 
 export default function EditEmailTemplatePage() {
   const params = useParams();
@@ -31,7 +31,7 @@ export default function EditEmailTemplatePage() {
 
   return (
     <div className="h-[calc(100vh-4rem)] -m-6">
-      <StripoEditor
+      <GrapesJSEmailEditor
         templateId={templateId}
         onBack={handleBack}
         onSaved={handleSaved}
