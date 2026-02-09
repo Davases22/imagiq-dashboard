@@ -141,6 +141,7 @@ export interface Page {
   created_by: string;
   is_public: boolean;
   is_active: boolean;
+  external_url?: string | null;
 }
 
 // Página expandida con relaciones

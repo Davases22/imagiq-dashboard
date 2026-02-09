@@ -42,9 +42,9 @@ interface UseLegalDocumentsResult {
  * Datos para crear un documento legal
  */
 export interface CreateLegalDocumentData {
-  slug: string
+  slug?: string
   title: string
-  legal_content: any
+  legal_content?: any
   legal_sections?: { id: string; title: string; level: number }[]
   meta_title?: string
   meta_description?: string
@@ -52,6 +52,7 @@ export interface CreateLegalDocumentData {
   status?: 'draft' | 'published'
   is_active?: boolean
   is_public?: boolean
+  external_url?: string
 }
 
 /**
@@ -68,6 +69,7 @@ export interface UpdateLegalDocumentData {
   status?: 'draft' | 'published'
   is_active?: boolean
   is_public?: boolean
+  external_url?: string | null
 }
 
 /**
@@ -253,13 +255,23 @@ export function useLegalDocuments(options: UseLegalDocumentsOptions = {}): UseLe
         banner_files: [],
       })
 
-      if (response.success && response.data) {
+      // Verificar éxito de diferentes formas
+      if (response.success) {
         toast.success("Documento actualizado exitosamente")
         await refetch()
-        return response.data.page as unknown as LegalDocument
+        return (response.data?.page || response) as unknown as LegalDocument
       }
+      
+      // Si la respuesta tiene id, considerar éxito
+      if ((response as any).id) {
+        toast.success("Documento actualizado exitosamente")
+        await refetch()
+        return response as unknown as LegalDocument
+      }
+
       throw new Error("Error al actualizar documento")
     } catch (err) {
+      console.error('Error actualizando documento:', err)
       const errorMessage =
         err instanceof Error ? err.message : "Error al actualizar documento"
       toast.error(errorMessage)

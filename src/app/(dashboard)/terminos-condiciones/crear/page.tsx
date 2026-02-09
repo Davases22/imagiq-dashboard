@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import {
   ArrowLeft,
@@ -20,21 +19,10 @@ import {
   Settings,
   Search,
   Loader2,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-// Función para generar slug desde título
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Remover acentos
-    .replace(/[^\w\s-]/g, '') // Remover caracteres especiales
-    .replace(/\s+/g, '-') // Espacios a guiones
-    .replace(/-+/g, '-') // Múltiples guiones a uno
-    .substring(0, 50) // Limitar longitud
-    .replace(/^-+|-+$/g, ''); // Remover guiones al inicio/final
-}
+import { generateSlug } from '@/lib/utils/slug';
 
 export default function CrearTerminosCondicionesPage() {
   const router = useRouter();
@@ -44,6 +32,7 @@ export default function CrearTerminosCondicionesPage() {
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [externalUrl, setExternalUrl] = useState('');
   const [content, setContent] = useState<any>({
     type: 'doc',
     content: [
@@ -90,27 +79,37 @@ export default function CrearTerminosCondicionesPage() {
       toast.error('El título es obligatorio');
       return;
     }
-    if (!slug.trim()) {
-      toast.error('El slug es obligatorio');
+
+    const isExternalLink = externalUrl.trim().length > 0;
+
+    // El slug solo es obligatorio si NO hay URL externa
+    if (!isExternalLink && !slug.trim()) {
+      toast.error('El slug es obligatorio para documentos con contenido propio');
       return;
     }
 
     setIsSaving(true);
 
     try {
-      const sections = extractSectionsFromContent(content);
+      const sections = isExternalLink ? [] : extractSectionsFromContent(content);
+
+      // Para enlaces externos, generar slug automático si no existe
+      const finalSlug = isExternalLink 
+        ? (slug.trim() || `external-${Date.now()}`)
+        : slug.trim();
 
       const result = await createDocument({
         title: title.trim(),
-        slug: slug.trim(),
-        legal_content: content,
+        slug: finalSlug,
+        legal_content: isExternalLink ? null : content,
         legal_sections: sections,
-        meta_title: metaTitle || title,
-        meta_description: metaDescription,
-        meta_keywords: metaKeywords,
+        meta_title: isExternalLink ? undefined : (metaTitle || title),
+        meta_description: isExternalLink ? undefined : metaDescription,
+        meta_keywords: isExternalLink ? undefined : metaKeywords,
         status: publish ? 'published' : 'draft',
         is_active: publish,
         is_public: true,
+        external_url: isExternalLink ? externalUrl.trim() : undefined,
       });
 
       if (result) {
@@ -170,11 +169,34 @@ export default function CrearTerminosCondicionesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Editor principal */}
         <div className="lg:col-span-2">
-          <TiptapEditor
-            content={content}
-            onChange={handleContentChange}
-            placeholder="Escribe el contenido de tu documento aquí..."
-          />
+          {externalUrl.trim() ? (
+            <Card className="h-full flex items-center justify-center min-h-[400px]">
+              <CardContent className="text-center py-12">
+                <ExternalLink className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">Enlace externo configurado</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Este documento redirigirá a:
+                </p>
+                <a
+                  href={externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline break-all"
+                >
+                  {externalUrl}
+                </a>
+                <p className="text-xs text-muted-foreground mt-4">
+                  Elimina la URL externa para habilitar el editor de contenido.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <TiptapEditor
+              content={content}
+              onChange={handleContentChange}
+              placeholder="Escribe el contenido de tu documento aquí..."
+            />
+          )}
         </div>
 
         {/* Panel lateral */}
@@ -197,8 +219,8 @@ export default function CrearTerminosCondicionesPage() {
                   onChange={(e) => handleTitleChange(e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="slug">Slug (URL)</Label>
+              <div className={`space-y-2 ${externalUrl.trim() ? 'opacity-50' : ''}`}>
+                <Label htmlFor="slug">Slug (URL) {!externalUrl.trim() && '*'}</Label>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">/soporte/</span>
                   <Input
@@ -207,10 +229,29 @@ export default function CrearTerminosCondicionesPage() {
                     value={slug}
                     onChange={(e) => handleSlugChange(e.target.value)}
                     className="flex-1"
+                    disabled={!!externalUrl.trim()}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  URL final: /soporte/{slug || 'tu-documento'}
+                  {externalUrl.trim() 
+                    ? 'No aplica para enlaces externos.' 
+                    : `URL final: /soporte/${slug || 'tu-documento'}`}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="externalUrl" className="flex items-center gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  URL externa (opcional)
+                </Label>
+                <Input
+                  id="externalUrl"
+                  type="url"
+                  placeholder="https://ejemplo.com/terminos"
+                  value={externalUrl}
+                  onChange={(e) => setExternalUrl(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Si se ingresa, el enlace redirigirá a esta URL en lugar de mostrar contenido propio.
                 </p>
               </div>
             </CardContent>
@@ -240,15 +281,17 @@ export default function CrearTerminosCondicionesPage() {
             </CardContent>
           </Card>
 
-          {/* SEO */}
-          <Card>
+          {/* SEO - Deshabilitado para URLs externas */}
+          <Card className={externalUrl.trim() ? 'opacity-50' : ''}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Search className="h-5 w-5" />
                 SEO
               </CardTitle>
               <CardDescription>
-                Optimiza tu documento para buscadores.
+                {externalUrl.trim() 
+                  ? 'No aplica para enlaces externos.' 
+                  : 'Optimiza tu documento para buscadores.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -259,6 +302,7 @@ export default function CrearTerminosCondicionesPage() {
                   placeholder="Título para buscadores"
                   value={metaTitle}
                   onChange={(e) => setMetaTitle(e.target.value)}
+                  disabled={!!externalUrl.trim()}
                 />
                 <p className="text-xs text-muted-foreground">
                   {metaTitle.length}/60 caracteres
@@ -272,6 +316,7 @@ export default function CrearTerminosCondicionesPage() {
                   value={metaDescription}
                   onChange={(e) => setMetaDescription(e.target.value)}
                   rows={3}
+                  disabled={!!externalUrl.trim()}
                 />
                 <p className="text-xs text-muted-foreground">
                   {metaDescription.length}/160 caracteres
@@ -284,39 +329,42 @@ export default function CrearTerminosCondicionesPage() {
                   placeholder="terminos, condiciones, legal"
                   value={metaKeywords}
                   onChange={(e) => setMetaKeywords(e.target.value)}
+                  disabled={!!externalUrl.trim()}
                 />
               </div>
             </CardContent>
           </Card>
 
-          {/* Preview de secciones */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Secciones detectadas</CardTitle>
-              <CardDescription>
-                Estas secciones aparecerán en el índice lateral.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {extractSectionsFromContent(content).length > 0 ? (
-                <ul className="space-y-1">
-                  {extractSectionsFromContent(content).map((section, i) => (
-                    <li
-                      key={i}
-                      className="text-sm"
-                      style={{ paddingLeft: `${(section.level - 1) * 12}px` }}
-                    >
-                      <span className="text-muted-foreground">•</span> {section.title}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Agrega encabezados (H1, H2, H3) para generar el índice.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          {/* Preview de secciones - Deshabilitado para URLs externas */}
+          {!externalUrl.trim() && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Secciones detectadas</CardTitle>
+                <CardDescription>
+                  Estas secciones aparecerán en el índice lateral.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {extractSectionsFromContent(content).length > 0 ? (
+                  <ul className="space-y-1">
+                    {extractSectionsFromContent(content).map((section, i) => (
+                      <li
+                        key={i}
+                        className="text-sm"
+                        style={{ paddingLeft: `${(section.level - 1) * 12}px` }}
+                      >
+                        <span className="text-muted-foreground">•</span> {section.title}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Agrega encabezados (H1, H2, H3) para generar el índice.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </section>
