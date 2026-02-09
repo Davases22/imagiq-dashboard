@@ -1973,12 +1973,6 @@ export const pageEndpoints = {
   createComplete: (data: CreateCompletePageRequest) => {
     const formData = new FormData();
 
-    console.log("Construyendo FormData:", {
-      page_keys: Object.keys(data.page),
-      new_banners_count: data.new_banners.length,
-      banner_files_count: data.banner_files.length,
-    });
-
     // 1. Agregar datos de la página como JSON string
     formData.append("page", JSON.stringify(data.page));
 
@@ -2103,9 +2097,9 @@ export const pageEndpoints = {
             data.success = true;
           }
 
-          // Si la respuesta es directamente un objeto página (tiene id y slug)
+          // Si la respuesta es directamente un objeto página (tiene id)
           // Transformar a estructura esperada
-          if (!data.success && data.id && data.slug) {
+          if (!data.success && data.id) {
             return {
               success: true,
               data: {
