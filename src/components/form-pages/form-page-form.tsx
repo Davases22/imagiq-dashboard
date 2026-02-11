@@ -135,7 +135,14 @@ export function FormPageForm({ pageId, mode, onCancel }: FormPageFormProps) {
   };
 
   return (
-    <form onSubmit={form.handleSubmit}>
+    <form
+      onSubmit={form.handleSubmit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+          e.preventDefault();
+        }
+      }}
+    >
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left Column: Form Sections */}
         <div className="space-y-6">
