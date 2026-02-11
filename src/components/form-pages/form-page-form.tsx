@@ -275,7 +275,7 @@ export function FormPageForm({ pageId, mode, onCancel }: FormPageFormProps) {
 
         {/* Right Column: Preview */}
         <div className="lg:sticky lg:top-40 lg:self-start lg:h-[calc(100vh-12rem)]">
-          <LandingPagePreview data={previewData} />
+          <LandingPagePreview data={previewData} baseUrl={process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3000"} />
         </div>
       </div>
     </form>
