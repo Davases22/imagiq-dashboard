@@ -162,6 +162,7 @@ export function useFormBuilder(options: UseFormBuilderOptions = {}) {
       number: "Número",
       date: "Fecha",
       address: "Dirección",
+      paragraph: "Párrafo",
     }
 
     const newField: FormFieldDefinition = {
@@ -173,6 +174,7 @@ export function useFormBuilder(options: UseFormBuilderOptions = {}) {
       order: formFields.length,
       options: ["select", "radio", "checkbox"].includes(type) ? ["Opción 1"] : undefined,
       width: "full",
+      ...(type === "paragraph" && { content: "", required: false }),
     }
     setFormFields(prev => [...prev, newField])
   }
@@ -193,7 +195,10 @@ export function useFormBuilder(options: UseFormBuilderOptions = {}) {
   const isFormValid = useMemo(() => {
     if (!titulo.trim()) return false
     if (formFields.length === 0) return false
-    if (formFields.some(f => !f.label.trim())) return false
+    if (formFields.some(f => {
+      if (f.type === "paragraph") return !(f.content?.trim())
+      return !f.label.trim()
+    })) return false
     if (formSuccessConfig.type === "redirect" && !formSuccessConfig.redirect_url?.trim()) return false
     return true
   }, [titulo, formFields, formSuccessConfig])

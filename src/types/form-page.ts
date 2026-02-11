@@ -13,7 +13,8 @@ export type FormFieldType =
   | "radio"
   | "number"
   | "date"
-  | "address";
+  | "address"
+  | "paragraph";
 
 // Validación de campo
 export interface FormFieldValidation {
@@ -34,6 +35,7 @@ export interface FormFieldDefinition {
   options?: string[]; // Para select/radio/checkbox
   validation?: FormFieldValidation;
   width: "full" | "half";
+  content?: string; // For paragraph type: static text with optional [links](url)
 }
 
 // Configuración del formulario
@@ -124,6 +126,7 @@ export const FORM_FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   number: "Número",
   date: "Fecha",
   address: "Dirección",
+  paragraph: "Párrafo",
 };
 
 // Labels para layouts
