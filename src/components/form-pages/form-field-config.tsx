@@ -119,9 +119,9 @@ export function FormFieldConfig({ field, onUpdate }: FormFieldConfigProps) {
           <Label className="text-xs">Opciones</Label>
           {(field.options || []).map((option, index) => (
             <div key={index} className="flex items-center gap-2">
-              <Input
+              <LinkTextInput
                 value={option}
-                onChange={(e) => handleUpdateOption(index, e.target.value)}
+                onChange={(value) => handleUpdateOption(index, value)}
                 placeholder={`Opción ${index + 1}`}
                 className="h-8"
               />
