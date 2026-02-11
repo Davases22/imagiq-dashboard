@@ -4,6 +4,7 @@
 
 import type { BackendBanner } from "./banner";
 import type { ProductCard } from "./product-card";
+import type { FormConfig, FormLayout, FormSuccessConfig } from "./form-page";
 
 // Estado de la página
 export type PageStatus = "draft" | "published" | "scheduled" | "archived";
@@ -142,6 +143,10 @@ export interface Page {
   is_public: boolean;
   is_active: boolean;
   external_url?: string | null;
+  page_type?: string;
+  form_config?: FormConfig | null;
+  form_layout?: FormLayout | null;
+  form_success_config?: FormSuccessConfig | null;
 }
 
 // Página expandida con relaciones
@@ -188,6 +193,10 @@ export interface CreateCompletePageRequest {
     tags?: string;
     is_public?: boolean;
     is_active?: boolean;
+    page_type?: string;
+    form_config?: FormConfig;
+    form_layout?: FormLayout;
+    form_success_config?: FormSuccessConfig;
   };
   new_banners: NewBanner[];
   existing_banner_ids: string[];

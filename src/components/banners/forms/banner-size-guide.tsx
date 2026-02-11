@@ -129,6 +129,79 @@ export const BANNER_SPECS: Record<string, PlacementSpecs> = {
       maxSize: "500KB para imágenes, 3MB para videos",
       notes: "Formato vertical tipo stories"
     }
+  },
+  // ── Formularios: specs por tipo de layout ──
+  "formularios-banner_top": {
+    title: "Formulario — Banner Arriba",
+    description: "Banner horizontal encima del formulario",
+    desktop: {
+      width: 2520,
+      height: 620,
+      aspectRatio: "4:1",
+      maxSize: "2MB para imágenes, 6MB para videos",
+      notes: "Ancho completo, se recomienda mantener aspecto ~4:1"
+    },
+    mobile: {
+      width: 828,
+      height: 620,
+      aspectRatio: "4:3",
+      maxSize: "1MB para imágenes, 3MB para videos",
+      notes: "Aspecto más cuadrado para móvil"
+    }
+  },
+  "formularios-banner_left": {
+    title: "Formulario — Banner Izquierda",
+    description: "Banner vertical al lado izquierdo del formulario",
+    desktop: {
+      width: 800,
+      height: 1200,
+      aspectRatio: "2:3",
+      maxSize: "2MB para imágenes, 6MB para videos",
+      notes: "Formato portrait, ocupa ~40% del ancho"
+    },
+    mobile: {
+      width: 828,
+      height: 620,
+      aspectRatio: "4:3",
+      maxSize: "1MB para imágenes, 3MB para videos",
+      notes: "En móvil se apila arriba del formulario"
+    }
+  },
+  "formularios-banner_right": {
+    title: "Formulario — Banner Derecha",
+    description: "Banner vertical al lado derecho del formulario",
+    desktop: {
+      width: 800,
+      height: 1200,
+      aspectRatio: "2:3",
+      maxSize: "2MB para imágenes, 6MB para videos",
+      notes: "Formato portrait, ocupa ~40% del ancho"
+    },
+    mobile: {
+      width: 828,
+      height: 620,
+      aspectRatio: "4:3",
+      maxSize: "1MB para imágenes, 3MB para videos",
+      notes: "En móvil se apila arriba del formulario"
+    }
+  },
+  "formularios-banner_behind": {
+    title: "Formulario — Banner de Fondo",
+    description: "Banner a pantalla completa detrás del formulario",
+    desktop: {
+      width: 1920,
+      height: 1080,
+      aspectRatio: "16:9",
+      maxSize: "2MB para imágenes, 6MB para videos",
+      notes: "Cubre toda la pantalla, el formulario se superpone"
+    },
+    mobile: {
+      width: 1080,
+      height: 1920,
+      aspectRatio: "9:16",
+      maxSize: "1MB para imágenes, 3MB para videos",
+      notes: "Formato vertical para móvil"
+    }
   }
 };
 
