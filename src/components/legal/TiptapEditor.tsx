@@ -139,28 +139,64 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="h-8 gap-1">
-            <Heading2 className="h-4 w-4" />
-            <span className="text-xs">Encabezado</span>
+            {editor.isActive('heading', { level: 1 }) ? (
+              <>
+                <Heading1 className="h-4 w-4" />
+                <span className="text-xs">H1</span>
+              </>
+            ) : editor.isActive('heading', { level: 2 }) ? (
+              <>
+                <Heading2 className="h-4 w-4" />
+                <span className="text-xs">H2</span>
+              </>
+            ) : editor.isActive('heading', { level: 3 }) ? (
+              <>
+                <Heading3 className="h-4 w-4" />
+                <span className="text-xs">H3</span>
+              </>
+            ) : editor.isActive('heading', { level: 4 }) ? (
+              <>
+                <Heading4 className="h-4 w-4" />
+                <span className="text-xs">H4</span>
+              </>
+            ) : (
+              <span className="text-xs">Párrafo</span>
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+          <DropdownMenuItem 
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            className={editor.isActive('heading', { level: 1 }) ? 'bg-muted' : ''}
+          >
             <Heading1 className="h-4 w-4 mr-2" />
             Encabezado 1
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+          <DropdownMenuItem 
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            className={editor.isActive('heading', { level: 2 }) ? 'bg-muted' : ''}
+          >
             <Heading2 className="h-4 w-4 mr-2" />
             Encabezado 2
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
+          <DropdownMenuItem 
+            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+            className={editor.isActive('heading', { level: 3 }) ? 'bg-muted' : ''}
+          >
             <Heading3 className="h-4 w-4 mr-2" />
             Encabezado 3
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}>
+          <DropdownMenuItem 
+            onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
+            className={editor.isActive('heading', { level: 4 }) ? 'bg-muted' : ''}
+          >
             <Heading4 className="h-4 w-4 mr-2" />
             Encabezado 4
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => editor.chain().focus().setParagraph().run()}>
+          <DropdownMenuItem 
+            onClick={() => editor.chain().focus().setParagraph().run()}
+            className={editor.isActive('paragraph') ? 'bg-muted' : ''}
+          >
             Párrafo normal
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -366,10 +402,18 @@ export function TiptapEditor({ content, onChange, placeholder = 'Escribe tu cont
         },
       }),
       Placeholder.configure({
-        placeholder,
+        placeholder: ({ node }) => {
+          if (node.type.name === 'heading') {
+            return 'Título de sección...';
+          }
+          return placeholder;
+        },
+        showOnlyWhenEditable: true,
+        includeChildren: false,
       }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
+        defaultAlignment: 'left',
       }),
       Underline,
       Highlight.configure({
@@ -438,6 +482,52 @@ export function TiptapEditor({ content, onChange, placeholder = 'Escribe tu cont
         }
         .ProseMirror.resize-cursor {
           cursor: col-resize;
+        }
+      `}</style>
+      <style>{`
+        .ProseMirror h1,
+        .ProseMirror h2,
+        .ProseMirror h3,
+        .ProseMirror h4 {
+          font-weight: 700;
+          line-height: 1.3;
+          margin-top: 1.5rem;
+          margin-bottom: 0.75rem;
+        }
+        .ProseMirror h1 {
+          font-size: 2rem;
+        }
+        .ProseMirror h2 {
+          font-size: 1.5rem;
+        }
+        .ProseMirror h3 {
+          font-size: 1.25rem;
+        }
+        .ProseMirror h4 {
+          font-size: 1.1rem;
+        }
+        .ProseMirror h1:first-child,
+        .ProseMirror h2:first-child,
+        .ProseMirror h3:first-child,
+        .ProseMirror h4:first-child {
+          margin-top: 0;
+        }
+        .ProseMirror p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: #9ca3af;
+          pointer-events: none;
+          height: 0;
+        }
+        .ProseMirror h1.is-empty::before,
+        .ProseMirror h2.is-empty::before,
+        .ProseMirror h3.is-empty::before,
+        .ProseMirror h4.is-empty::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: #9ca3af;
+          pointer-events: none;
+          height: 0;
         }
       `}</style>
       <MenuBar editor={editor} />

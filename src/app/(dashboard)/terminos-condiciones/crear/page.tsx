@@ -33,17 +33,17 @@ export default function CrearTerminosCondicionesPage() {
   const [slug, setSlug] = useState('');
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [externalUrl, setExternalUrl] = useState('');
+  // Contenido inicial vacío - el placeholder del editor mostrará las instrucciones
   const [content, setContent] = useState<any>({
     type: 'doc',
     content: [
       {
         type: 'heading',
-        attrs: { level: 2 },
-        content: [{ type: 'text', text: 'Título de la sección' }],
+        attrs: { level: 2, textAlign: 'left' },
       },
       {
         type: 'paragraph',
-        content: [{ type: 'text', text: 'Escribe aquí el contenido de tu documento...' }],
+        attrs: { textAlign: 'left' },
       },
     ],
   });
