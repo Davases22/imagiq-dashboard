@@ -84,10 +84,10 @@ function SortableFieldItem({
           <span className="font-medium">{field.label || "Sin nombre"}</span>
           {field.required && <span className="text-xs text-red-500">*</span>}
         </div>
-        <Button variant="ghost" size="sm" onClick={onToggleExpand}>
+        <Button type="button" variant="ghost" size="sm" onClick={onToggleExpand}>
           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </Button>
-        <Button variant="ghost" size="sm" onClick={onRemove}>
+        <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
           <Trash2 className="h-4 w-4 text-destructive" />
         </Button>
       </div>
@@ -158,7 +158,7 @@ export function FormFieldsBuilder({
       {/* Add field dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="w-full">
+          <Button type="button" variant="outline" className="w-full">
             <Plus className="mr-2 h-4 w-4" /> Agregar Campo
           </Button>
         </DropdownMenuTrigger>
