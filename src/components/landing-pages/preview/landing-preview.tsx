@@ -29,7 +29,7 @@ export function LandingPagePreview({ data, baseUrl = "http://localhost:3000" }: 
         const calculateScale = () => {
             if (containerRef.current) {
                 const containerWidth = containerRef.current.clientWidth
-                // Target width for desktop is 1440px
+                // Target width for desktop – use a wider viewport so the preview looks more zoomed-out
                 const targetWidth = 1440
 
                 const newScale = Math.min(containerWidth / targetWidth, 1)
