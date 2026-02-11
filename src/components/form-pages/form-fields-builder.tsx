@@ -39,7 +39,7 @@ interface FormFieldsBuilderProps {
 }
 
 // Add field type menu items
-const FIELD_TYPES: FormFieldType[] = ["text", "email", "phone", "textarea", "select", "radio", "checkbox", "number", "date", "address"];
+const FIELD_TYPES: FormFieldType[] = ["text", "email", "phone", "textarea", "select", "radio", "checkbox", "number", "date", "address", "paragraph"];
 
 // Sortable field item
 function SortableFieldItem({

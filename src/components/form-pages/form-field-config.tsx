@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
 import type { FormFieldDefinition } from "@/types/form-page";
+import { LinkTextInput } from "./link-text-input";
 
 interface FormFieldConfigProps {
   field: FormFieldDefinition;
@@ -21,6 +22,7 @@ interface FormFieldConfigProps {
 
 export function FormFieldConfig({ field, onUpdate }: FormFieldConfigProps) {
   const hasOptions = ["select", "radio", "checkbox"].includes(field.type);
+  const isParagraph = field.type === "paragraph";
 
   const handleAddOption = () => {
     const options = [...(field.options || []), `Opción ${(field.options?.length || 0) + 1}`];
@@ -38,15 +40,36 @@ export function FormFieldConfig({ field, onUpdate }: FormFieldConfigProps) {
     onUpdate({ options });
   };
 
+  // Paragraph fields have a different config UI
+  if (isParagraph) {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <Label className="text-xs">Contenido del párrafo</Label>
+          <LinkTextInput
+            value={field.content || ""}
+            onChange={(value) => onUpdate({ content: value })}
+            placeholder="Escribe el texto del párrafo. Usa el icono de enlace para insertar links."
+            multiline
+            rows={4}
+          />
+          <p className="text-xs text-muted-foreground">
+            Usa el icono de enlace para agregar texto clickeable con URL personalizada.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Label & Placeholder */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Etiqueta</Label>
-          <Input
+          <LinkTextInput
             value={field.label}
-            onChange={(e) => onUpdate({ label: e.target.value })}
+            onChange={(value) => onUpdate({ label: value })}
             placeholder="Nombre del campo"
           />
         </div>

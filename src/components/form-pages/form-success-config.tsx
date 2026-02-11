@@ -2,9 +2,9 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { FormSuccessConfig } from "@/types/form-page";
+import { LinkTextInput } from "./link-text-input";
 
 interface FormSuccessConfigComponentProps {
   config: FormSuccessConfig;
@@ -36,10 +36,11 @@ export function FormSuccessConfigComponent({
       {config.type === "message" ? (
         <div className="space-y-1">
           <Label className="text-xs">Mensaje de éxito</Label>
-          <Textarea
+          <LinkTextInput
             value={config.message || ""}
-            onChange={(e) => onConfigChange({ ...config, message: e.target.value })}
+            onChange={(value) => onConfigChange({ ...config, message: value })}
             placeholder="¡Gracias! Tu respuesta ha sido enviada exitosamente."
+            multiline
             rows={3}
           />
         </div>
