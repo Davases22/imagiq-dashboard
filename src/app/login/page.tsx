@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -26,10 +26,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [mounted, setMounted] = useState(false);
   const { login, isLoading } = useAuth();
   const router = useRouter();
-  const { theme , resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme; 
+  const { resolvedTheme } = useTheme();
+
+  useEffect(() => { setMounted(true); }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +58,7 @@ export default function LoginPage() {
         <div className="text-center">
           <div className="inline-flex items-center gap-3">
             <Image
-              src={currentTheme == "light" ? "/frame_black.png" : "/frame_white.png"}
+              src={mounted && resolvedTheme === "light" ? "/frame_black.png" : "/frame_white.png"}
               alt="Q Logo"
               height={40}
               width={40}

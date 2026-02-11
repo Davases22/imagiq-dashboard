@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { BannerMediaUpload } from "@/components/banners/forms/banner-media-upload"
 import { ContentBlocksManager } from "@/components/banners/forms/content-boxes-manager"
+import { BANNER_SPECS } from "@/components/banners/forms/banner-size-guide"
 import { ContentBlock } from "@/types/banner"
 
 interface BannerData {
@@ -27,13 +28,13 @@ interface BannerFiles {
 }
 
 interface OfertaBannersManagerProps {
-  banners: Array<{ 
+  banners: Array<{
     id: string
     data: BannerData
     files: BannerFiles
     contentBlocks: ContentBlock[]
   }>
-  onBannersChange: (banners: Array<{ 
+  onBannersChange: (banners: Array<{
     id: string
     data: BannerData
     files: BannerFiles
@@ -41,6 +42,8 @@ interface OfertaBannersManagerProps {
   }>) => void
   onActiveBannerChange: (bannerId: string) => void
   activeBannerId: string
+  hideContentBlocks?: boolean
+  hideDimensionHint?: boolean
 }
 
 export function OfertaBannersManager({
@@ -48,6 +51,8 @@ export function OfertaBannersManager({
   onBannersChange,
   onActiveBannerChange,
   activeBannerId,
+  hideContentBlocks = false,
+  hideDimensionHint = false,
 }: OfertaBannersManagerProps) {
   const activeBanner = banners.find((b) => b.id === activeBannerId)
 
@@ -184,9 +189,21 @@ export function OfertaBannersManager({
 
           <div>
             <h4 className="font-medium mb-2">Medios del Banner</h4>
-            <p className="text-sm text-muted-foreground mb-4">
-              Dimensiones recomendadas: Desktop <strong>2520×620px</strong> | Mobile <strong>828×620px</strong>
-            </p>
+            {!hideDimensionHint && (() => {
+              const specs = BANNER_SPECS[activeBanner.data.placement];
+              const dSpec = specs?.desktop;
+              const mSpec = specs?.mobile;
+              return (
+                <p className="text-sm text-muted-foreground mb-4">
+                  Dimensiones recomendadas: Desktop{" "}
+                  <strong>{dSpec ? `${dSpec.width}×${dSpec.height}px` : "2520×620px"}</strong>
+                  {dSpec?.aspectRatio && ` (${dSpec.aspectRatio})`}
+                  {" | "}Mobile{" "}
+                  <strong>{mSpec ? `${mSpec.width}×${mSpec.height}px` : "828×620px"}</strong>
+                  {mSpec?.aspectRatio && ` (${mSpec.aspectRatio})`}
+                </p>
+              );
+            })()}
             <BannerMediaUpload
               files={activeBanner.files}
               existingUrls={{
@@ -201,20 +218,23 @@ export function OfertaBannersManager({
             />
           </div>
 
-          <Separator />
-
-          <div>
-            <h4 className="font-medium mb-4">Bloques de Contenido</h4>
-            <p className="text-sm text-muted-foreground mb-4">
-              Crea bloques con título, subtítulo, descripción y botones personalizables con configuración independiente para desktop y mobile.
-            </p>
-            <ContentBlocksManager
-              blocks={activeBanner.contentBlocks}
-              onAddBlock={handleAddBlock}
-              onRemoveBlock={handleRemoveBlock}
-              onUpdateBlock={handleUpdateBlock}
-            />
-          </div>
+          {!hideContentBlocks && (
+            <>
+              <Separator />
+              <div>
+                <h4 className="font-medium mb-4">Bloques de Contenido</h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Crea bloques con título, subtítulo, descripción y botones personalizables con configuración independiente para desktop y mobile.
+                </p>
+                <ContentBlocksManager
+                  blocks={activeBanner.contentBlocks}
+                  onAddBlock={handleAddBlock}
+                  onRemoveBlock={handleRemoveBlock}
+                  onUpdateBlock={handleUpdateBlock}
+                />
+              </div>
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>

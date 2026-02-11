@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Filter,
   Tag,
+  ClipboardList,
 } from "lucide-react"
 
 export default function PaginaWebPage() {
@@ -42,6 +43,14 @@ export default function PaginaWebPage() {
       description: "Gestiona landing pages, ofertas especiales y promociones de tu sitio web",
       icon: Tag,
       path: "/pagina-web/landing-pages",
+      available: true,
+    },
+    {
+      id: "formularios",
+      title: "Formularios",
+      description: "Crea landing pages con formularios de captura de leads, contacto y encuestas",
+      icon: ClipboardList,
+      path: "/pagina-web/formularios",
       available: true,
     },
     {

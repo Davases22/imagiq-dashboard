@@ -9,6 +9,65 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import NextImage from "next/image";
 import { BANNER_SPECS } from "./banner-size-guide";
 
+// ── Helpers de validación (fuera del componente para evitar nesting) ──
+
+interface ValidationResult {
+  valid: boolean;
+  error: string | null;
+}
+
+function getOrientationLabel(ratio: number): string {
+  if (ratio > 1) return "horizontal";
+  if (ratio < 1) return "vertical";
+  return "cuadrada";
+}
+
+function validateAspectRatio(
+  img: HTMLImageElement,
+  expected: { width: number; height: number }
+): ValidationResult {
+  const expectedRatio = expected.width / expected.height;
+  const actualRatio = img.width / img.height;
+  const deviation = Math.abs(expectedRatio - actualRatio) / expectedRatio;
+
+  if (deviation >= 0.15) {
+    return {
+      valid: false,
+      error:
+        `Se recomienda una imagen ${getOrientationLabel(expectedRatio)} (~${expected.width}×${expected.height}px). ` +
+        `La imagen seleccionada es ${getOrientationLabel(actualRatio)} (${img.width}×${img.height}px).`,
+    };
+  }
+  return { valid: true, error: null };
+}
+
+function validateExactPixels(
+  img: HTMLImageElement,
+  expected: { width: number; height: number }
+): ValidationResult {
+  if (img.width === expected.width && img.height === expected.height) {
+    return { valid: true, error: null };
+  }
+  return {
+    valid: false,
+    error:
+      `La imagen debe tener ${expected.width}×${expected.height}px. ` +
+      `La imagen seleccionada tiene ${img.width}×${img.height}px.`,
+  };
+}
+
+function loadImageDimensions(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.onload = () => resolve(img);
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 interface BannerMediaUploadProps {
   readonly files: {
     desktop_image?: File;
@@ -37,6 +96,7 @@ interface MediaFieldProps {
   readonly onFileChange: (file: File | undefined) => void;
   readonly onRemove: () => void;
   readonly expectedDimensions?: { width: number; height: number };
+  readonly useAspectRatioValidation?: boolean;
 }
 
 function MediaField({
@@ -48,15 +108,33 @@ function MediaField({
   isVideo,
   onFileChange,
   onRemove,
-  expectedDimensions
+  expectedDimensions,
+  useAspectRatioValidation = false
 }: MediaFieldProps) {
   const [dimensionError, setDimensionError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileDimensions, setFileDimensions] = useState<{ width: number; height: number } | null>(null);
   const hasNewFile = !!file;
   const hasExistingFile = !!existingUrl && !hasNewFile;
   const fileName = existingUrl ? existingUrl.split('/').pop() || 'Archivo actual' : '';
 
   // Determinar si es un banner de categoría (formato vertical 1080x1944 - 9:16)
   const isCategoryBanner = id.includes('desktop') && (label.includes('Banner') || label.includes('Categoría'));
+
+  // Generar preview URL y leer dimensiones cuando cambia el archivo
+  useEffect(() => {
+    if (!file || isVideo) {
+      setPreviewUrl(null);
+      setFileDimensions(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    const img = new Image();
+    img.onload = () => setFileDimensions({ width: img.width, height: img.height });
+    img.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [file, isVideo]);
 
   // Limpiar error cuando se elimina el archivo o cambia el archivo existente
   useEffect(() => {
@@ -66,37 +144,16 @@ function MediaField({
   }, [file, existingUrl]);
 
   // Función para validar dimensiones de imagen
-  const validateImageDimensions = async (file: File): Promise<boolean> => {
-    if (!expectedDimensions || isVideo) {
-      return true;
-    }
+  const validateImageDimensions = async (fileToValidate: File): Promise<boolean> => {
+    if (!expectedDimensions || isVideo) return true;
 
-    return new Promise((resolve) => {
-      const img = new Image();
-      const reader = new FileReader();
+    const img = await loadImageDimensions(fileToValidate);
+    const result = useAspectRatioValidation
+      ? validateAspectRatio(img, expectedDimensions)
+      : validateExactPixels(img, expectedDimensions);
 
-      reader.onload = (e) => {
-        img.onload = () => {
-          const isValid =
-            img.width === expectedDimensions.width &&
-            img.height === expectedDimensions.height;
-
-          if (!isValid) {
-            setDimensionError(
-              `La imagen debe tener ${expectedDimensions.width}×${expectedDimensions.height}px. ` +
-              `La imagen seleccionada tiene ${img.width}×${img.height}px.`
-            );
-            resolve(false);
-          } else {
-            setDimensionError(null);
-            resolve(true);
-          }
-        };
-        img.src = e.target?.result as string;
-      };
-
-      reader.readAsDataURL(file);
-    });
+    setDimensionError(result.error);
+    return result.valid;
   };
 
   // Handler para cambio de archivo con validación
@@ -209,23 +266,66 @@ function MediaField({
       {/* Input para nuevo archivo (cuando no hay archivo existente) */}
       {!hasExistingFile && (
         <>
-          <div className="flex items-center gap-2">
-            <Input
-              id={id}
-              type="file"
-              accept={accept}
-              onChange={(e) => handleFileChange(e.target.files?.[0])}
-            />
-            <Upload className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          </div>
-          {hasNewFile && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">{file.name}</p>
-              {isCategoryBanner && (
-                <p className="text-xs text-muted-foreground">
-                  Formato recomendado: 1080×1944px (9:16)
-                </p>
-              )}
+          {hasNewFile && previewUrl ? (
+            <div className="relative group rounded-lg border overflow-hidden bg-muted/30">
+              <div className="flex items-center gap-3 p-3">
+                <div className="relative rounded overflow-hidden bg-muted flex-shrink-0 w-20 h-20">
+                  <NextImage
+                    src={previewUrl}
+                    alt={label}
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{file.name}</p>
+                  {fileDimensions && (
+                    <p className="text-xs text-muted-foreground">
+                      {fileDimensions.width} × {fileDimensions.height}px
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-1 flex-shrink-0">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                    onClick={() => document.getElementById(id)?.click()}
+                    title="Cambiar archivo"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => onFileChange(undefined)}
+                    title="Eliminar archivo"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <Input
+                id={id}
+                type="file"
+                accept={accept}
+                className="hidden"
+                onChange={(e) => handleFileChange(e.target.files?.[0])}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Input
+                id={id}
+                type="file"
+                accept={accept}
+                onChange={(e) => handleFileChange(e.target.files?.[0])}
+              />
+              <Upload className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             </div>
           )}
         </>
@@ -248,6 +348,9 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
   // Para product-detail, mostrar solo una opción general (formato vertical)
   const isSingleMedia = placement === "product-detail";
 
+  // Banners de formulario usan validación por aspect ratio (no píxeles exactos)
+  const useAspectRatio = placement.startsWith("formularios-");
+
   // Obtener dimensiones esperadas basadas en el placement
   const getDimensions = (isDesktop: boolean): { width: number; height: number } | undefined => {
     // Determinar el specKey según placement
@@ -261,6 +364,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
     else if (placement.startsWith("ofertas-")) {
       specKey = "ofertas-cazadores-de-ofertas";
     }
+    // Formularios: placement ya es "formularios-{layout_type}" (mapea directo a BANNER_SPECS)
 
     const specs = BANNER_SPECS[specKey];
     if (!specs) {
@@ -318,6 +422,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
         onFileChange={(file) => onFileChange("desktop_image", file)}
         onRemove={() => handleRemove("desktop_image")}
         expectedDimensions={getDimensions(true)}
+        useAspectRatioValidation={useAspectRatio}
       />
 
       <MediaField
@@ -330,6 +435,7 @@ export function BannerMediaUpload({ files, existingUrls, placement, onFileChange
         onFileChange={(file) => onFileChange("mobile_image", file)}
         onRemove={() => handleRemove("mobile_image")}
         expectedDimensions={getDimensions(false)}
+        useAspectRatioValidation={useAspectRatio}
       />
 
       <MediaField

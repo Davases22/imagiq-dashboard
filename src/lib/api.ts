@@ -36,6 +36,12 @@ import type {
   PageExpanded,
   PagePaginationData,
 } from "@/types/page";
+import type {
+  FormSubmission,
+  FormSubmissionsPagination,
+  FormSubmissionStats,
+  SubmissionStatus,
+} from "@/types/form-page";
 import type { ProductCard, UpdateProductCardDto } from "@/types/product-card";
 import type { Faq, FaqPaginationData, CreateFaqDto, UpdateFaqDto } from "@/types/faq";
 
@@ -1990,6 +1996,17 @@ export const pageEndpoints = {
       formData.append("banner_updates", JSON.stringify(data.banner_updates));
     }
 
+    // 3.6. Agregar form_config, form_layout, form_success_config si existen (para form pages)
+    if (data.page.form_config) {
+      formData.append("form_config", JSON.stringify(data.page.form_config));
+    }
+    if (data.page.form_layout) {
+      formData.append("form_layout", JSON.stringify(data.page.form_layout));
+    }
+    if (data.page.form_success_config) {
+      formData.append("form_success_config", JSON.stringify(data.page.form_success_config));
+    }
+
     // 4. Agregar new_faqs como JSON string
     formData.append("new_faqs", JSON.stringify(data.new_faqs));
 
@@ -2177,6 +2194,78 @@ export const pageEndpoints = {
       total_views: number;
       most_viewed: Page[];
     }>("/api/multimedia/pages/stats"),
+};
+
+// Form Submissions API endpoints
+export const formSubmissionEndpoints = {
+  // Obtener envíos por página (paginado con filtros)
+  getByPage: (
+    pageId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+      status?: SubmissionStatus;
+      from_date?: string;
+      to_date?: string;
+      search?: string;
+    }
+  ) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append("page", String(params.page));
+    if (params?.limit) searchParams.append("limit", String(params.limit));
+    if (params?.status) searchParams.append("status", params.status);
+    if (params?.from_date) searchParams.append("from_date", params.from_date);
+    if (params?.to_date) searchParams.append("to_date", params.to_date);
+    if (params?.search) searchParams.append("search", params.search);
+    const query = searchParams.toString();
+    const url = `/api/multimedia/form-submissions/page/${pageId}${query ? `?${query}` : ""}`;
+    return apiClient.get<FormSubmissionsPagination>(url);
+  },
+
+  // Estadísticas de envíos
+  getStats: (pageId: string) =>
+    apiClient.get<FormSubmissionStats>(
+      `/api/multimedia/form-submissions/page/${pageId}/stats`
+    ),
+
+  // Exportar envíos (CSV o JSON)
+  exportData: (pageId: string, format: "csv" | "json" = "csv") =>
+    apiClient.get<Blob>(
+      `/api/multimedia/form-submissions/page/${pageId}/export?format=${format}`
+    ),
+
+  // Obtener un envío por ID
+  getById: (id: string) =>
+    apiClient.get<FormSubmission>(
+      `/api/multimedia/form-submissions/${id}`
+    ),
+
+  // Actualizar status de un envío
+  updateStatus: (id: string, status: SubmissionStatus) =>
+    apiClient.patch<FormSubmission>(
+      `/api/multimedia/form-submissions/${id}/status`,
+      { status }
+    ),
+
+  // Actualizar status en lote
+  bulkUpdateStatus: (ids: string[], status: SubmissionStatus) =>
+    apiClient.patch<{ updated: number }>(
+      `/api/multimedia/form-submissions/bulk-status`,
+      { ids, status }
+    ),
+
+  // Eliminar un envío
+  delete: (id: string) =>
+    apiClient.delete<{ success: boolean }>(
+      `/api/multimedia/form-submissions/${id}`
+    ),
+
+  // Eliminar en lote
+  bulkDelete: (ids: string[]) =>
+    apiClient.post<{ deleted: number }>(
+      `/api/multimedia/form-submissions/bulk-delete`,
+      { ids }
+    ),
 };
 
 // Product Cards API endpoints
