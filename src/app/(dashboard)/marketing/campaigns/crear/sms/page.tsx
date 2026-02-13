@@ -195,6 +195,8 @@ export default function CrearSmsTemplatePage() {
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
   const [showSendToAllConfirm, setShowSendToAllConfirm] = useState(false);
   const [isSendingToAll, setIsSendingToAll] = useState(false);
+  const [sendToAllCount, setSendToAllCount] = useState<"all" | number>("all");
+  const [customSendCount, setCustomSendCount] = useState("");
   // Track saved state for unsaved changes detection
   const [savedState, setSavedState] = useState<{ name: string; message: string; category: string } | null>(null);
   const hasUnsavedChanges = isEditing && savedState !== null && (
@@ -621,17 +623,16 @@ export default function CrearSmsTemplatePage() {
         templateId = savedTemplate.id;
       }
 
-      const response = await smsTemplateEndpoints.sendToAll(templateId);
+      const maxRecipients = sendToAllCount === "all" ? undefined : sendToAllCount;
+      const response = await smsTemplateEndpoints.sendToAll(templateId, maxRecipients);
 
       if (response.success && response.data) {
-        const { successful, failed, total } = response.data;
-        if (failed === 0) {
-          toast.success(`${successful.toLocaleString()} SMS enviados correctamente a todos los destinatarios`);
-        } else if (successful === 0) {
-          toast.error(`Error: No se pudo enviar ningún SMS`);
-        } else {
-          toast.warning(`${successful.toLocaleString()}/${total.toLocaleString()} SMS enviados. ${failed.toLocaleString()} fallaron.`);
-        }
+        const { estimatedTotal } = response.data;
+        const secs = Math.ceil((estimatedTotal || 0) / 20);
+        const timeStr = secs < 60 ? `${secs}s` : secs < 3600 ? `${Math.ceil(secs / 60)} min` : `${Math.floor(secs / 3600)}h ${Math.ceil((secs % 3600) / 60)}min`;
+        toast.success(
+          `Envío iniciado para ${estimatedTotal?.toLocaleString()} destinatarios. Tiempo estimado: ~${timeStr}. El servidor procesará el envío en segundo plano.`
+        );
         setShowSendToAllConfirm(false);
         setShowSendDialog(false);
         loadTemplates();
@@ -1430,31 +1431,98 @@ export default function CrearSmsTemplatePage() {
       </Dialog>
 
       {/* Dialog de confirmación para enviar a todos */}
-      <Dialog open={showSendToAllConfirm} onOpenChange={setShowSendToAllConfirm}>
+      <Dialog open={showSendToAllConfirm} onOpenChange={(open) => {
+        setShowSendToAllConfirm(open);
+        if (!open) { setSendToAllCount("all"); setCustomSendCount(""); }
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-blue-600">
               <Users className="h-5 w-5" />
-              Enviar a todos los destinatarios
+              Enviar SMS masivo
             </DialogTitle>
             <DialogDescription>
-              Se enviará el SMS a <strong>{recipientsTotal.toLocaleString()}</strong> destinatarios.
-              El envío se procesará en lotes de 500 en el servidor.
+              Selecciona cuántos destinatarios quieres alcanzar.
+              El envío se procesará en lotes en el servidor.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            {/* Selector de cantidad */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Cantidad de destinatarios</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "all" as const, label: `Todos (${recipientsTotal.toLocaleString()})` },
+                  { value: 500, label: "500" },
+                  { value: 1000, label: "1.000" },
+                  { value: 5000, label: "5.000" },
+                ].map((opt) => (
+                  <button
+                    key={String(opt.value)}
+                    type="button"
+                    onClick={() => { setSendToAllCount(opt.value); setCustomSendCount(""); }}
+                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                      sendToAllCount === opt.value
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium"
+                        : "border-border hover:border-blue-300 hover:bg-muted/50"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  placeholder="Cantidad personalizada..."
+                  min={1}
+                  max={recipientsTotal}
+                  value={customSendCount}
+                  onChange={(e) => {
+                    setCustomSendCount(e.target.value);
+                    const num = parseInt(e.target.value, 10);
+                    if (num > 0) setSendToAllCount(num);
+                  }}
+                  onFocus={() => {
+                    if (typeof sendToAllCount !== "number" || [500, 1000, 5000].includes(sendToAllCount)) {
+                      setSendToAllCount(0);
+                    }
+                  }}
+                  className={`flex-1 ${customSendCount ? "border-blue-500" : ""}`}
+                />
+              </div>
+            </div>
+
             <div className="flex justify-between text-sm p-3 bg-muted/50 rounded-lg">
-              <span className="text-muted-foreground">Total destinatarios:</span>
-              <span className="font-bold">{recipientsTotal.toLocaleString()}</span>
+              <span className="text-muted-foreground">Enviar a:</span>
+              <span className="font-bold">
+                {sendToAllCount === "all"
+                  ? `${recipientsTotal.toLocaleString()} destinatarios`
+                  : `${sendToAllCount.toLocaleString()} destinatarios`}
+              </span>
             </div>
             <div className="flex justify-between text-sm p-3 bg-muted/50 rounded-lg">
               <span className="text-muted-foreground">Segmentos por SMS:</span>
               <span className="font-bold">{segmentCount}</span>
             </div>
+            <div className="flex justify-between text-sm p-3 bg-muted/50 rounded-lg">
+              <span className="text-muted-foreground">Tiempo estimado:</span>
+              <span className="font-bold">
+                {(() => {
+                  const count = sendToAllCount === "all" ? recipientsTotal : sendToAllCount;
+                  const totalSeg = Math.ceil(count / 20); // 20 SMS/seg (50ms delay)
+                  if (totalSeg < 60) return `~${totalSeg} segundos`;
+                  if (totalSeg < 3600) return `~${Math.ceil(totalSeg / 60)} minutos`;
+                  const h = Math.floor(totalSeg / 3600);
+                  const m = Math.ceil((totalSeg % 3600) / 60);
+                  return `~${h}h ${m}min`;
+                })()}
+              </span>
+            </div>
             <div className="flex justify-between text-sm p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-900">
               <span className="text-muted-foreground">Costo estimado:</span>
               <span className="font-bold text-orange-600">
-                ~${(recipientsTotal * segmentCount * 0.02).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                ~${((sendToAllCount === "all" ? recipientsTotal : sendToAllCount) * segmentCount * 0.02).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
               </span>
             </div>
           </div>
@@ -1468,18 +1536,18 @@ export default function CrearSmsTemplatePage() {
             </Button>
             <Button
               onClick={handleSendToAll}
-              disabled={isSendingToAll}
+              disabled={isSendingToAll || (typeof sendToAllCount === "number" && sendToAllCount <= 0)}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {isSendingToAll ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Enviando a {recipientsTotal.toLocaleString()}...
+                  Iniciando envío...
                 </>
               ) : (
                 <>
                   <Send className="mr-2 h-4 w-4" />
-                  Confirmar envío a {recipientsTotal.toLocaleString()}
+                  Confirmar envío a {(sendToAllCount === "all" ? recipientsTotal : sendToAllCount).toLocaleString()}
                 </>
               )}
             </Button>

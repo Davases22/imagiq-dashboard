@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { GrapesJSEmailEditor } from "@/components/campaigns/email/grapesjs-email-editor";
+import { UnlayerEmailEditor } from "@/components/campaigns/email/unlayer-email-editor";
 import { EmailTemplate } from "@/lib/api";
 
 export default function CrearCampaignEmailPage() {
@@ -17,7 +17,7 @@ export default function CrearCampaignEmailPage() {
 
   return (
     <div className="h-[calc(100vh-4rem)] -m-6">
-      <GrapesJSEmailEditor onBack={handleBack} onSaved={handleSaved} />
+      <UnlayerEmailEditor onBack={handleBack} onSaved={handleSaved} />
     </div>
   );
 }
