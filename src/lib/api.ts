@@ -2816,6 +2816,11 @@ export const smsTemplateEndpoints = {
     });
   },
 
+  // Enviar SMS a TODOS los destinatarios usando un template (backend procesa en lotes)
+  sendToAll: (templateId: string) => {
+    return apiClient.post<BulkSmsResult>(`/api/messaging/sms-templates/${templateId}/send-to-all-sms`, {});
+  },
+
   // Seed templates por defecto para e-commerce
   seedDefaults: () => {
     return apiClient.post<{ created: number; skipped: number }>('/api/messaging/sms-templates/seed', {});
