@@ -183,7 +183,7 @@ const makeBody = (rows: any[], bgColor = "#f5f5f5", contentWidth = "600px"): any
 
 const makeImagiqHeader = (): any =>
   makeRow([makeColumn([
-    makeImage(SAMSUNG_LOGO_WHITE, { padding: "28px 10px", width: 220, height: 32, maxWidth: "220px", href: IMAGIQ_URL }),
+    makeImage(SAMSUNG_LOGO, { padding: "28px 10px", width: 220, height: 32, maxWidth: "220px", href: IMAGIQ_URL }),
   ])], "#000000");
 
 const makeImagiqFooter = (): any =>
@@ -402,25 +402,25 @@ const flashSaleDesign = () => {
       ])], "#1a1a1a"),
       // Hero
       makeRow([makeColumn([
-        makeText('<p style="text-align:center;color:#ef4444;font-size:14px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;">VENTA RELÁMPAGO</p>', "40px 10px 10px"),
+        makeText('<p style="text-align:center;color:#22c55e;font-size:14px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;">VENTA RELÁMPAGO</p>', "40px 10px 10px"),
         makeHeading("HASTA 70% OFF", { fontSize: "52px", color: "#ffffff", padding: "0px 10px 5px" }),
         makeText(`<p style="text-align:center;color:#d1d5db;font-size:18px;line-height:1.5;">Las mejores ofertas a precios que no vas a creer.<br/>Válidas solo por <strong style="color:#fbbf24;">24 HORAS</strong>.</p>`, "5px 30px 25px"),
-        makeButton("COMPRAR AHORA", { bgColor: "#ef4444", href: `${IMAGIQ_URL}/ofertas`, padding: "0px 30px 15px", borderRadius: "0px" }),
+        makeButton("COMPRAR AHORA", { bgColor: "#22c55e", href: `${IMAGIQ_URL}/ofertas`, padding: "0px 30px 15px", borderRadius: "0px" }),
         makeText('<p style="text-align:center;color:#767676;font-size:13px;">Usa el código <strong style="color:#fbbf24;">FLASH70</strong> al pagar</p>', "0px 10px 40px"),
       ])], "#111827"),
       // Products grid - 3 columns
       makeRow([
         makeColumn([
           makeImage("https://placehold.co/200x200/f8f8f8/767676?text=Producto+1", { padding: "20px 10px 10px", maxWidth: "80%" }),
-          makeText('<p style="text-align:center;font-weight:bold;font-size:14px;color:#1a1a1a;">Smartphone Pro</p><p style="text-align:center;"><span style="color:#ef4444;font-weight:bold;font-size:20px;">$299</span> <span style="color:#767676;text-decoration:line-through;font-size:14px;">$999</span></p>', "5px 10px 20px"),
+          makeText('<p style="text-align:center;font-weight:bold;font-size:14px;color:#1a1a1a;">Smartphone Pro</p><p style="text-align:center;"><span style="color:#22c55e;font-weight:bold;font-size:20px;">$299</span> <span style="color:#767676;text-decoration:line-through;font-size:14px;">$999</span></p>', "5px 10px 20px"),
         ]),
         makeColumn([
           makeImage("https://placehold.co/200x200/f8f8f8/767676?text=Producto+2", { padding: "20px 10px 10px", maxWidth: "80%" }),
-          makeText('<p style="text-align:center;font-weight:bold;font-size:14px;color:#1a1a1a;">Auriculares Elite</p><p style="text-align:center;"><span style="color:#ef4444;font-weight:bold;font-size:20px;">$79</span> <span style="color:#767676;text-decoration:line-through;font-size:14px;">$249</span></p>', "5px 10px 20px"),
+          makeText('<p style="text-align:center;font-weight:bold;font-size:14px;color:#1a1a1a;">Auriculares Elite</p><p style="text-align:center;"><span style="color:#22c55e;font-weight:bold;font-size:20px;">$79</span> <span style="color:#767676;text-decoration:line-through;font-size:14px;">$249</span></p>', "5px 10px 20px"),
         ]),
         makeColumn([
           makeImage("https://placehold.co/200x200/f8f8f8/767676?text=Producto+3", { padding: "20px 10px 10px", maxWidth: "80%" }),
-          makeText('<p style="text-align:center;font-weight:bold;font-size:14px;color:#1a1a1a;">Reloj Smart</p><p style="text-align:center;"><span style="color:#ef4444;font-weight:bold;font-size:20px;">$149</span> <span style="color:#767676;text-decoration:line-through;font-size:14px;">$499</span></p>', "5px 10px 20px"),
+          makeText('<p style="text-align:center;font-weight:bold;font-size:14px;color:#1a1a1a;">Reloj Smart</p><p style="text-align:center;"><span style="color:#22c55e;font-weight:bold;font-size:20px;">$149</span> <span style="color:#767676;text-decoration:line-through;font-size:14px;">$499</span></p>', "5px 10px 20px"),
         ]),
       ], "#ffffff"),
       // CTA

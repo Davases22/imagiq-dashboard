@@ -1111,8 +1111,8 @@ export default function CrearSmsTemplatePage() {
                     : null;
                   return (
                     <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
-                        <div className="text-lg font-bold text-blue-600">{template?.totalSent || 0}</div>
+                      <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded-lg">
+                        <div className="text-lg font-bold text-green-600">{template?.totalSent || 0}</div>
                         <div className="text-[10px] text-muted-foreground">Enviados</div>
                       </div>
                       <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded-lg">
@@ -1239,17 +1239,17 @@ export default function CrearSmsTemplatePage() {
 
             {/* Total de destinatarios + Enviar a todos */}
             {recipientsTotal > 0 && (
-              <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900">
-                <div className="h-10 w-10 rounded bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
-                  <Users className="h-5 w-5 text-blue-600" />
+              <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                  <Users className="h-5 w-5 text-green-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-lg text-blue-600">{recipientsTotal.toLocaleString()} destinatarios</p>
+                  <p className="font-bold text-lg text-green-600">{recipientsTotal.toLocaleString()} destinatarios</p>
                 </div>
                 <Button
                   onClick={() => setShowSendToAllConfirm(true)}
                   disabled={isSendingToAll || !message.trim()}
-                  className="gap-2 bg-blue-600 hover:bg-blue-700"
+                  className="gap-2 bg-green-600 hover:bg-green-700"
                 >
                   <Send className="h-4 w-4" />
                   Enviar a todos
@@ -1437,7 +1437,7 @@ export default function CrearSmsTemplatePage() {
       }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-blue-600">
+            <DialogTitle className="flex items-center gap-2 text-green-600">
               <Users className="h-5 w-5" />
               Enviar SMS masivo
             </DialogTitle>
@@ -1463,8 +1463,8 @@ export default function CrearSmsTemplatePage() {
                     onClick={() => { setSendToAllCount(opt.value); setCustomSendCount(""); }}
                     className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
                       sendToAllCount === opt.value
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium"
-                        : "border-border hover:border-blue-300 hover:bg-muted/50"
+                        ? "border-green-500 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 font-medium"
+                        : "border-border hover:border-green-300 hover:bg-muted/50"
                     }`}
                   >
                     {opt.label}
@@ -1488,7 +1488,7 @@ export default function CrearSmsTemplatePage() {
                       setSendToAllCount(0);
                     }
                   }}
-                  className={`flex-1 ${customSendCount ? "border-blue-500" : ""}`}
+                  className={`flex-1 ${customSendCount ? "border-green-500" : ""}`}
                 />
               </div>
             </div>
@@ -1537,7 +1537,7 @@ export default function CrearSmsTemplatePage() {
             <Button
               onClick={handleSendToAll}
               disabled={isSendingToAll || (typeof sendToAllCount === "number" && sendToAllCount <= 0)}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-green-600 hover:bg-green-700"
             >
               {isSendingToAll ? (
                 <>

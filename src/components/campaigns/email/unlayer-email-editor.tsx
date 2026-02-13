@@ -290,32 +290,41 @@ export function UnlayerEmailEditor({
       let successCount = 0;
       let failCount = 0;
 
-      for (const recipient of selectedEmails) {
-        try {
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/messaging/send-campaign-email`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "",
-              },
-              body: JSON.stringify({
-                to: recipient.email,
-                subject: emailSubject,
-                html: html,
-                recipientName: recipient.name,
-              }),
-            }
-          );
+      // Send to all selected recipients in parallel (batches of 5)
+      const BATCH_SIZE = 5;
+      for (let i = 0; i < selectedEmails.length; i += BATCH_SIZE) {
+        const batch = selectedEmails.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map(async (recipient) => {
+            // Replace [Nombre] placeholder with actual recipient name
+            const firstName = recipient.name.split(" ")[0] || recipient.name;
+            const personalizedHtml = html
+              .replace(/\[Nombre\]/gi, firstName)
+              .replace(/\[nombre\]/gi, firstName);
 
-          if (response.ok) {
-            successCount++;
-          } else {
-            failCount++;
-          }
-        } catch {
-          failCount++;
+            const response = await fetch(
+              `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/messaging/send-campaign-email`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "",
+                },
+                body: JSON.stringify({
+                  to: recipient.email,
+                  subject: emailSubject,
+                  html: personalizedHtml,
+                  recipientName: recipient.name,
+                }),
+              }
+            );
+
+            if (!response.ok) throw new Error("Failed");
+          })
+        );
+        for (const r of results) {
+          if (r.status === "fulfilled") successCount++;
+          else failCount++;
         }
       }
 
@@ -1000,17 +1009,17 @@ export function UnlayerEmailEditor({
 
             {/* Total de destinatarios + Enviar a todos */}
             {recipientsTotal > 0 && (
-              <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900">
-                <div className="h-10 w-10 rounded bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
-                  <Users className="h-5 w-5 text-blue-600" />
+              <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                  <Users className="h-5 w-5 text-green-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-lg text-blue-600">{recipientsTotal.toLocaleString()} destinatarios</p>
+                  <p className="font-bold text-lg text-green-600">{recipientsTotal.toLocaleString()} destinatarios</p>
                 </div>
                 <Button
                   onClick={() => setShowSendToAllConfirm(true)}
                   disabled={isSendingToAll || !emailSubject.trim()}
-                  className="gap-2 bg-blue-600 hover:bg-blue-700"
+                  className="gap-2 bg-green-600 hover:bg-green-700"
                 >
                   <Send className="h-4 w-4" />
                   Enviar a todos
@@ -1192,7 +1201,7 @@ export function UnlayerEmailEditor({
       }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-blue-600">
+            <DialogTitle className="flex items-center gap-2 text-green-600">
               <Users className="h-5 w-5" />
               Enviar email masivo
             </DialogTitle>
@@ -1218,8 +1227,8 @@ export function UnlayerEmailEditor({
                     onClick={() => { setSendToAllCount(opt.value); setCustomSendCount(""); }}
                     className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
                       sendToAllCount === opt.value
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium"
-                        : "border-border hover:border-blue-300 hover:bg-muted/50"
+                        ? "border-green-500 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 font-medium"
+                        : "border-border hover:border-green-300 hover:bg-muted/50"
                     }`}
                   >
                     {opt.label}
@@ -1242,7 +1251,7 @@ export function UnlayerEmailEditor({
                     setSendToAllCount(0);
                   }
                 }}
-                className={customSendCount ? "border-blue-500" : ""}
+                className={customSendCount ? "border-green-500" : ""}
               />
             </div>
 
@@ -1258,9 +1267,9 @@ export function UnlayerEmailEditor({
               <span className="text-muted-foreground">Asunto:</span>
               <span className="font-bold truncate ml-2">{emailSubject}</span>
             </div>
-            <div className="flex justify-between text-sm p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900">
+            <div className="flex justify-between text-sm p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
               <span className="text-muted-foreground">Tiempo estimado:</span>
-              <span className="font-bold text-blue-600">
+              <span className="font-bold text-green-600">
                 {(() => {
                   const count = sendToAllCount === "all" ? recipientsTotal : sendToAllCount;
                   const totalSeg = Math.ceil(count / 12);
@@ -1284,7 +1293,7 @@ export function UnlayerEmailEditor({
             <Button
               onClick={handleSendToAll}
               disabled={isSendingToAll || (typeof sendToAllCount === "number" && sendToAllCount <= 0)}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-green-600 hover:bg-green-700"
             >
               {isSendingToAll ? (
                 <>
