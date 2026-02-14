@@ -62,7 +62,7 @@ export function SmsPreview({
             <div className="space-y-4">
               {/* Previous message for context */}
               <div className="flex justify-end">
-                <div className="bg-blue-600 text-white p-3 rounded-2xl max-w-xs text-sm">
+                <div className="bg-green-600 text-white p-3 rounded-2xl max-w-xs text-sm">
                   Hola, me interesa saber más sobre sus productos.
                 </div>
               </div>

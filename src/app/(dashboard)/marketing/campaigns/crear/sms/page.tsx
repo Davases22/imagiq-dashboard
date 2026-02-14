@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,13 +39,45 @@ import {
   Trash2,
   Database,
   Smile,
+  AlertTriangle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { smsTemplateEndpoints, SmsTemplate } from "@/lib/api";
 
-const MAX_SMS_LENGTH = 159;
-const MAX_CONCATENATED_LENGTH = 153;
+// GSM-7 basic character set
+const GSM7_BASIC = new Set(
+  '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ ÆæßÉ!"#¤%&\'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑܧ¿abcdefghijklmnopqrstuvwxyzäöñüà'.split('')
+);
+
+// GSM-7 extended characters (each counts as 2 septets)
+const GSM7_EXTENDED = new Set(['^', '{', '}', '\\', '[', '~', ']', '|', '€']);
+
+function isGsm7(text: string): boolean {
+  for (const char of text) {
+    if (!GSM7_BASIC.has(char) && !GSM7_EXTENDED.has(char)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function countSmsCharacters(text: string): {
+  charCount: number;
+  encoding: 'GSM-7' | 'UCS-2';
+  maxSingle: number;
+  maxConcat: number;
+} {
+  if (isGsm7(text)) {
+    let count = 0;
+    for (const char of text) {
+      count += GSM7_EXTENDED.has(char) ? 2 : 1;
+    }
+    return { charCount: count, encoding: 'GSM-7', maxSingle: 159, maxConcat: 153 };
+  } else {
+    return { charCount: text.length, encoding: 'UCS-2', maxSingle: 159, maxConcat: 153 };
+  }
+}
 
 const VARIABLES = [
   { label: "Nombre", value: "nombre", example: "Juan" },
@@ -150,9 +182,28 @@ export default function CrearSmsTemplatePage() {
   const [selectedRecipientsMap, setSelectedRecipientsMap] = useState<Map<string, Recipient>>(new Map());
   const [recipientSearch, setRecipientSearch] = useState("");
   const [isLoadingRecipients, setIsLoadingRecipients] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [recipientsTotal, setRecipientsTotal] = useState(0);
+  const [recipientsLocalCount, setRecipientsLocalCount] = useState(0);
+  const [recipientsNovafolCount, setRecipientsNovafolCount] = useState(0);
+  const [hasMoreRecipients, setHasMoreRecipients] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [savedTemplateId, setSavedTemplateId] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+  const [showSendToAllConfirm, setShowSendToAllConfirm] = useState(false);
+  const [isSendingToAll, setIsSendingToAll] = useState(false);
+  const [sendToAllCount, setSendToAllCount] = useState<"all" | number>("all");
+  const [customSendCount, setCustomSendCount] = useState("");
+  // Track saved state for unsaved changes detection
+  const [savedState, setSavedState] = useState<{ name: string; message: string; category: string } | null>(null);
+  const hasUnsavedChanges = isEditing && savedState !== null && (
+    name !== savedState.name ||
+    message !== savedState.message ||
+    category !== savedState.category
+  );
 
   // Cargar templates al montar
   useEffect(() => {
@@ -203,6 +254,7 @@ export default function CrearSmsTemplatePage() {
       setMessage(template.message);
       setCategory(template.category);
       setIsEditing(true);
+      setSavedState({ name: template.name, message: template.message, category: template.category });
     }
   };
 
@@ -214,6 +266,7 @@ export default function CrearSmsTemplatePage() {
     setMessage("");
     setCategory("promotional");
     setIsEditing(false);
+    setSavedState(null);
   };
 
   // Eliminar template
@@ -249,14 +302,18 @@ export default function CrearSmsTemplatePage() {
     });
     return estimated;
   };
-  const characterCount = getEstimatedMessage().length;
-  const isOverLimit = characterCount > MAX_SMS_LENGTH;
-  const segmentCount = characterCount <= MAX_SMS_LENGTH
+  const estimatedMessage = getEstimatedMessage();
+  const smsInfo = countSmsCharacters(estimatedMessage);
+  const characterCount = smsInfo.charCount;
+  const maxSingle = smsInfo.maxSingle;
+  const maxConcat = smsInfo.maxConcat;
+  const isOverLimit = characterCount > maxSingle;
+  const segmentCount = characterCount <= maxSingle
     ? 1
-    : Math.ceil(characterCount / MAX_CONCATENATED_LENGTH);
-  const remainingChars = characterCount <= MAX_SMS_LENGTH
-    ? MAX_SMS_LENGTH - characterCount
-    : MAX_CONCATENATED_LENGTH - (characterCount % MAX_CONCATENATED_LENGTH);
+    : Math.ceil(characterCount / maxConcat);
+  const remainingChars = characterCount <= maxSingle
+    ? maxSingle - characterCount
+    : maxConcat - (characterCount % maxConcat || maxConcat);
 
   // Detectar variables usadas
   const variablesUsed = VARIABLES.filter(v => message.includes(`{{${v.value}}}`));
@@ -275,9 +332,15 @@ export default function CrearSmsTemplatePage() {
   };
 
   const handleInsertLink = () => {
-    const link = prompt("Ingresa la URL del enlace:");
-    if (link) {
-      setMessage(prev => prev + ` ${link}`);
+    setLinkUrl("");
+    setShowLinkDialog(true);
+  };
+
+  const handleConfirmLink = () => {
+    if (linkUrl.trim()) {
+      setMessage(prev => prev + ` ${linkUrl.trim()}`);
+      setShowLinkDialog(false);
+      setLinkUrl("");
     }
   };
 
@@ -285,12 +348,26 @@ export default function CrearSmsTemplatePage() {
     setMessage(prev => prev + emoji);
   };
 
-  // Cargar destinatarios desde la API
+  const RECIPIENTS_PAGE_SIZE = 500;
+
+  // Mapear respuesta de la API a Recipient[]
+  const mapUsers = (users: any[]): Recipient[] =>
+    users.map((user: { id: string; name: string; firstName: string; lastName: string; phone: string; email: string }) => ({
+      id: user.id,
+      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      email: user.email,
+    }));
+
+  // Cargar destinatarios desde la API (combina local + Novafol/VirtualMedios)
   const loadRecipients = useCallback(async (search?: string) => {
     setIsLoadingRecipients(true);
+    setRecipients([]);
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/recipients?limit=200${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=0${search ? `&search=${encodeURIComponent(search)}` : ""}`,
         {
           headers: {
             "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "",
@@ -300,17 +377,12 @@ export default function CrearSmsTemplatePage() {
 
       if (response.ok) {
         const data = await response.json();
-        const recipientsList: Recipient[] = (data.users || [])
-          .filter((user: { telefono?: string }) => user.telefono)
-          .map((user: { id: string; nombre: string; apellido: string; email: string; telefono: string }) => ({
-            id: user.id,
-            name: `${user.nombre || ""} ${user.apellido || ""}`.trim() || user.email,
-            firstName: user.nombre || "",
-            lastName: user.apellido || "",
-            phone: user.telefono,
-            email: user.email,
-          }));
+        const recipientsList = mapUsers(data.users || []);
         setRecipients(recipientsList);
+        setRecipientsTotal(data.total || recipientsList.length);
+        setRecipientsLocalCount(data.localCount || 0);
+        setRecipientsNovafolCount(data.novafolCount || 0);
+        setHasMoreRecipients(recipientsList.length < (data.total || 0));
       } else {
         console.error("Error loading recipients:", response.statusText);
         toast.error("Error al cargar destinatarios");
@@ -322,6 +394,55 @@ export default function CrearSmsTemplatePage() {
       setIsLoadingRecipients(false);
     }
   }, []);
+
+  // Cargar más destinatarios (siguiente página)
+  const loadMoreRecipients = useCallback(async () => {
+    setIsLoadingMore(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=${recipients.length}${recipientSearch ? `&search=${encodeURIComponent(recipientSearch)}` : ""}`,
+        {
+          headers: {
+            "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const newUsers = mapUsers(data.users || []);
+        setRecipients(prev => [...prev, ...newUsers]);
+        setRecipientsTotal(data.total || 0);
+        setHasMoreRecipients(recipients.length + newUsers.length < (data.total || 0));
+      }
+    } catch (error) {
+      console.error("Error loading more recipients:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [recipients.length, recipientSearch]);
+
+  // Infinite scroll: auto-load more when sentinel is visible
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    const scrollContainer = scrollContainerRef.current;
+    if (!sentinel || !scrollContainer) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreRecipients && !isLoadingMore && !isLoadingRecipients) {
+          loadMoreRecipients();
+        }
+      },
+      { root: scrollContainer, threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreRecipients, isLoadingMore, isLoadingRecipients, loadMoreRecipients]);
 
   // Toggle selección de destinatario
   const toggleRecipient = (recipient: Recipient) => {
@@ -374,6 +495,7 @@ export default function CrearSmsTemplatePage() {
         });
         if (response.success && response.data) {
           toast.success("Template actualizado exitosamente");
+          setSavedState({ name, message, category });
           loadTemplates();
           return response.data;
         }
@@ -389,6 +511,7 @@ export default function CrearSmsTemplatePage() {
           setSavedTemplateId(response.data.id);
           setSelectedTemplateId(response.data.id);
           setIsEditing(true);
+          setSavedState({ name, message, category });
           loadTemplates();
           return response.data;
         }
@@ -480,10 +603,55 @@ export default function CrearSmsTemplatePage() {
     }
   };
 
-  const progressPercentage = Math.min((characterCount / MAX_SMS_LENGTH) * 100, 100);
-  const progressColor = characterCount > MAX_SMS_LENGTH
+  // Enviar a TODOS los destinatarios (backend procesa en lotes)
+  const handleSendToAll = async () => {
+    if (!message.trim()) {
+      toast.error("Por favor escribe un mensaje");
+      return;
+    }
+
+    setIsSendingToAll(true);
+    try {
+      // Guardar template si no existe
+      let templateId = savedTemplateId;
+      if (!templateId) {
+        const savedTemplate = await handleSave();
+        if (!savedTemplate) {
+          setIsSendingToAll(false);
+          return;
+        }
+        templateId = savedTemplate.id;
+      }
+
+      const maxRecipients = sendToAllCount === "all" ? undefined : sendToAllCount;
+      const response = await smsTemplateEndpoints.sendToAll(templateId, maxRecipients);
+
+      if (response.success && response.data) {
+        const { estimatedTotal } = response.data;
+        const secs = Math.ceil((estimatedTotal || 0) / 20);
+        const timeStr = secs < 60 ? `${secs}s` : secs < 3600 ? `${Math.ceil(secs / 60)} min` : `${Math.floor(secs / 3600)}h ${Math.ceil((secs % 3600) / 60)}min`;
+        toast.success(
+          `Envío iniciado para ${estimatedTotal?.toLocaleString()} destinatarios. Tiempo estimado: ~${timeStr}. El servidor procesará el envío en segundo plano.`
+        );
+        setShowSendToAllConfirm(false);
+        setShowSendDialog(false);
+        loadTemplates();
+      } else {
+        toast.error(response.message || "Error al enviar SMS");
+      }
+    } catch (error) {
+      console.error("Error sending SMS to all:", error);
+      toast.error("Error al enviar los SMS");
+    } finally {
+      setIsSendingToAll(false);
+    }
+  };
+
+  const progressPercentage = Math.min((characterCount / maxSingle) * 100, 100);
+  const nearLimitThreshold = 140;
+  const progressColor = characterCount > maxSingle
     ? "bg-orange-500"
-    : characterCount > 140
+    : characterCount > nearLimitThreshold
     ? "bg-yellow-500"
     : "bg-green-500";
 
@@ -536,8 +704,12 @@ export default function CrearSmsTemplatePage() {
             </Button>
             <Button
               onClick={() => {
-                loadRecipients();
-                setShowSendDialog(true);
+                if (hasUnsavedChanges) {
+                  setShowUnsavedWarning(true);
+                } else {
+                  loadRecipients();
+                  setShowSendDialog(true);
+                }
               }}
               disabled={!message.trim()}
               className="gap-2 bg-green-600 hover:bg-green-700"
@@ -683,10 +855,10 @@ export default function CrearSmsTemplatePage() {
                   <CardTitle className="text-lg">Mensaje SMS</CardTitle>
                   <div className="flex items-center gap-2">
                     <Badge
-                      variant={isOverLimit ? "destructive" : characterCount > 140 ? "secondary" : "outline"}
+                      variant={isOverLimit ? "destructive" : characterCount > nearLimitThreshold ? "secondary" : "outline"}
                       className="font-mono"
                     >
-                      {characterCount}/{MAX_SMS_LENGTH}
+                      {characterCount}/{maxSingle}
                     </Badge>
                     {segmentCount > 1 && (
                       <Badge variant="secondary">
@@ -778,7 +950,7 @@ export default function CrearSmsTemplatePage() {
                         Seleccionar Emoji
                       </DialogTitle>
                       <DialogDescription>
-                        Haz clic en un emoji para insertarlo en tu mensaje
+                        Haz clic en un emoji para insertarlo en tu mensaje.
                       </DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="h-[50vh] pr-4">
@@ -807,6 +979,52 @@ export default function CrearSmsTemplatePage() {
                         ))}
                       </div>
                     </ScrollArea>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Link Modal */}
+                <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Link2 className="h-5 w-5" />
+                        Insertar Enlace
+                      </DialogTitle>
+                      <DialogDescription>
+                        Ingresa la URL que deseas agregar al mensaje. Los links ocupan caracteres, considera usar acortadores como bit.ly
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="link-url">URL del enlace</Label>
+                        <Input
+                          id="link-url"
+                          placeholder="https://ejemplo.com"
+                          value={linkUrl}
+                          onChange={(e) => setLinkUrl(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              handleConfirmLink();
+                            }
+                          }}
+                          autoFocus
+                        />
+                        {linkUrl.trim() && (
+                          <p className="text-xs text-muted-foreground">
+                            Se agregarán {linkUrl.trim().length} caracteres al mensaje
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowLinkDialog(false)}>
+                        Cancelar
+                      </Button>
+                      <Button onClick={handleConfirmLink} disabled={!linkUrl.trim()}>
+                        <Link2 className="h-4 w-4 mr-2" />
+                        Insertar
+                      </Button>
+                    </DialogFooter>
                   </DialogContent>
                 </Dialog>
               </CardContent>
@@ -893,8 +1111,8 @@ export default function CrearSmsTemplatePage() {
                     : null;
                   return (
                     <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
-                        <div className="text-lg font-bold text-blue-600">{template?.totalSent || 0}</div>
+                      <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded-lg">
+                        <div className="text-lg font-bold text-green-600">{template?.totalSent || 0}</div>
                         <div className="text-[10px] text-muted-foreground">Enviados</div>
                       </div>
                       <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded-lg">
@@ -937,6 +1155,58 @@ export default function CrearSmsTemplatePage() {
         </div>
       </div>
 
+      {/* Dialog de cambios sin guardar */}
+      <Dialog open={showUnsavedWarning} onOpenChange={setShowUnsavedWarning}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-500">
+              <AlertTriangle className="h-5 w-5" />
+              Cambios sin guardar
+            </DialogTitle>
+            <DialogDescription>
+              Has modificado el template pero no has guardado los cambios. El SMS se enviará con la versión guardada anteriormente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowUnsavedWarning(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowUnsavedWarning(false);
+                loadRecipients();
+                setShowSendDialog(true);
+              }}
+            >
+              Enviar sin actualizar
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              onClick={async () => {
+                const saved = await handleSave();
+                if (saved) {
+                  setShowUnsavedWarning(false);
+                  loadRecipients();
+                  setShowSendDialog(true);
+                }
+              }}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Actualizar y Enviar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog de envío de SMS */}
       <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
         <DialogContent className="!max-w-3xl h-[85vh]">
@@ -951,7 +1221,7 @@ export default function CrearSmsTemplatePage() {
           </DialogHeader>
 
           <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
-            {/* Info del mensaje */}
+            {/* Info del mensaje + total destinatarios */}
             <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
               <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <MessageSquare className="h-5 w-5 text-primary" />
@@ -967,12 +1237,32 @@ export default function CrearSmsTemplatePage() {
               </Badge>
             </div>
 
+            {/* Total de destinatarios + Enviar a todos */}
+            {recipientsTotal > 0 && (
+              <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                  <Users className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-lg text-green-600">{recipientsTotal.toLocaleString()} destinatarios</p>
+                </div>
+                <Button
+                  onClick={() => setShowSendToAllConfirm(true)}
+                  disabled={isSendingToAll || !message.trim()}
+                  className="gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  <Send className="h-4 w-4" />
+                  Enviar a todos
+                </Button>
+              </div>
+            )}
+
             {/* Buscador y controles */}
             <div className="flex items-center gap-2 flex-wrap">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por nombre o teléfono..."
+                  placeholder="Buscar por nombre, email o teléfono (ej: 3150004...)"
                   value={recipientSearch}
                   onChange={(e) => setRecipientSearch(e.target.value)}
                   onKeyDown={(e) => {
@@ -992,7 +1282,7 @@ export default function CrearSmsTemplatePage() {
                 {isLoadingRecipients ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
               </Button>
               <Button variant="outline" size="sm" onClick={selectAllRecipients}>
-                Seleccionar todos
+                Seleccionar cargados
               </Button>
               <Button variant="outline" size="sm" onClick={deselectAllRecipients}>
                 Limpiar
@@ -1028,7 +1318,7 @@ export default function CrearSmsTemplatePage() {
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
-                {selectedRecipientsMap.size} de {recipients.length} destinatarios seleccionados
+                {selectedRecipientsMap.size} seleccionados · Mostrando {recipients.length} de {recipientsTotal.toLocaleString()} destinatarios
               </span>
               {selectedRecipientsMap.size > 0 && (
                 <Badge variant="secondary" className="ml-auto">
@@ -1039,7 +1329,7 @@ export default function CrearSmsTemplatePage() {
             </div>
 
             {/* Lista de destinatarios */}
-            <ScrollArea className="flex-1 border rounded-lg h-[350px]">
+            <div ref={scrollContainerRef} className="flex-1 border rounded-lg h-[350px] overflow-y-auto">
               <div className="p-2 space-y-1">
                 {isLoadingRecipients ? (
                   <div className="flex items-center justify-center py-8">
@@ -1053,35 +1343,50 @@ export default function CrearSmsTemplatePage() {
                     <p className="text-xs mt-1">Solo se mostrarán usuarios con número de teléfono</p>
                   </div>
                 ) : (
-                  recipients.map((recipient) => (
-                    <div
-                      key={recipient.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                        selectedRecipientsMap.has(recipient.id)
-                          ? "bg-primary/10 border border-primary/20"
-                          : "hover:bg-muted"
-                      }`}
-                      onClick={() => toggleRecipient(recipient)}
-                    >
-                      <Checkbox
-                        checked={selectedRecipientsMap.has(recipient.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        onCheckedChange={() => toggleRecipient(recipient)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium truncate">{recipient.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Phone className="h-3 w-3" />
-                          <span className="truncate">{recipient.phone}</span>
+                  <>
+                    {recipients.map((recipient) => (
+                      <div
+                        key={recipient.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                          selectedRecipientsMap.has(recipient.id)
+                            ? "bg-primary/10 border border-primary/20"
+                            : "hover:bg-muted"
+                        }`}
+                        onClick={() => toggleRecipient(recipient)}
+                      >
+                        <Checkbox
+                          checked={selectedRecipientsMap.has(recipient.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          onCheckedChange={() => toggleRecipient(recipient)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium truncate">{recipient.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Phone className="h-3 w-3" />
+                            <span className="truncate">{recipient.phone}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                    {/* Sentinel para infinite scroll */}
+                    {hasMoreRecipients && (
+                      <div ref={loadMoreSentinelRef} className="flex items-center justify-center py-4">
+                        {isLoadingMore ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            <span className="ml-2 text-xs text-muted-foreground">Cargando más...</span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Scroll para cargar más</span>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Resumen de costos */}
             {selectedRecipientsMap.size > 0 && (
@@ -1120,6 +1425,131 @@ export default function CrearSmsTemplatePage() {
                 <Send className="mr-2 h-4 w-4" />
               )}
               Enviar a {selectedRecipientsMap.size} destinatario(s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de confirmación para enviar a todos */}
+      <Dialog open={showSendToAllConfirm} onOpenChange={(open) => {
+        setShowSendToAllConfirm(open);
+        if (!open) { setSendToAllCount("all"); setCustomSendCount(""); }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <Users className="h-5 w-5" />
+              Enviar SMS masivo
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona cuántos destinatarios quieres alcanzar.
+              El envío se procesará en lotes en el servidor.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {/* Selector de cantidad */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Cantidad de destinatarios</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "all" as const, label: `Todos (${recipientsTotal.toLocaleString()})` },
+                  { value: 500, label: "500" },
+                  { value: 1000, label: "1.000" },
+                  { value: 5000, label: "5.000" },
+                ].map((opt) => (
+                  <button
+                    key={String(opt.value)}
+                    type="button"
+                    onClick={() => { setSendToAllCount(opt.value); setCustomSendCount(""); }}
+                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                      sendToAllCount === opt.value
+                        ? "border-green-500 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 font-medium"
+                        : "border-border hover:border-green-300 hover:bg-muted/50"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  placeholder="Cantidad personalizada..."
+                  min={1}
+                  max={recipientsTotal}
+                  value={customSendCount}
+                  onChange={(e) => {
+                    setCustomSendCount(e.target.value);
+                    const num = parseInt(e.target.value, 10);
+                    if (num > 0) setSendToAllCount(num);
+                  }}
+                  onFocus={() => {
+                    if (typeof sendToAllCount !== "number" || [500, 1000, 5000].includes(sendToAllCount)) {
+                      setSendToAllCount(0);
+                    }
+                  }}
+                  className={`flex-1 ${customSendCount ? "border-green-500" : ""}`}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-between text-sm p-3 bg-muted/50 rounded-lg">
+              <span className="text-muted-foreground">Enviar a:</span>
+              <span className="font-bold">
+                {sendToAllCount === "all"
+                  ? `${recipientsTotal.toLocaleString()} destinatarios`
+                  : `${sendToAllCount.toLocaleString()} destinatarios`}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm p-3 bg-muted/50 rounded-lg">
+              <span className="text-muted-foreground">Segmentos por SMS:</span>
+              <span className="font-bold">{segmentCount}</span>
+            </div>
+            <div className="flex justify-between text-sm p-3 bg-muted/50 rounded-lg">
+              <span className="text-muted-foreground">Tiempo estimado:</span>
+              <span className="font-bold">
+                {(() => {
+                  const count = sendToAllCount === "all" ? recipientsTotal : sendToAllCount;
+                  const totalSeg = Math.ceil(count / 20); // 20 SMS/seg (50ms delay)
+                  if (totalSeg < 60) return `~${totalSeg} segundos`;
+                  if (totalSeg < 3600) return `~${Math.ceil(totalSeg / 60)} minutos`;
+                  const h = Math.floor(totalSeg / 3600);
+                  const m = Math.ceil((totalSeg % 3600) / 60);
+                  return `~${h}h ${m}min`;
+                })()}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-900">
+              <span className="text-muted-foreground">Costo estimado:</span>
+              <span className="font-bold text-orange-600">
+                ~${((sendToAllCount === "all" ? recipientsTotal : sendToAllCount) * segmentCount * 0.02).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+              </span>
+            </div>
+          </div>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowSendToAllConfirm(false)}
+              disabled={isSendingToAll}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSendToAll}
+              disabled={isSendingToAll || (typeof sendToAllCount === "number" && sendToAllCount <= 0)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSendingToAll ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Iniciando envío...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Confirmar envío a {(sendToAllCount === "all" ? recipientsTotal : sendToAllCount).toLocaleString()}
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

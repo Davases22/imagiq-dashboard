@@ -2646,6 +2646,15 @@ export const stripoEndpoints = {
       css: string;
     }>(`/api/messaging/stripo/public-templates/${templateId}`);
   },
+
+  // Enviar email a destinatarios (backend procesa en background)
+  sendToAll: (subject: string, html: string, maxRecipients?: number) => {
+    return apiClient.post<{ status: string; message: string; estimatedTotal: number }>('/api/messaging/send-all-campaign-emails', {
+      subject,
+      html,
+      maxRecipients,
+    });
+  },
 };
 
 // ==================== SMS ENDPOINTS ====================
@@ -2814,6 +2823,14 @@ export const smsTemplateEndpoints = {
     return apiClient.post<BulkSmsResult>(`/api/messaging/sms-templates/${templateId}/send-bulk`, {
       recipients,
     });
+  },
+
+  // Enviar SMS a destinatarios usando un template (backend procesa en background)
+  sendToAll: (templateId: string, maxRecipients?: number) => {
+    return apiClient.post<{ status: string; message: string; estimatedTotal: number }>(
+      `/api/messaging/sms-templates/${templateId}/send-to-all-sms`,
+      { maxRecipients },
+    );
   },
 
   // Seed templates por defecto para e-commerce
