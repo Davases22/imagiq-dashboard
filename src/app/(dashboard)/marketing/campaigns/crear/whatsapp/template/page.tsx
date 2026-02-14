@@ -1,16 +1,52 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save, Apple, Smartphone } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Save, Apple, Smartphone, Send, Users, Search, Loader2, CheckCircle2, Phone, Download, MessageSquare, Clock, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { WhatsAppTemplateForm } from "@/components/campaigns/whatsapp/template/template-form";
 import { WhatsAppTemplatePreview } from "@/components/campaigns/whatsapp/template/template-preview";
 import { TemplateVariables } from "@/components/campaigns/whatsapp/template/template-variables";
-import { useState } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { whatsappTemplateEndpoints } from "@/lib/api";
+import { mapBackendArrayToFrontend } from "@/lib/whatsappTemplateMapper";
 import { toast } from "sonner";
+
+const RECIPIENTS_PAGE_SIZE = 50;
+
+interface Recipient {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email?: string;
+}
+
+function mapUsers(users: any[]): Recipient[] {
+  return users
+    .filter((u: any) => u.telefono || u.celular)
+    .map((u: any) => ({
+      id: u.id || u._id || String(Math.random()),
+      name: `${u.nombre || ""} ${u.apellido || ""}`.trim() || u.email || "Sin nombre",
+      firstName: u.nombre || "",
+      lastName: u.apellido || "",
+      phone: u.celular || u.telefono || "",
+      email: u.email || "",
+    }));
+}
 
 /**
  * Extrae las variables de un texto en formato {{1}}, {{2}}, etc.
@@ -103,7 +139,7 @@ function buildHeaderComponent(
     case "DOCUMENT":
       // Para media, siempre incluir example con URL de ejemplo
       component.example = {
-        header_handle: [headerContent || "https://example.com/media"]
+        header_url: [headerContent || "https://example.com/media"]
       };
       break;
 
@@ -204,203 +240,205 @@ export default function CrearPlantillaWhatsAppPage() {
     buttons: [],
   });
 
-  const [variableValues, setVariableValues] = useState<Record<string, string>>({});
+  const [variableValues, setVariableValues] = useState<Record<string, string>>({ "{{1}}": "Juan" });
   const [selectedOS, setSelectedOS] = useState<'ios' | 'android'>('ios');
 
-  const createExampleTemplate = () => {
-    const exampleTemplate = {
-      name: "order_confirmation",
-      category: "UTILITY",
-      language: "en",
-      header: {
-        type: "TEXT",
-        content: "Order Confirmed",
-      },
-      body: "Hi {{1}}, your order {{2}} has been successfully confirmed and is being processed by our team. You will receive a notification once it ships to {{3}}. Expected delivery date is {{4}}. Thank you for shopping with us and trusting our service!",
-      footer: "Imagiq Store - We appreciate your business",
-      buttons: [
-        {
-          id: 1,
-          type: "URL",
-          text: "Track Order",
-          url: "https://imagiq-frontend.vercel.app/orders/{{2}}"
-        }
-      ],
-    };
+  // Send dialog state
+  const [showSendDialog, setShowSendDialog] = useState(false);
+  const [showPendingApproval, setShowPendingApproval] = useState(false);
+  const [pendingTemplateStatus, setPendingTemplateStatus] = useState<string>("pending");
+  const [isSavingForSend, setIsSavingForSend] = useState(false);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [selectedRecipientsMap, setSelectedRecipientsMap] = useState<Map<string, Recipient>>(new Map());
+  const [recipientSearch, setRecipientSearch] = useState("");
+  const [isLoadingRecipients, setIsLoadingRecipients] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [recipientsTotal, setRecipientsTotal] = useState(0);
+  const [hasMoreRecipients, setHasMoreRecipients] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isSendingToAll, setIsSendingToAll] = useState(false);
+  const [showSendToAllConfirm, setShowSendToAllConfirm] = useState(false);
+  const [sendToAllCount, setSendToAllCount] = useState<"all" | number>("all");
+  const [customSendCount, setCustomSendCount] = useState("");
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
-    const exampleVariables = {
-      "{{1}}": "John",
-      "{{2}}": "ORD-12345", 
-      "{{3}}": "123 Main Street",
-      "{{4}}": "January 15, 2024"
-    };
-
-    setTemplateData(exampleTemplate);
-    setVariableValues(exampleVariables);
-    toast.success("Plantilla de ejemplo cargada");
-  };
-
-  const createLocationExample = () => {
-    const locationTemplate = {
-      name: "store_location",
-      category: "UTILITY",
-      language: "en",
-      header: {
-        type: "LOCATION",
-        content: "",
-      },
-      body: "Visit us at our store! We are located at {{1}} and would love to welcome you. Our business hours are {{2}}. Come discover our latest products and enjoy personalized service from our friendly team.",
-      footer: "We look forward to seeing you",
-      buttons: [
-        {
-          id: 1,
-          type: "PHONE_NUMBER",
-          text: "Call Store",
-          phoneNumber: "+1 234 567 8900"
-        }
-      ],
-    };
-
-    const locationVariables = {
-      "{{1}}": "123 Main Street, Downtown",
-      "{{2}}": "Monday to Saturday 9:00 AM - 8:00 PM"
-    };
-
-    setTemplateData(locationTemplate);
-    setVariableValues(locationVariables);
-    toast.success("Plantilla de ubicación cargada");
-  };
-
-  const createImageExample = () => {
-    const imageTemplate = {
-      name: "special_offer",
-      category: "MARKETING",
-      language: "en",
-      header: {
-        type: "IMAGE",
-        content: "https://example.com/promo-image.jpg",
-      },
-      body: "Hello {{1}}! We have an exclusive offer for you: Get {{2}} off on {{3}}. This limited-time promotion is our way of thanking you for being a valued customer. Don't miss out on this amazing deal! Visit our store or shop online at {{4}}.",
-      footer: "Terms and conditions apply",
-      buttons: [
-        {
-          id: 1,
-          type: "URL",
-          text: "Shop Now",
-          url: "https://imagiq-frontend.vercel.app/products/{{4}}"
-        }
-      ],
-    };
-
-    const imageVariables = {
-      "{{1}}": "Maria",
-      "{{2}}": "20%",
-      "{{3}}": "all electronics",
-      "{{4}}": "electronics-sale"
-    };
-
-    setTemplateData(imageTemplate);
-    setVariableValues(imageVariables);
-    toast.success("Plantilla con imagen cargada");
-  };
-
-  const handleSaveTemplate = async () => {
+  const loadRecipients = useCallback(async (search?: string) => {
+    setIsLoadingRecipients(true);
+    setRecipients([]);
     try {
-      // Validación 1: Nombre de plantilla
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=0${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+        { headers: { "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "" } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const recipientsList = mapUsers(data.users || []);
+        setRecipients(recipientsList);
+        setRecipientsTotal(data.total || recipientsList.length);
+        setHasMoreRecipients(recipientsList.length < (data.total || 0));
+      } else {
+        toast.error("Error al cargar destinatarios");
+      }
+    } catch (error) {
+      console.error("Error loading recipients:", error);
+      toast.error("Error al cargar destinatarios");
+    } finally {
+      setIsLoadingRecipients(false);
+    }
+  }, []);
+
+  const loadMoreRecipients = useCallback(async () => {
+    setIsLoadingMore(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=${recipients.length}${recipientSearch ? `&search=${encodeURIComponent(recipientSearch)}` : ""}`,
+        { headers: { "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "" } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const newUsers = mapUsers(data.users || []);
+        setRecipients(prev => [...prev, ...newUsers]);
+        setRecipientsTotal(data.total || 0);
+        setHasMoreRecipients(recipients.length + newUsers.length < (data.total || 0));
+      }
+    } catch (error) {
+      console.error("Error loading more recipients:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [recipients.length, recipientSearch]);
+
+  // Infinite scroll
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    const scrollContainer = scrollContainerRef.current;
+    if (!sentinel || !scrollContainer) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreRecipients && !isLoadingMore && !isLoadingRecipients) {
+          loadMoreRecipients();
+        }
+      },
+      { root: scrollContainer, threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreRecipients, isLoadingMore, isLoadingRecipients, loadMoreRecipients]);
+
+  const toggleRecipient = (recipient: Recipient) => {
+    setSelectedRecipientsMap((prev) => {
+      const newMap = new Map(prev);
+      if (newMap.has(recipient.id)) { newMap.delete(recipient.id); } else { newMap.set(recipient.id, recipient); }
+      return newMap;
+    });
+  };
+
+  const selectAllRecipients = () => {
+    setSelectedRecipientsMap((prev) => {
+      const newMap = new Map(prev);
+      recipients.forEach((r) => newMap.set(r.id, r));
+      return newMap;
+    });
+  };
+
+  const deselectAllRecipients = () => setSelectedRecipientsMap(new Map());
+
+  const handleOpenSendDialog = async () => {
+    // Validate form basics
+    if (!templateData.name || !templateData.body?.trim()) {
+      toast.error("Completa el nombre y el cuerpo del mensaje antes de enviar");
+      return;
+    }
+
+    setIsSavingForSend(true);
+    try {
+      // 1. Check if template exists in Meta
+      const response = await whatsappTemplateEndpoints.getAll();
+      const allTemplates = response.success && response.data
+        ? mapBackendArrayToFrontend(response.data)
+        : [];
+      const found = allTemplates.find(t => t.name === templateData.name);
+
+      if (!found) {
+        // Template doesn't exist — save it first
+        toast.info("Guardando plantilla en Meta...");
+        const saved = await saveTemplateToMeta();
+        if (saved) {
+          setPendingTemplateStatus("pending");
+          setShowPendingApproval(true);
+        }
+        return;
+      }
+
+      if (found.status !== "active") {
+        // Template exists but not approved
+        setPendingTemplateStatus(found.status);
+        setShowPendingApproval(true);
+        return;
+      }
+
+      // Template is approved — open send dialog
+      loadRecipients();
+      setShowSendDialog(true);
+    } catch (error) {
+      console.error("Error checking template:", error);
+      toast.error("Error al verificar la plantilla");
+    } finally {
+      setIsSavingForSend(false);
+    }
+  };
+
+  // Extracted save logic to reuse from handleOpenSendDialog
+  const saveTemplateToMeta = async (): Promise<boolean> => {
+    try {
       if (!templateData.name || !/^[a-z0-9_]+$/.test(templateData.name)) {
         toast.error("Nombre inválido. Usa solo minúsculas, números y guiones bajos (_)");
-        return;
+        return false;
       }
-      
       if (templateData.name.length < 3 || templateData.name.length > 512) {
         toast.error("El nombre debe tener entre 3 y 512 caracteres");
-        return;
+        return false;
       }
-      
-      // Validación 2: Body requerido
       if (!templateData.body || templateData.body.trim().length === 0) {
         toast.error("El cuerpo del mensaje es requerido");
-        return;
+        return false;
       }
-
-      // Validación 3: Idioma en formato correcto
       if (!/^[a-z]{2}(_[A-Z]{2})?$/.test(templateData.language)) {
-        toast.error('Formato de idioma inválido. Usa: es, en, pt_BR, es_MX, etc.');
-        return;
+        toast.error("Formato de idioma inválido");
+        return false;
       }
 
-      // Validación 4: Ratio variables vs texto (CRÍTICO para Meta API)
+      // Check for duplicate template name before creating
+      const existingResponse = await whatsappTemplateEndpoints.getAll();
+      if (existingResponse.success && existingResponse.data) {
+        const existingTemplates = mapBackendArrayToFrontend(existingResponse.data);
+        const duplicate = existingTemplates.find(t => t.name === templateData.name);
+        if (duplicate) {
+          toast.error(`Ya existe una plantilla con el nombre "${templateData.name}". Usa un nombre diferente o elimina la existente primero.`);
+          return false;
+        }
+      }
+
       const bodyVariables = (templateData.body.match(/\{\{\d+\}\}/g) || []).length;
       const bodyWordCount = templateData.body.trim().split(/\s+/).length;
-      
-      const minWordsRequired: Record<number, number> = {
-        1: 15,
-        2: 25,
-        3: 40,
-        4: 60,
-        5: 60
-      };
-
+      const minWordsRequired: Record<number, number> = { 1: 15, 2: 25, 3: 40, 4: 60, 5: 60 };
       if (bodyVariables > 0) {
         const minWords = minWordsRequired[bodyVariables] || 60;
         if (bodyWordCount < minWords) {
-          toast.error(
-            `El mensaje es muy corto para ${bodyVariables} variable(s). ` +
-            `Necesitas al menos ${minWords} palabras (tienes ${bodyWordCount}). ` +
-            `Agrega más texto descriptivo.`
-          );
-          return;
+          toast.error(`El mensaje es muy corto para ${bodyVariables} variable(s). Necesitas al menos ${minWords} palabras.`);
+          return false;
         }
       }
 
-      // Verificar duplicados
-      try {
-        const existingTemplates = await whatsappTemplateEndpoints.getAll();
-        if (existingTemplates.success && existingTemplates.data) {
-          const nameExists = existingTemplates.data.some((template: any) => 
-            template.name === templateData.name
-          );
-          if (nameExists) {
-            toast.error(`Ya existe una plantilla con el nombre "${templateData.name}".`);
-            return;
-          }
-        }
-      } catch (checkError) {
-        console.warn("No se pudo verificar plantillas existentes:", checkError);
-      }
-
-      // Construir components usando funciones auxiliares
       const components: any[] = [];
-
-      // HEADER
-      const headerComponent = buildHeaderComponent(
-        templateData.header?.type,
-        templateData.header?.content,
-        variableValues
-      );
-      if (headerComponent) {
-        components.push(headerComponent);
-      }
-
-      // BODY (requerido)
-      const bodyComponent = buildBodyComponent(templateData.body, variableValues);
-      components.push(bodyComponent);
-
-      // FOOTER
-      if (templateData.footer && templateData.footer.trim().length > 0) {
-        components.push({
-          type: "FOOTER",
-          text: templateData.footer
-        });
-      }
-
-      // BUTTONS
+      const headerComponent = buildHeaderComponent(templateData.header?.type, templateData.header?.content, variableValues);
+      if (headerComponent) components.push(headerComponent);
+      components.push(buildBodyComponent(templateData.body, variableValues));
+      if (templateData.footer?.trim()) components.push({ type: "FOOTER", text: templateData.footer });
       const buttonsComponent = buildButtonsComponent(templateData.buttons, variableValues);
-      if (buttonsComponent) {
-        components.push(buttonsComponent);
-      }
+      if (buttonsComponent) components.push(buttonsComponent);
 
-      // Construir payload final
       const payload = {
         name: templateData.name,
         category: templateData.category as "MARKETING" | "UTILITY" | "AUTHENTICATION",
@@ -408,21 +446,281 @@ export default function CrearPlantillaWhatsAppPage() {
         components,
       };
 
-      // Log para debugging
-      console.log("Payload a enviar:", JSON.stringify(payload, null, 2));
+      const res = await whatsappTemplateEndpoints.create(payload);
+      // Validate both HTTP status and response data
+      // The microservice may return errors wrapped in HTTP 200 via TCP gateway
+      const resData = res.data as any;
+      const hasError = resData?.ok === false || resData?.error || (!resData?.id && !resData?.success);
 
-      // Enviar al backend
-      const response = await whatsappTemplateEndpoints.create(payload);
-      
-      if (response.success) {
-        toast.success("Plantilla creada correctamente");
-        router.push("/marketing/campaigns/templates/whatsapp");
+      if (res.success && !hasError) {
+        toast.success("Plantilla guardada correctamente en Meta");
+        return true;
       } else {
-        toast.error(response.message || "No se pudo crear la plantilla");
+        // Extract error message from various response formats
+        let errorMsg = res.message || "No se pudo crear la plantilla";
+        if (resData?.error) {
+          if (typeof resData.error === 'string') {
+            try {
+              const parsed = JSON.parse(resData.error);
+              errorMsg = parsed?.error?.message || parsed?.message || resData.error;
+            } catch {
+              errorMsg = resData.error;
+            }
+          } else if (typeof resData.error === 'object') {
+            errorMsg = resData.error?.message || resData.error?.error?.message || JSON.stringify(resData.error);
+          }
+        }
+        toast.error(errorMsg);
+        return false;
       }
     } catch (error) {
-      console.error("Error al guardar plantilla:", error);
-      toast.error("Error al conectar con el servidor");
+      console.error("Error saving template:", error);
+      toast.error("Error al guardar la plantilla");
+      return false;
+    }
+  };
+
+  const [bulkProgress, setBulkProgress] = useState<{ progress: number; sent: number; total: number } | null>(null);
+
+  // Validates template exists and is approved, returns the template or null
+  const validateTemplate = async (): Promise<{ id: string; name: string } | null> => {
+    const response = await whatsappTemplateEndpoints.getAll();
+    if (!response.success || !response.data) {
+      toast.error("No se pudieron cargar las plantillas");
+      return null;
+    }
+    const templates = mapBackendArrayToFrontend(response.data);
+    const found = templates.find(t => t.name === templateData.name);
+    if (!found) {
+      toast.error("Esta plantilla no existe en Meta. Primero guárdala con 'Guardar Plantilla' y espera su aprobación.");
+      return null;
+    }
+    if (found.status !== "active") {
+      toast.error(`La plantilla "${found.name}" está en estado "${found.status}". Debe estar aprobada (activa) por Meta para poder enviar.`);
+      return null;
+    }
+    return found;
+  };
+
+  // Polls a bulk job until completion
+  const pollBulkJob = async (jobId: string): Promise<{ sent: number; failed: number; total: number }> => {
+    return new Promise((resolve) => {
+      const interval = setInterval(async () => {
+        try {
+          const statusRes = await whatsappTemplateEndpoints.getBulkJobStatus(jobId);
+          if (statusRes.success && statusRes.data) {
+            const { status, sent, failed, total, progress } = statusRes.data;
+            setBulkProgress({ progress, sent, total });
+
+            if (status === "completed" || status === "failed") {
+              clearInterval(interval);
+              setBulkProgress(null);
+              resolve({ sent, failed, total });
+            }
+          }
+        } catch {
+          // Ignore polling errors, will retry
+        }
+      }, 3000);
+    });
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (selectedRecipientsMap.size === 0) {
+      toast.error("Selecciona al menos un destinatario");
+      return;
+    }
+    setIsSending(true);
+    try {
+      const found = await validateTemplate();
+      if (!found) { setIsSending(false); return; }
+
+      const selectedUsers = Array.from(selectedRecipientsMap.values());
+      const recipients = selectedUsers.map((recipient) => ({
+        to: recipient.phone,
+        variables: [recipient.firstName || recipient.name.split(" ")[0] || recipient.name],
+      }));
+
+      // Start bulk job
+      const startRes = await whatsappTemplateEndpoints.sendTemplateBulk({
+        template_id: found.id,
+        recipients,
+        batch_size: 20,
+        delay_ms: 1000,
+      });
+
+      if (!startRes.success || !startRes.data?.jobId) {
+        toast.error("Error al iniciar el envío");
+        setIsSending(false);
+        return;
+      }
+
+      toast.info(`Enviando a ${recipients.length} destinatarios...`);
+
+      // Poll for completion
+      const result = await pollBulkJob(startRes.data.jobId);
+
+      if (result.failed === 0) {
+        toast.success(`${result.sent} mensajes de WhatsApp enviados correctamente`);
+      } else if (result.sent === 0) {
+        toast.error("Error: No se pudo enviar ningún mensaje");
+      } else {
+        toast.warning(`${result.sent}/${result.total} enviados. ${result.failed} fallaron.`);
+      }
+      setShowSendDialog(false);
+      setSelectedRecipientsMap(new Map());
+    } catch (error) {
+      console.error("Error sending WhatsApp:", error);
+      toast.error("Error al enviar los mensajes");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const createExampleTemplate = () => {
+    setTemplateData({
+      name: "promo_descuento_exclusivo",
+      category: "MARKETING",
+      language: "es",
+      header: {
+        type: "TEXT",
+        content: "Oferta Exclusiva Samsung",
+      },
+      body: "Hola {{1}}, en imagiq tenemos una promoción especial solo para ti. Obtén hasta 25% de descuento en toda la línea Galaxy S25 de Samsung. Esta oferta es válida por tiempo limitado. No dejes pasar esta oportunidad única de renovar tu tecnología con los mejores precios del mercado.",
+      footer: "imagiq - Samsung Store Oficial",
+      buttons: [
+        {
+          id: 1,
+          type: "URL",
+          text: "Ver Ofertas",
+          url: "https://www.imagiq.com/ofertas"
+        },
+        {
+          id: 2,
+          type: "QUICK_REPLY",
+          text: "Me interesa"
+        }
+      ],
+    });
+    setVariableValues({ "{{1}}": "Juan" });
+    toast.success("Ejemplo de texto cargado");
+  };
+
+  const createImageExample = () => {
+    setTemplateData({
+      name: "lanzamiento_producto_samsung",
+      category: "MARKETING",
+      language: "es",
+      header: {
+        type: "IMAGE",
+        content: "https://res.cloudinary.com/dbqgbemui/image/upload/v1761873777/Samsung_Store_deken7.png",
+      },
+      body: "Hola {{1}}, te presentamos el nuevo Samsung Galaxy Z Fold 6 ya disponible en imagiq. Precio de lanzamiento desde $5.999.000 COP con envío gratis a toda Colombia. Además, por ser cliente preferido tienes un 10% de descuento adicional. Cantidad limitada, aprovecha antes de que se agoten.",
+      footer: "Aplican términos y condiciones - imagiq",
+      buttons: [
+        {
+          id: 1,
+          type: "URL",
+          text: "Comprar Ahora",
+          url: "https://www.imagiq.com/productos"
+        }
+      ],
+    });
+    setVariableValues({ "{{1}}": "María" });
+    toast.success("Ejemplo con imagen cargado");
+  };
+
+  const createLocationExample = () => {
+    setTemplateData({
+      name: "evento_tienda_imagiq",
+      category: "MARKETING",
+      language: "es",
+      header: {
+        type: "LOCATION",
+        content: "",
+      },
+      body: "Hola {{1}}, te invitamos al evento exclusivo de Samsung en nuestra tienda imagiq. Tendremos demostraciones en vivo de los últimos Galaxy, regalos sorpresa y descuentos de hasta el 40% en productos seleccionados. Cupos limitados, confirma tu asistencia ahora y no te lo pierdas.",
+      footer: "imagiq - Experiencia Samsung",
+      buttons: [
+        {
+          id: 1,
+          type: "QUICK_REPLY",
+          text: "Confirmar asistencia"
+        },
+        {
+          id: 2,
+          type: "PHONE_NUMBER",
+          text: "Más información",
+          phoneNumber: "+57 601 234 5678"
+        }
+      ],
+    });
+    setVariableValues({ "{{1}}": "Carlos" });
+    toast.success("Ejemplo de ubicación cargado");
+  };
+
+  const createDocumentExample = () => {
+    setTemplateData({
+      name: "catalogo_samsung_temporada",
+      category: "MARKETING",
+      language: "es",
+      header: {
+        type: "DOCUMENT",
+        content: "https://www.imagiq.com/catalogos/samsung-2025.pdf",
+      },
+      body: "Hola {{1}}, te compartimos nuestro catálogo de temporada con los mejores productos Samsung disponibles en imagiq. Encuentra ofertas de hasta 30% de descuento en televisores, celulares y electrodomésticos. Descarga el catálogo adjunto y descubre todas las promociones que tenemos para ti.",
+      footer: "imagiq - Tu tienda Samsung autorizada",
+      buttons: [
+        {
+          id: 1,
+          type: "URL",
+          text: "Ver Tienda Online",
+          url: "https://www.imagiq.com/catalogo"
+        },
+        {
+          id: 2,
+          type: "QUICK_REPLY",
+          text: "Quiero más info"
+        }
+      ],
+    });
+    setVariableValues({ "{{1}}": "Andrea" });
+    toast.success("Ejemplo de documento cargado");
+  };
+
+  const createVideoExample = () => {
+    setTemplateData({
+      name: "review_galaxy_s25_ultra",
+      category: "MARKETING",
+      language: "es",
+      header: {
+        type: "VIDEO",
+        content: "https://www.imagiq.com/videos/galaxy-s25-review.mp4",
+      },
+      body: "Hola {{1}}, mira este video exclusivo del nuevo Samsung Galaxy S25 Ultra disponible en imagiq. Cámara de 200MP, IA Galaxy integrada y batería de 5000mAh. Precio de lanzamiento con 15% de descuento solo por esta semana. Stock limitado, no te quedes sin el tuyo.",
+      footer: "imagiq - Samsung Store Oficial",
+      buttons: [
+        {
+          id: 1,
+          type: "URL",
+          text: "Comprar Ahora",
+          url: "https://www.imagiq.com/productos/galaxy-s25-ultra"
+        },
+        {
+          id: 2,
+          type: "QUICK_REPLY",
+          text: "Me interesa"
+        }
+      ],
+    });
+    setVariableValues({ "{{1}}": "Pedro" });
+    toast.success("Ejemplo de video cargado");
+  };
+
+  const handleSaveTemplate = async () => {
+    const saved = await saveTemplateToMeta();
+    if (saved) {
+      router.push("/marketing/campaigns/templates/whatsapp");
     }
   };
 
@@ -470,6 +768,22 @@ export default function CrearPlantillaWhatsAppPage() {
             >
               Ejemplo Ubicación
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={createDocumentExample}
+              className="text-xs"
+            >
+              Ejemplo Documento
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={createVideoExample}
+              className="text-xs"
+            >
+              Ejemplo Video
+            </Button>
           </div>
           <Button
             variant={selectedOS === 'ios' ? 'default' : 'outline'}
@@ -493,22 +807,26 @@ export default function CrearPlantillaWhatsAppPage() {
             <Save className="h-4 w-4 mr-2" />
             Guardar Plantilla
           </Button>
+          <Button size="sm" onClick={handleOpenSendDialog} disabled={isSavingForSend} className="bg-green-600 hover:bg-green-700">
+            {isSavingForSend ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+            Enviar
+          </Button>
         </div>
       </div>
 
       {/* Content - Grid with controlled heights */}
-      <div className="flex-1 overflow-hidden p-4">
-        <div className="grid gap-4 lg:grid-cols-2 h-full">
-          {/* Form Section */}
-          <div className="flex flex-col gap-4 h-full overflow-hidden">
-            <Card className="flex flex-col flex-1 min-h-0">
-              <CardHeader className="flex-shrink-0">
+      <div className="flex-1 overflow-auto p-4">
+        <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
+          {/* Form Section - scrollable */}
+          <div className="flex flex-col gap-4">
+            <Card>
+              <CardHeader>
                 <CardTitle>Configuración de Plantilla</CardTitle>
                 <p className="text-sm text-muted-foreground">
                   Completa todos los campos requeridos para crear tu plantilla
                 </p>
               </CardHeader>
-              <CardContent className="flex-1 overflow-y-auto">
+              <CardContent>
                 <WhatsAppTemplateForm
                   templateData={templateData}
                   onTemplateDataChange={setTemplateData}
@@ -517,18 +835,16 @@ export default function CrearPlantillaWhatsAppPage() {
             </Card>
 
             {/* Variable Values Section */}
-            <div className="flex-shrink-0">
-              <TemplateVariables
-                bodyText={templateData.body}
-                headerText={templateData.header.type === "TEXT" ? templateData.header.content : ""}
-                variableValues={variableValues}
-                onVariableValuesChange={setVariableValues}
-              />
-            </div>
+            <TemplateVariables
+              bodyText={templateData.body}
+              headerText={templateData.header.type === "TEXT" ? templateData.header.content : ""}
+              variableValues={variableValues}
+              onVariableValuesChange={setVariableValues}
+            />
           </div>
 
-          {/* Preview Section */}
-          <div className="overflow-y-auto h-full">
+          {/* Preview Section - sticky */}
+          <div className="lg:sticky lg:top-4 lg:self-start">
             <WhatsAppTemplatePreview
               templateData={templateData}
               variableValues={variableValues}
@@ -537,6 +853,377 @@ export default function CrearPlantillaWhatsAppPage() {
           </div>
         </div>
       </div>
+
+      {/* Dialog de envío de WhatsApp */}
+      <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
+        <DialogContent className="!max-w-3xl h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Enviar WhatsApp
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona los destinatarios para enviar tu plantilla de WhatsApp
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Info del template */}
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+              <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                <MessageSquare className="h-5 w-5 text-green-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground uppercase font-medium">Plantilla</p>
+                <p className="font-medium truncate">{templateData.name}</p>
+              </div>
+              <Badge variant="secondary">{templateData.category}</Badge>
+            </div>
+
+            {/* Total de destinatarios + Enviar a todos */}
+            {recipientsTotal > 0 && (
+              <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                  <Users className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-lg text-green-600">{recipientsTotal.toLocaleString()} destinatarios</p>
+                </div>
+                <Button
+                  onClick={() => setShowSendToAllConfirm(true)}
+                  disabled={isSendingToAll}
+                  className="gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  <Send className="h-4 w-4" />
+                  Enviar a todos
+                </Button>
+              </div>
+            )}
+
+            {/* Buscador */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nombre, email o teléfono..."
+                  value={recipientSearch}
+                  onChange={(e) => setRecipientSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") loadRecipients(recipientSearch); }}
+                  className="pl-9"
+                />
+              </div>
+              <Button variant="outline" size="sm" onClick={() => loadRecipients(recipientSearch)} disabled={isLoadingRecipients}>
+                {isLoadingRecipients ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={selectAllRecipients}>Seleccionar cargados</Button>
+              <Button variant="outline" size="sm" onClick={deselectAllRecipients}>Limpiar</Button>
+              <Button
+                variant="outline" size="sm" disabled={recipients.length === 0} className="gap-1"
+                onClick={() => {
+                  const csvContent = [
+                    ["Nombre", "Teléfono", "Email"].join(","),
+                    ...recipients.map(r => [`"${r.name.replace(/"/g, '""')}"`, `"${r.phone}"`, `"${r.email || ""}"`].join(","))
+                  ].join("\n");
+                  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url; a.download = `destinatarios-whatsapp-${new Date().toISOString().split("T")[0]}.csv`;
+                  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                  toast.success(`${recipients.length} contactos exportados a CSV`);
+                }}
+              >
+                <Download className="h-4 w-4" />CSV
+              </Button>
+            </div>
+
+            {/* Contador */}
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {selectedRecipientsMap.size} seleccionados · Mostrando {recipients.length} de {recipientsTotal.toLocaleString()} destinatarios
+              </span>
+              {selectedRecipientsMap.size > 0 && (
+                <Badge variant="secondary" className="ml-auto">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />{selectedRecipientsMap.size} seleccionados
+                </Badge>
+              )}
+            </div>
+
+            {/* Lista de destinatarios */}
+            <div ref={scrollContainerRef} className="flex-1 border rounded-lg h-[350px] overflow-y-auto">
+              <div className="p-2 space-y-1">
+                {isLoadingRecipients ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-muted-foreground">Cargando destinatarios...</span>
+                  </div>
+                ) : recipients.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Haz clic en Buscar para cargar destinatarios</p>
+                    <p className="text-xs mt-1">Solo se mostrarán usuarios con número de teléfono</p>
+                  </div>
+                ) : (
+                  <>
+                    {recipients.map((recipient) => (
+                      <div
+                        key={recipient.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                          selectedRecipientsMap.has(recipient.id) ? "bg-primary/10 border border-primary/20" : "hover:bg-muted"
+                        }`}
+                        onClick={() => toggleRecipient(recipient)}
+                      >
+                        <Checkbox
+                          checked={selectedRecipientsMap.has(recipient.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          onCheckedChange={() => toggleRecipient(recipient)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium truncate">{recipient.name}</span>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Phone className="h-3 w-3" /><span className="truncate">{recipient.phone}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {hasMoreRecipients && (
+                      <div ref={loadMoreSentinelRef} className="flex items-center justify-center py-4">
+                        {isLoadingMore ? (
+                          <><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span className="ml-2 text-xs text-muted-foreground">Cargando más...</span></>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Scroll para cargar más</span>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          {bulkProgress && (
+            <div className="mt-2 space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Enviando... {bulkProgress.sent.toLocaleString()} de {bulkProgress.total.toLocaleString()}</span>
+                <span>{bulkProgress.progress}%</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className="bg-green-600 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${bulkProgress.progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => { setShowSendDialog(false); setSelectedRecipientsMap(new Map()); }} disabled={isSending}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSendWhatsApp}
+              disabled={isSending || selectedRecipientsMap.size === 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              {isSending ? `Enviando...` : `Enviar a ${selectedRecipientsMap.size} destinatario(s)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de confirmación para enviar a todos */}
+      <Dialog open={showSendToAllConfirm} onOpenChange={(open) => { setShowSendToAllConfirm(open); if (!open) { setSendToAllCount("all"); setCustomSendCount(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <Users className="h-5 w-5" />
+              Enviar WhatsApp masivo
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona cuántos destinatarios quieres alcanzar. El envío se procesará en lotes en el servidor.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Cantidad de destinatarios</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "all" as const, label: `Todos (${recipientsTotal.toLocaleString()})` },
+                  { value: 500, label: "500" },
+                  { value: 1000, label: "1.000" },
+                  { value: 5000, label: "5.000" },
+                ].map((option) => (
+                  <Button
+                    key={String(option.value)}
+                    variant={sendToAllCount === option.value ? "default" : "outline"}
+                    size="sm"
+                    className={sendToAllCount === option.value ? "bg-green-600 hover:bg-green-700" : ""}
+                    onClick={() => setSendToAllCount(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="p-3 bg-muted/50 rounded-lg text-sm">
+              <p className="text-muted-foreground">
+                Tiempo estimado: ~{(() => {
+                  const count = sendToAllCount === "all" ? recipientsTotal : sendToAllCount;
+                  const secs = Math.ceil(count / 20);
+                  return secs < 60 ? `${secs}s` : secs < 3600 ? `${Math.ceil(secs / 60)} min` : `${Math.floor(secs / 3600)}h ${Math.ceil((secs % 3600) / 60)}min`;
+                })()}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSendToAllConfirm(false)}>Cancelar</Button>
+            <Button
+              disabled={isSendingToAll}
+              onClick={async () => {
+                setIsSendingToAll(true);
+                try {
+                  const found = await validateTemplate();
+                  if (!found) return;
+
+                  // Fetch ALL recipients paginated
+                  const limit = sendToAllCount === "all" ? recipientsTotal : sendToAllCount;
+                  const PAGE_SIZE = 200;
+                  let allRecipients: Recipient[] = [];
+                  let offset = 0;
+                  let keepFetching = true;
+
+                  toast.info(`Cargando ${limit.toLocaleString()} destinatarios...`);
+
+                  while (keepFetching && allRecipients.length < limit) {
+                    const res = await fetch(
+                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${PAGE_SIZE}&offset=${offset}`,
+                      { headers: { "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "" } }
+                    );
+                    if (!res.ok) break;
+                    const data = await res.json();
+                    const mapped = mapUsers(data.users || []);
+                    allRecipients = [...allRecipients, ...mapped];
+                    offset += PAGE_SIZE;
+                    keepFetching = mapped.length === PAGE_SIZE;
+                  }
+
+                  allRecipients = allRecipients.slice(0, limit);
+
+                  if (allRecipients.length === 0) {
+                    toast.error("No se encontraron destinatarios con teléfono.");
+                    return;
+                  }
+
+                  const bulkRecipients = allRecipients.map((r) => ({
+                    to: r.phone,
+                    variables: [r.firstName || r.name.split(" ")[0] || r.name],
+                  }));
+
+                  // Start background job
+                  const startRes = await whatsappTemplateEndpoints.sendTemplateBulk({
+                    template_id: found.id,
+                    recipients: bulkRecipients,
+                    batch_size: 30,
+                    delay_ms: 1000,
+                  });
+
+                  if (!startRes.success || !startRes.data?.jobId) {
+                    toast.error("Error al iniciar el envío masivo");
+                    return;
+                  }
+
+                  setShowSendToAllConfirm(false);
+                  toast.info(`Envío masivo iniciado: ${allRecipients.length.toLocaleString()} destinatarios. Puedes cerrar esta ventana, el envío continuará en el servidor.`);
+
+                  // Poll for progress
+                  const result = await pollBulkJob(startRes.data.jobId);
+
+                  if (result.failed === 0) {
+                    toast.success(`${result.sent.toLocaleString()} mensajes enviados correctamente`);
+                  } else if (result.sent === 0) {
+                    toast.error("Error: No se pudo enviar ningún mensaje");
+                  } else {
+                    toast.warning(`${result.sent.toLocaleString()}/${result.total.toLocaleString()} enviados. ${result.failed.toLocaleString()} fallaron.`);
+                  }
+                  setShowSendDialog(false);
+                } catch (error) {
+                  console.error("Error in bulk send:", error);
+                  toast.error("Error al enviar los mensajes");
+                } finally {
+                  setIsSendingToAll(false);
+                }
+              }}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSendingToAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              {isSendingToAll ? "Enviando..." : "Confirmar envío"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de "Esperando aprobación de Meta" */}
+      <Dialog open={showPendingApproval} onOpenChange={setShowPendingApproval}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-yellow-600">
+              <Clock className="h-5 w-5" />
+              Esperando aprobación de Meta
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex items-center gap-3 p-4 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              <div className="h-12 w-12 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center flex-shrink-0">
+                <Clock className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Plantilla: {templateData.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Estado: <Badge variant="outline" className="border-yellow-300 text-yellow-700 ml-1">{pendingTemplateStatus}</Badge>
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                Tu plantilla ha sido enviada a Meta para revisión. Este proceso suele tardar entre <strong className="text-foreground">2 a 5 minutos</strong>, pero en algunos casos puede tardar hasta 24 horas.
+              </p>
+              <p>
+                Una vez aprobada, podrás enviarla a tus clientes. Vuelve a hacer clic en <strong className="text-foreground">Enviar</strong> para verificar el estado.
+              </p>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground">
+              <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-foreground">Consejos para aprobación rápida:</p>
+                <ul className="list-disc ml-4 mt-1 space-y-0.5">
+                  <li>Evita contenido engañoso o agresivo</li>
+                  <li>No incluyas URLs acortadas (bit.ly, etc.)</li>
+                  <li>Asegúrate de que el texto sea claro y profesional</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPendingApproval(false)}>
+              Cerrar
+            </Button>
+            <Button
+              onClick={async () => {
+                setShowPendingApproval(false);
+                handleOpenSendDialog();
+              }}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Verificar y enviar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

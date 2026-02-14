@@ -175,37 +175,35 @@ export function WhatsAppTemplatePreview({ templateData, variableValues = {}, sel
           background-image: url('https://i.pinimg.com/736x/cd/3d/62/cd3d628f57875af792c07d6ad262391c.jpg');
         }
       `}</style>
-      <div>
-        {/* Main Content - Side by Side Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Left Side - Notifications */}
-          <div className="space-y-3">
-            {/* Closed Notification */}
-            <div>
-              {selectedOS === 'ios' ? (
-                <IOSNotificationClosedPreview templateData={templateData} variableValues={variableValues} />
-              ) : (
-                <AndroidNotificationClosedPreview templateData={templateData} variableValues={variableValues} />
-              )}
-            </div>
-
-            {/* Open Notification */}
-            <div>
-              {selectedOS === 'ios' ? (
-                <IOSNotificationPreview templateData={templateData} variableValues={variableValues} />
-              ) : (
-                <AndroidNotificationPreview templateData={templateData} variableValues={variableValues} />
-              )}
-            </div>
-          </div>
-
-          {/* Right Side - Chat */}
+      <div className="space-y-4">
+        {/* Notifications - On top */}
+        <div className="space-y-3">
+          {/* Closed Notification */}
           <div>
             {selectedOS === 'ios' ? (
-            // iOS Chat Preview (existing iPhone frame)
-            <div className="mx-auto" style={{ width: "280px" }}>
-              {/* iPhone Container with rounded corners and notch */}
-              <div className="bg-black dark:bg-gray-900 rounded-[2.5rem] p-2 shadow-2xl">
+              <IOSNotificationClosedPreview templateData={templateData} variableValues={variableValues} />
+            ) : (
+              <AndroidNotificationClosedPreview templateData={templateData} variableValues={variableValues} />
+            )}
+          </div>
+
+          {/* Open Notification */}
+          <div>
+            {selectedOS === 'ios' ? (
+              <IOSNotificationPreview templateData={templateData} variableValues={variableValues} />
+            ) : (
+              <AndroidNotificationPreview templateData={templateData} variableValues={variableValues} />
+            )}
+          </div>
+        </div>
+
+        {/* Chat Preview - Below notifications, wider and taller */}
+        <div>
+          {selectedOS === 'ios' ? (
+          // iOS Chat Preview (existing iPhone frame)
+          <div className="mx-auto max-w-[400px]">
+            {/* iPhone Container with rounded corners and notch */}
+            <div className="bg-black dark:bg-gray-900 rounded-[2.5rem] p-2 shadow-2xl">
                 {/* Dynamic Island / Notch */}
                 <div className="relative bg-black dark:bg-gray-900 rounded-[2.25rem] overflow-hidden">
                   {/* Dynamic Island - Pill Shape (Smaller & Thinner) - Aligned with status bar */}
@@ -277,7 +275,7 @@ export function WhatsAppTemplatePreview({ templateData, variableValues = {}, sel
                     {/* Chat Area */}
                     <div
                       className="px-3 py-3 bg-cover bg-center whatsapp-chat-bg"
-                      style={{ height: "420px" }}
+                      style={{ minHeight: "560px" }}
                     >
                       <div className="flex justify-start">
                         {/* Message Bubble - User receiving (left side, white/dark gray) */}
@@ -335,12 +333,11 @@ export function WhatsAppTemplatePreview({ templateData, variableValues = {}, sel
                   </div>
                 </div>
               </div>
-            </div>
-            ) : (
-              // Android Chat Preview
-              <AndroidChatPreview templateData={templateData} variableValues={variableValues} />
-            )}
           </div>
+          ) : (
+            // Android Chat Preview
+            <AndroidChatPreview templateData={templateData} variableValues={variableValues} />
+          )}
         </div>
       </div>
     </>

@@ -26,8 +26,13 @@ import {
   ExternalLink,
   MessageCircle,
   AlertCircle,
+  Upload,
+  Loader2,
+  X,
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useState, useRef } from "react";
+import { toast } from "sonner";
 
 interface TemplateFormProps {
   templateData: any;
@@ -38,6 +43,64 @@ export function WhatsAppTemplateForm({
   templateData,
   onTemplateDataChange,
 }: TemplateFormProps) {
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tamaño (16MB máx para WhatsApp)
+    if (file.size > 16 * 1024 * 1024) {
+      toast.error("El archivo no puede superar 16MB");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
+
+      const formData = new FormData();
+      formData.append("files[]", file);
+
+      const response = await fetch(`${API_BASE_URL}/api/campaigns/email-templates/upload-image`, {
+        method: "POST",
+        body: formData,
+        headers: {
+          ...(API_KEY && { "X-API-Key": API_KEY }),
+        },
+      });
+
+      const data = await response.json();
+
+      if (data?.data?.[0]) {
+        onTemplateDataChange({
+          ...templateData,
+          header: { ...templateData.header, content: data.data[0] },
+        });
+        toast.success("Archivo subido correctamente");
+      } else {
+        toast.error("Error al procesar el archivo");
+      }
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      toast.error("Error al subir el archivo");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const getAcceptTypes = () => {
+    switch (templateData.header.type) {
+      case "IMAGE": return "image/jpeg,image/png,image/webp";
+      case "VIDEO": return "video/mp4,video/3gpp";
+      case "DOCUMENT": return "application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      default: return "";
+    }
+  };
+
   const addVariable = () => {
     const varCount = (templateData.body.match(/\{\{\d+\}\}/g) || []).length;
     const newVar = `{{${varCount + 1}}}`;
@@ -273,23 +336,109 @@ export function WhatsAppTemplateForm({
         )}
 
         {["IMAGE", "VIDEO", "DOCUMENT"].includes(templateData.header.type) && (
-          <div>
-            <Label htmlFor="header-media">URL del Archivo</Label>
-            <Input
-              id="header-media"
-              placeholder={`URL del ${templateData.header.type.toLowerCase()}`}
-              value={templateData.header.content}
-              onChange={(e) =>
-                onTemplateDataChange({
-                  ...templateData,
-                  header: { ...templateData.header, content: e.target.value },
-                })
-              }
-              className="mt-1.5"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Se puede agregar como variable dinámica al enviar el mensaje
-            </p>
+          <div className="space-y-3">
+            {/* File Upload */}
+            <div>
+              <Label>Subir Archivo</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={getAcceptTypes()}
+                onChange={handleFileUpload}
+                className="hidden"
+                disabled={isUploading}
+              />
+              {templateData.header.content ? (
+                <div className="mt-1.5 border rounded-lg p-3 space-y-2">
+                  {templateData.header.type === "IMAGE" && (
+                    <img
+                      src={templateData.header.content}
+                      alt="Preview"
+                      className="w-full h-32 object-cover rounded-md"
+                    />
+                  )}
+                  {templateData.header.type === "VIDEO" && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Video className="h-4 w-4" />
+                      <span className="truncate flex-1">{templateData.header.content}</span>
+                    </div>
+                  )}
+                  {templateData.header.type === "DOCUMENT" && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <FileText className="h-4 w-4" />
+                      <span className="truncate flex-1">{templateData.header.content}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Subiendo...</>
+                      ) : (
+                        <><Upload className="h-3 w-3 mr-1" /> Cambiar</>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        onTemplateDataChange({
+                          ...templateData,
+                          header: { ...templateData.header, content: "" },
+                        })
+                      }
+                    >
+                      <X className="h-3 w-3 mr-1" /> Quitar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => !isUploading && fileInputRef.current?.click()}
+                  className="mt-1.5 border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary hover:bg-accent/50 transition-colors"
+                >
+                  {isUploading ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Subiendo archivo...</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <Upload className="h-8 w-8 text-muted-foreground" />
+                      <p className="text-sm font-medium">Haz clic para subir</p>
+                      <p className="text-xs text-muted-foreground">
+                        {templateData.header.type === "IMAGE" && "JPG, PNG o WebP (máx. 16MB)"}
+                        {templateData.header.type === "VIDEO" && "MP4 o 3GPP (máx. 16MB)"}
+                        {templateData.header.type === "DOCUMENT" && "PDF o Word (máx. 16MB)"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* URL Manual (alternativa) */}
+            <div>
+              <Label htmlFor="header-media" className="text-xs text-muted-foreground">O ingresa una URL directamente</Label>
+              <Input
+                id="header-media"
+                placeholder={`https://ejemplo.com/archivo.${templateData.header.type === "IMAGE" ? "jpg" : templateData.header.type === "VIDEO" ? "mp4" : "pdf"}`}
+                value={templateData.header.content}
+                onChange={(e) =>
+                  onTemplateDataChange({
+                    ...templateData,
+                    header: { ...templateData.header, content: e.target.value },
+                  })
+                }
+                className="mt-1"
+              />
+            </div>
           </div>
         )}
       </div>
@@ -303,15 +452,9 @@ export function WhatsAppTemplateForm({
             <h3 className="font-semibold">Cuerpo del Mensaje</h3>
             <Badge variant="destructive">Requerido</Badge>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addVariable}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Agregar Variable
-          </Button>
+          <Badge variant="outline" className="text-xs">
+            {"{{1}}"} = Nombre del cliente
+          </Badge>
         </div>
 
         <div>
@@ -375,35 +518,15 @@ export function WhatsAppTemplateForm({
             <Badge variant="secondary">Opcional</Badge>
           </div>
           {templateData.buttons.length < 10 && (
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => addButton("QUICK_REPLY")}
-              >
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Respuesta Rápida
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => addButton("PHONE_NUMBER")}
-              >
-                <Phone className="h-4 w-4 mr-2" />
-                Llamar
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => addButton("URL")}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                URL
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => addButton("QUICK_REPLY")}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Respuesta Rápida
+            </Button>
           )}
         </div>
 
