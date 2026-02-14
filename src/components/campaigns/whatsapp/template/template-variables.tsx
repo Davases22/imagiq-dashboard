@@ -3,7 +3,7 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { User } from "lucide-react";
 
 interface TemplateVariablesProps {
   bodyText: string;
@@ -18,74 +18,44 @@ export function TemplateVariables({
   variableValues,
   onVariableValuesChange,
 }: TemplateVariablesProps) {
-  // Extract all variables from body and header
-  const extractVariables = (text: string): string[] => {
-    const matches = text.match(/\{\{\d+\}\}/g) || [];
-    return [...new Set(matches)].sort();
-  };
+  // Check if {{1}} is used in body or header
+  const hasVariable = /\{\{1\}\}/.test(bodyText || "") || /\{\{1\}\}/.test(headerText || "");
 
-  const bodyVariables = extractVariables(bodyText || "");
-  const headerVariables = extractVariables(headerText || "");
-  const allVariables = [...new Set([...headerVariables, ...bodyVariables])].sort();
-
-  if (allVariables.length === 0) {
+  if (!hasVariable) {
     return null;
   }
-
-  const handleChange = (variable: string, value: string) => {
-    onVariableValuesChange({
-      ...variableValues,
-      [variable]: value,
-    });
-  };
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-start gap-2">
-          <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
+          <User className="h-4 w-4 text-muted-foreground mt-0.5" />
           <div>
             <h3 className="font-semibold text-sm">
-              Valores de Ejemplo para Variables
+              Variable del Nombre
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Define valores de ejemplo para ver cómo se verá tu mensaje
+              {"{{1}}"} se reemplazará con el nombre del cliente al enviar
             </p>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
-          {allVariables.map((variable) => (
-            <div key={variable}>
-              <Label htmlFor={`var-${variable}`} className="text-xs">
-                Variable {variable}
-              </Label>
-              <Input
-                id={`var-${variable}`}
-                placeholder={`Ejemplo: ${getDefaultPlaceholder(variable)}`}
-                value={variableValues[variable] || ""}
-                onChange={(e) => handleChange(variable, e.target.value)}
-                className="mt-1 text-xs"
-              />
-            </div>
-          ))}
+        <div>
+          <Label htmlFor="var-name" className="text-xs">
+            Nombre de ejemplo (para vista previa)
+          </Label>
+          <Input
+            id="var-name"
+            placeholder="Ej: Juan"
+            value={variableValues["{{1}}"] || ""}
+            onChange={(e) =>
+              onVariableValuesChange({ "{{1}}": e.target.value })
+            }
+            className="mt-1 text-xs"
+          />
         </div>
       </CardContent>
     </Card>
   );
-}
-
-function getDefaultPlaceholder(variable: string): string {
-  const defaults: Record<string, string> = {
-    "{{1}}": "Juan",
-    "{{2}}": "Pérez",
-    "{{3}}": "20%",
-    "{{4}}": "hoy",
-    "{{5}}": "producto",
-    "{{6}}": "servicio",
-    "{{7}}": "cuenta",
-    "{{8}}": "pedido",
-  };
-  return defaults[variable] || "valor";
 }

@@ -128,7 +128,10 @@ export default function WhatsAppTemplatesPage() {
         
         if (response.success && response.data) {
           const mappedTemplates = mapBackendArrayToFrontend(response.data);
-          setTemplates(mappedTemplates);
+          // Ocultar plantillas del sistema creadas antes del 12 de febrero de 2026
+          const cutoffDate = new Date("2026-02-12T00:00:00Z");
+          const filtered = mappedTemplates.filter(t => t.createdAt >= cutoffDate);
+          setTemplates(filtered);
         } else {
           console.error("Error fetching templates:", response.message);
           toast.error("Error al cargar las plantillas");
@@ -183,7 +186,9 @@ export default function WhatsAppTemplatesPage() {
         const refreshResponse = await whatsappTemplateEndpoints.getAll();
         if (refreshResponse.success && refreshResponse.data) {
           const mappedTemplates = mapBackendArrayToFrontend(refreshResponse.data);
-          setTemplates(mappedTemplates);
+          const cutoff = new Date("2026-02-12T00:00:00Z");
+          const filtered = mappedTemplates.filter(t => t.createdAt >= cutoff);
+          setTemplates(filtered);
         }
       } else {
         toast.error(response.message || "Error al limpiar duplicados");

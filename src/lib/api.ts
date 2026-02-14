@@ -1517,6 +1517,36 @@ export const whatsappTemplateEndpoints = {
     apiClient.delete<{ success: boolean; message?: string }>(
       `/api/messaging/templates/${templateName}`
     ),
+  sendTemplate: (payload: {
+    to: string;
+    template_id: string;
+    variables?: string[];
+  }) =>
+    apiClient.post<{ success: boolean; messageId?: string; message: string }>(
+      "/api/messaging/send-template",
+      payload
+    ),
+  sendTemplateBulk: (payload: {
+    template_id: string;
+    recipients: Array<{ to: string; variables?: string[] }>;
+    batch_size?: number;
+    delay_ms?: number;
+  }) =>
+    apiClient.post<{ jobId: string; total: number }>(
+      "/api/messaging/send-template-bulk",
+      payload
+    ),
+  getBulkJobStatus: (jobId: string) =>
+    apiClient.get<{
+      jobId: string;
+      status: "processing" | "completed" | "failed";
+      total: number;
+      sent: number;
+      failed: number;
+      processed: number;
+      progress: number;
+      errors: Array<{ to: string; error: string }>;
+    }>(`/api/messaging/bulk-job/${jobId}`),
 };
 
 // Banner API endpoints
