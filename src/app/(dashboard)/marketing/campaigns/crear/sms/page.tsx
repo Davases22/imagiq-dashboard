@@ -44,8 +44,10 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { smsTemplateEndpoints, SmsTemplate } from "@/lib/api";
+import { smsTemplateEndpoints, SmsTemplate, csvCampaignEndpoints } from "@/lib/api";
 import { ProductFilterDropdowns, type ProductFilter } from "@/components/campaigns/product-filter-dropdowns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CsvUploader, type ParsedRecipient, type CsvStats } from "@/components/campaigns/csv-uploader";
 
 // GSM-7 basic character set
 const GSM7_BASIC = new Set(
@@ -221,6 +223,12 @@ export default function CrearSmsTemplatePage() {
   });
   // Track saved state for unsaved changes detection
   const [savedState, setSavedState] = useState<{ name: string; message: string; category: string } | null>(null);
+
+  // CSV campaign states
+  const [sendMode, setSendMode] = useState<"database" | "csv">("database");
+  const [csvRecipients, setCsvRecipients] = useState<ParsedRecipient[]>([]);
+  const [csvStats, setCsvStats] = useState<CsvStats | null>(null);
+  const [isSendingCsv, setIsSendingCsv] = useState(false);
   const hasUnsavedChanges = isEditing && savedState !== null && (
     name !== savedState.name ||
     message !== savedState.message ||
@@ -678,6 +686,71 @@ export default function CrearSmsTemplatePage() {
       toast.error("Error al enviar los SMS");
     } finally {
       setIsSendingToAll(false);
+    }
+  };
+
+  // Enviar SMS a destinatarios CSV
+  const handleSendCsvSms = async () => {
+    if (csvRecipients.length === 0) {
+      toast.error("No hay destinatarios válidos en el CSV");
+      return;
+    }
+    if (!message.trim()) {
+      toast.error("Por favor escribe un mensaje");
+      return;
+    }
+
+    setIsSendingCsv(true);
+    try {
+      // Guardar template si no existe
+      let templateId = savedTemplateId;
+      if (!templateId) {
+        const savedTemplate = await handleSave();
+        if (!savedTemplate) {
+          setIsSendingCsv(false);
+          return;
+        }
+        templateId = savedTemplate.id;
+      }
+
+      const response = await csvCampaignEndpoints.sendSms({
+        templateId,
+        recipients: csvRecipients.map((r) => ({
+          phoneNumber: r.phoneNumber!,
+          variables: {
+            nombre: r.name?.split(" ")[0] || "",
+            apellido: r.name?.split(" ").slice(1).join(" ") || "",
+          },
+        })),
+        audit: {
+          csvFilename: csvStats?.filename || "unknown.csv",
+          csvTotalRows: csvStats?.totalRows || 0,
+          csvValidRows: csvStats?.validRows || 0,
+          csvInvalidRows: csvStats?.invalidRows || 0,
+          csvDuplicateRows: csvStats?.duplicateRows || 0,
+        },
+      });
+
+      if (response.success && response.data) {
+        const total = response.data.totalRecipients;
+        const secs = Math.ceil(total / 20);
+        const timeStr = secs < 60 ? `${secs}s` : secs < 3600 ? `${Math.ceil(secs / 60)} min` : `${Math.floor(secs / 3600)}h ${Math.ceil((secs % 3600) / 60)}min`;
+        toast.success(
+          `Envío CSV iniciado para ${total.toLocaleString()} destinatarios. Tiempo estimado: ~${timeStr}.`
+        );
+        setShowSendDialog(false);
+        setCsvRecipients([]);
+        setCsvStats(null);
+        setSendMode("database");
+        loadTemplates();
+      } else {
+        toast.error(response.message || "Error al iniciar el envío CSV");
+      }
+    } catch (error) {
+      console.error("Error sending CSV campaign SMS:", error);
+      toast.error("Error al enviar los SMS del CSV");
+    } finally {
+      setIsSendingCsv(false);
     }
   };
 
@@ -1271,200 +1344,238 @@ export default function CrearSmsTemplatePage() {
               </Badge>
             </div>
 
-            {/* Total de destinatarios + Agregar teléfonos + Enviar a todos */}
-            {(recipientsTotal > 0 || isLoadingRecipients) && (
-              <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
-                <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
-                  <Users className="h-5 w-5 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  {isLoadingRecipients ? (
-                    <Skeleton className="h-7 w-40 bg-green-200/50" />
-                  ) : (
-                    <p className="font-bold text-lg text-green-600">
-                      {(recipientsTotal + extraPhones.length).toLocaleString()} destinatarios
-                      {extraPhones.length > 0 && (
-                        <span className="text-sm font-normal ml-1">
-                          ({recipientsTotal.toLocaleString()} + {extraPhones.length} extra)
-                        </span>
+            {/* Tabs: Base de datos vs Cargar CSV */}
+            <Tabs value={sendMode} onValueChange={(v) => setSendMode(v as "database" | "csv")} className="flex-1 overflow-hidden flex flex-col">
+              <TabsList className="w-full grid grid-cols-2">
+                <TabsTrigger value="database" className="gap-1.5">
+                  <Users className="h-4 w-4" />
+                  Base de datos
+                </TabsTrigger>
+                <TabsTrigger value="csv" className="gap-1.5">
+                  <FileText className="h-4 w-4" />
+                  Cargar CSV
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="database" className="flex-1 overflow-hidden flex flex-col space-y-4 mt-4">
+                {/* Total de destinatarios + Agregar teléfonos + Enviar a todos */}
+                {(recipientsTotal > 0 || isLoadingRecipients) && (
+                  <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                    <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                      <Users className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      {isLoadingRecipients ? (
+                        <Skeleton className="h-7 w-40 bg-green-200/50" />
+                      ) : (
+                        <p className="font-bold text-lg text-green-600">
+                          {(recipientsTotal + extraPhones.length).toLocaleString()} destinatarios
+                          {extraPhones.length > 0 && (
+                            <span className="text-sm font-normal ml-1">
+                              ({recipientsTotal.toLocaleString()} + {extraPhones.length} extra)
+                            </span>
+                          )}
+                        </p>
                       )}
-                    </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddPhonesDialog(true)}
+                      className="gap-1 border-green-300 text-green-700 hover:bg-green-100 dark:hover:bg-green-900"
+                    >
+                      <Plus className="h-4 w-4" />
+                      {extraPhones.length > 0 ? `${extraPhones.length} extra` : "Agregar"}
+                    </Button>
+                    <Button
+                      onClick={() => setShowSendToAllConfirm(true)}
+                      disabled={isSendingToAll || !message.trim()}
+                      className="gap-2 bg-green-600 hover:bg-green-700"
+                    >
+                      <Send className="h-4 w-4" />
+                      Enviar a todos
+                    </Button>
+                  </div>
+                )}
+
+                {/* Filtro de segmentación por producto */}
+                <ProductFilterDropdowns
+                  value={productFilter}
+                  onChange={(filter) => {
+                    setProductFilter(filter);
+                    loadRecipients(recipientSearch, filter);
+                  }}
+                />
+
+                {/* Buscador y controles */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nombre, email o teléfono (ej: 3150004...)"
+                      value={recipientSearch}
+                      onChange={(e) => setRecipientSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          loadRecipients(recipientSearch, productFilter);
+                        }
+                      }}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadRecipients(recipientSearch, productFilter)}
+                    disabled={isLoadingRecipients}
+                  >
+                    {isLoadingRecipients ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={selectAllRecipients}>
+                    Seleccionar cargados
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={deselectAllRecipients}>
+                    Limpiar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const csvContent = [
+                        ["Nombre", "Teléfono", "Email"].join(","),
+                        ...recipients.map(r => [`"${r.name.replace(/"/g, '""')}"`, `"${r.phone}"`, `"${r.email || ""}"`].join(","))
+                      ].join("\n");
+                      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `destinatarios-sms-${new Date().toISOString().split("T")[0]}.csv`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                      toast.success(`${recipients.length} contactos exportados a CSV`);
+                    }}
+                    disabled={recipients.length === 0}
+                    className="gap-1"
+                  >
+                    <Download className="h-4 w-4" />
+                    CSV
+                  </Button>
+                </div>
+
+                {/* Contador de seleccionados */}
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {selectedRecipientsMap.size} seleccionados · Mostrando {recipients.length} de {recipientsTotal.toLocaleString()} destinatarios
+                  </span>
+                  {selectedRecipientsMap.size > 0 && (
+                    <Badge variant="secondary" className="ml-auto">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      {selectedRecipientsMap.size} seleccionados
+                    </Badge>
                   )}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAddPhonesDialog(true)}
-                  className="gap-1 border-green-300 text-green-700 hover:bg-green-100 dark:hover:bg-green-900"
-                >
-                  <Plus className="h-4 w-4" />
-                  {extraPhones.length > 0 ? `${extraPhones.length} extra` : "Agregar"}
-                </Button>
-                <Button
-                  onClick={() => setShowSendToAllConfirm(true)}
-                  disabled={isSendingToAll || !message.trim()}
-                  className="gap-2 bg-green-600 hover:bg-green-700"
-                >
-                  <Send className="h-4 w-4" />
-                  Enviar a todos
-                </Button>
-              </div>
-            )}
 
-            {/* Filtro de segmentación por producto */}
-            <ProductFilterDropdowns
-              value={productFilter}
-              onChange={(filter) => {
-                setProductFilter(filter);
-                loadRecipients(recipientSearch, filter);
-              }}
-            />
-
-            {/* Buscador y controles */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nombre, email o teléfono (ej: 3150004...)"
-                  value={recipientSearch}
-                  onChange={(e) => setRecipientSearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      loadRecipients(recipientSearch, productFilter);
-                    }
-                  }}
-                  className="pl-9"
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => loadRecipients(recipientSearch, productFilter)}
-                disabled={isLoadingRecipients}
-              >
-                {isLoadingRecipients ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
-              </Button>
-              <Button variant="outline" size="sm" onClick={selectAllRecipients}>
-                Seleccionar cargados
-              </Button>
-              <Button variant="outline" size="sm" onClick={deselectAllRecipients}>
-                Limpiar
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const csvContent = [
-                    ["Nombre", "Teléfono", "Email"].join(","),
-                    ...recipients.map(r => [`"${r.name.replace(/"/g, '""')}"`, `"${r.phone}"`, `"${r.email || ""}"`].join(","))
-                  ].join("\n");
-                  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `destinatarios-sms-${new Date().toISOString().split("T")[0]}.csv`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                  toast.success(`${recipients.length} contactos exportados a CSV`);
-                }}
-                disabled={recipients.length === 0}
-                className="gap-1"
-              >
-                <Download className="h-4 w-4" />
-                CSV
-              </Button>
-            </div>
-
-            {/* Contador de seleccionados */}
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                {selectedRecipientsMap.size} seleccionados · Mostrando {recipients.length} de {recipientsTotal.toLocaleString()} destinatarios
-              </span>
-              {selectedRecipientsMap.size > 0 && (
-                <Badge variant="secondary" className="ml-auto">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  {selectedRecipientsMap.size} seleccionados
-                </Badge>
-              )}
-            </div>
-
-            {/* Lista de destinatarios */}
-            <div ref={scrollContainerRef} className="flex-1 border rounded-lg h-[350px] overflow-y-auto">
-              <div className="p-2 space-y-1">
-                {isLoadingRecipients ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    <span className="ml-2 text-muted-foreground">Cargando destinatarios...</span>
-                  </div>
-                ) : recipients.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Haz clic en Buscar para cargar destinatarios</p>
-                    <p className="text-xs mt-1">Solo se mostrarán usuarios con número de teléfono</p>
-                  </div>
-                ) : (
-                  <>
-                    {recipients.map((recipient) => (
-                      <div
-                        key={recipient.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                          selectedRecipientsMap.has(recipient.id)
-                            ? "bg-primary/10 border border-primary/20"
-                            : "hover:bg-muted"
-                        }`}
-                        onClick={() => toggleRecipient(recipient)}
-                      >
-                        <Checkbox
-                          checked={selectedRecipientsMap.has(recipient.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          onCheckedChange={() => toggleRecipient(recipient)}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium truncate">{recipient.name}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            <span className="truncate">{recipient.phone}</span>
-                          </div>
-                        </div>
+                {/* Lista de destinatarios */}
+                <div ref={scrollContainerRef} className="flex-1 border rounded-lg h-[350px] overflow-y-auto">
+                  <div className="p-2 space-y-1">
+                    {isLoadingRecipients ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        <span className="ml-2 text-muted-foreground">Cargando destinatarios...</span>
                       </div>
-                    ))}
-                    {/* Sentinel para infinite scroll */}
-                    {hasMoreRecipients && (
-                      <div ref={loadMoreSentinelRef} className="flex items-center justify-center py-4">
-                        {isLoadingMore ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                            <span className="ml-2 text-xs text-muted-foreground">Cargando más...</span>
-                          </>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Scroll para cargar más</span>
+                    ) : recipients.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Haz clic en Buscar para cargar destinatarios</p>
+                        <p className="text-xs mt-1">Solo se mostrarán usuarios con número de teléfono</p>
+                      </div>
+                    ) : (
+                      <>
+                        {recipients.map((recipient) => (
+                          <div
+                            key={recipient.id}
+                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                              selectedRecipientsMap.has(recipient.id)
+                                ? "bg-primary/10 border border-primary/20"
+                                : "hover:bg-muted"
+                            }`}
+                            onClick={() => toggleRecipient(recipient)}
+                          >
+                            <Checkbox
+                              checked={selectedRecipientsMap.has(recipient.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              onCheckedChange={() => toggleRecipient(recipient)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium truncate">{recipient.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Phone className="h-3 w-3" />
+                                <span className="truncate">{recipient.phone}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {/* Sentinel para infinite scroll */}
+                        {hasMoreRecipients && (
+                          <div ref={loadMoreSentinelRef} className="flex items-center justify-center py-4">
+                            {isLoadingMore ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                <span className="ml-2 text-xs text-muted-foreground">Cargando más...</span>
+                              </>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Scroll para cargar más</span>
+                            )}
+                          </div>
                         )}
-                      </div>
+                      </>
                     )}
-                  </>
-                )}
-              </div>
-            </div>
+                  </div>
+                </div>
 
-            {/* Resumen de costos */}
-            {selectedRecipientsMap.size > 0 && (
-              <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Costo estimado total:</span>
-                  <span className="font-bold text-green-600 ml-2">
-                    ~${(selectedRecipientsMap.size * segmentCount * 0.02).toFixed(2)} USD
-                  </span>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {selectedRecipientsMap.size} destinatarios × {segmentCount} SMS × $0.02
-                </div>
-              </div>
-            )}
+                {/* Resumen de costos */}
+                {selectedRecipientsMap.size > 0 && (
+                  <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Costo estimado total:</span>
+                      <span className="font-bold text-green-600 ml-2">
+                        ~${(selectedRecipientsMap.size * segmentCount * 0.02).toFixed(2)} USD
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {selectedRecipientsMap.size} destinatarios × {segmentCount} SMS × $0.02
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="csv" className="flex-1 overflow-hidden flex flex-col space-y-4 mt-4">
+                <CsvUploader
+                  mode="sms"
+                  onRecipientsReady={setCsvRecipients}
+                  onStatsChange={setCsvStats}
+                />
+                {/* Resumen de costos CSV */}
+                {csvRecipients.length > 0 && (
+                  <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Costo estimado total:</span>
+                      <span className="font-bold text-green-600 ml-2">
+                        ~${(csvRecipients.length * segmentCount * 0.02).toFixed(2)} USD
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {csvRecipients.length} destinatarios × {segmentCount} SMS × $0.02
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
 
           <DialogFooter className="mt-4">
@@ -1473,22 +1584,40 @@ export default function CrearSmsTemplatePage() {
               onClick={() => {
                 setShowSendDialog(false);
                 setSelectedRecipientsMap(new Map());
+                setCsvRecipients([]);
+                setCsvStats(null);
+                setSendMode("database");
               }}
             >
               Cancelar
             </Button>
-            <Button
-              onClick={handleSendSms}
-              disabled={isSending || selectedRecipientsMap.size === 0}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {isSending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}
-              Enviar a {selectedRecipientsMap.size} destinatario(s)
-            </Button>
+            {sendMode === "database" ? (
+              <Button
+                onClick={handleSendSms}
+                disabled={isSending || selectedRecipientsMap.size === 0}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isSending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                Enviar a {selectedRecipientsMap.size} destinatario(s)
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSendCsvSms}
+                disabled={isSendingCsv || csvRecipients.length === 0 || !message.trim()}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isSendingCsv ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                Enviar CSV ({csvRecipients.length.toLocaleString()})
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
