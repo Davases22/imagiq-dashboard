@@ -197,7 +197,7 @@ export function ProductFilterDropdowns({
       </div>
       <div className="grid grid-cols-4 gap-2">
         {/* Categoría */}
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <Label className="text-xs text-muted-foreground">Categoría</Label>
           <Select
             value={value.categoria ?? "__all__"}
@@ -205,7 +205,7 @@ export function ProductFilterDropdowns({
               onChange({ categoria: val === "__all__" ? undefined : val });
             }}
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-8 text-xs !w-full overflow-hidden [&>span]:truncate">
               {isLoadingCategories ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
@@ -224,7 +224,7 @@ export function ProductFilterDropdowns({
         </div>
 
         {/* Subcategoría */}
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <Label className="text-xs text-muted-foreground">Subcategoría</Label>
           <Select
             value={value.subcategoria ?? "__all__"}
@@ -236,7 +236,7 @@ export function ProductFilterDropdowns({
             }}
             disabled={!value.categoria}
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-8 text-xs !w-full overflow-hidden [&>span]:truncate">
               {isLoadingSubcategories ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
@@ -255,7 +255,7 @@ export function ProductFilterDropdowns({
         </div>
 
         {/* Submenu */}
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <Label className="text-xs text-muted-foreground">Submenu</Label>
           <Select
             value={value.submenu ?? "__all__"}
@@ -268,7 +268,7 @@ export function ProductFilterDropdowns({
             }}
             disabled={!value.subcategoria}
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-8 text-xs !w-full overflow-hidden [&>span]:truncate">
               {isLoadingSubmenus ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
@@ -287,14 +287,14 @@ export function ProductFilterDropdowns({
         </div>
 
         {/* Modelo (multi-select) */}
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <Label className="text-xs text-muted-foreground">Modelo</Label>
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 role="combobox"
-                disabled={!value.subcategoria}
+                disabled={!value.subcategoria || isLoadingModels}
                 className="h-8 w-full justify-between text-xs font-normal px-3"
               >
                 {isLoadingModels ? (
@@ -313,8 +313,8 @@ export function ProductFilterDropdowns({
                 <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[220px] p-0 z-[9999]" align="start">
-              <div className="max-h-[200px] overflow-y-auto p-1">
+            <PopoverContent className="w-[250px] p-0 z-[9999]" align="start" onWheel={(e) => e.stopPropagation()}>
+              <div className="max-h-[250px] overflow-y-auto overscroll-contain p-1" onWheel={(e) => e.stopPropagation()}>
                 {models.length === 0 ? (
                   <p className="text-xs text-muted-foreground p-2 text-center">
                     Sin modelos

@@ -1243,7 +1243,7 @@ export default function CrearSmsTemplatePage() {
 
       {/* Dialog de envío de SMS */}
       <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
-        <DialogContent className="!max-w-3xl h-[85vh]">
+        <DialogContent className="!max-w-4xl h-[85vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Send className="h-5 w-5" />
