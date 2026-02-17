@@ -11,12 +11,19 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Filter, X, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Filter, X, Loader2, ChevronDown } from "lucide-react";
 
 export interface ProductFilter {
   categoria?: string;
   subcategoria?: string;
-  modelo?: string;
+  submenu?: string;
+  modelo?: string[];
 }
 
 interface ProductFilterDropdownsProps {
@@ -33,9 +40,11 @@ export function ProductFilterDropdowns({
 }: ProductFilterDropdownsProps) {
   const [categories, setCategories] = useState<string[]>([]);
   const [subcategories, setSubcategories] = useState<string[]>([]);
+  const [submenus, setSubmenus] = useState<string[]>([]);
   const [models, setModels] = useState<string[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isLoadingSubcategories, setIsLoadingSubcategories] = useState(false);
+  const [isLoadingSubmenus, setIsLoadingSubmenus] = useState(false);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
   // Load categories on mount
@@ -85,7 +94,33 @@ export function ProductFilterDropdowns({
     loadSubcategories();
   }, [value.categoria]);
 
-  // Load models when subcategory changes
+  // Load submenus when subcategory changes
+  useEffect(() => {
+    if (!value.categoria || !value.subcategoria) {
+      setSubmenus([]);
+      return;
+    }
+    const loadSubmenus = async () => {
+      setIsLoadingSubmenus(true);
+      try {
+        const res = await fetch(
+          `${API_URL}/api/users/campaigns/product-submenus?categoria=${encodeURIComponent(value.categoria!)}&subcategoria=${encodeURIComponent(value.subcategoria!)}`,
+          { headers: { "X-API-Key": API_KEY } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setSubmenus(data.submenus || []);
+        }
+      } catch (error) {
+        console.error("Error loading submenus:", error);
+      } finally {
+        setIsLoadingSubmenus(false);
+      }
+    };
+    loadSubmenus();
+  }, [value.categoria, value.subcategoria]);
+
+  // Load models when submenu changes (or subcategory if no submenu)
   useEffect(() => {
     if (!value.categoria || !value.subcategoria) {
       setModels([]);
@@ -94,10 +129,11 @@ export function ProductFilterDropdowns({
     const loadModels = async () => {
       setIsLoadingModels(true);
       try {
-        const res = await fetch(
-          `${API_URL}/api/users/campaigns/product-models?categoria=${encodeURIComponent(value.categoria!)}&subcategoria=${encodeURIComponent(value.subcategoria!)}`,
-          { headers: { "X-API-Key": API_KEY } }
-        );
+        let url = `${API_URL}/api/users/campaigns/product-models?categoria=${encodeURIComponent(value.categoria!)}&subcategoria=${encodeURIComponent(value.subcategoria!)}`;
+        if (value.submenu) {
+          url += `&submenu=${encodeURIComponent(value.submenu)}`;
+        }
+        const res = await fetch(url, { headers: { "X-API-Key": API_KEY } });
         if (res.ok) {
           const data = await res.json();
           setModels(data.models || []);
@@ -109,15 +145,29 @@ export function ProductFilterDropdowns({
       }
     };
     loadModels();
-  }, [value.categoria, value.subcategoria]);
+  }, [value.categoria, value.subcategoria, value.submenu]);
 
-  const hasFilter = value.categoria || value.subcategoria || value.modelo;
+  const hasFilter = value.categoria || value.subcategoria || value.submenu || (value.modelo && value.modelo.length > 0);
 
   const handleClearFilter = () => {
     onChange({});
   };
 
-  const activeFilterCount = [value.categoria, value.subcategoria, value.modelo].filter(Boolean).length;
+  const activeFilterCount = [value.categoria, value.subcategoria, value.submenu, (value.modelo && value.modelo.length > 0) ? true : undefined].filter(Boolean).length;
+
+  const toggleModelo = (model: string) => {
+    const current = value.modelo || [];
+    const isSelected = current.includes(model);
+    const next = isSelected
+      ? current.filter((m) => m !== model)
+      : [...current, model];
+    onChange({
+      categoria: value.categoria,
+      subcategoria: value.subcategoria,
+      submenu: value.submenu,
+      modelo: next.length > 0 ? next : undefined,
+    });
+  };
 
   return (
     <div className="space-y-2 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
@@ -145,7 +195,7 @@ export function ProductFilterDropdowns({
           </Button>
         )}
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         {/* Categoría */}
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Categoría</Label>
@@ -159,11 +209,11 @@ export function ProductFilterDropdowns({
               {isLoadingCategories ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <SelectValue placeholder="Todas las categorías" />
+                <SelectValue placeholder="Todas" />
               )}
             </SelectTrigger>
             <SelectContent portal={false}>
-              <SelectItem value="__all__" className="text-xs">Todas las categorías</SelectItem>
+              <SelectItem value="__all__" className="text-xs">Todas</SelectItem>
               {categories.map((cat) => (
                 <SelectItem key={cat} value={cat} className="text-xs">
                   {cat}
@@ -204,22 +254,22 @@ export function ProductFilterDropdowns({
           </Select>
         </div>
 
-        {/* Modelo */}
+        {/* Submenu */}
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Modelo</Label>
+          <Label className="text-xs text-muted-foreground">Submenu</Label>
           <Select
-            value={value.modelo ?? "__all__"}
+            value={value.submenu ?? "__all__"}
             onValueChange={(val) => {
               onChange({
                 categoria: value.categoria,
                 subcategoria: value.subcategoria,
-                modelo: val === "__all__" ? undefined : val,
+                submenu: val === "__all__" ? undefined : val,
               });
             }}
             disabled={!value.subcategoria}
           >
             <SelectTrigger className="h-8 text-xs">
-              {isLoadingModels ? (
+              {isLoadingSubmenus ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
                 <SelectValue placeholder={value.subcategoria ? "Todos" : "Selecciona subcategoría"} />
@@ -227,13 +277,87 @@ export function ProductFilterDropdowns({
             </SelectTrigger>
             <SelectContent portal={false}>
               <SelectItem value="__all__" className="text-xs">Todos</SelectItem>
-              {models.map((model) => (
-                <SelectItem key={model} value={model} className="text-xs">
-                  {model}
+              {submenus.map((sm) => (
+                <SelectItem key={sm} value={sm} className="text-xs">
+                  {sm}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Modelo (multi-select) */}
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Modelo</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                disabled={!value.subcategoria}
+                className="h-8 w-full justify-between text-xs font-normal px-3"
+              >
+                {isLoadingModels ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : value.modelo && value.modelo.length > 0 ? (
+                  <span className="truncate">
+                    {value.modelo.length === 1
+                      ? value.modelo[0]
+                      : `${value.modelo.length} modelos`}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    {value.subcategoria ? "Todos" : "Selecciona subcategoría"}
+                  </span>
+                )}
+                <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[220px] p-0 z-[9999]" align="start">
+              <div className="max-h-[200px] overflow-y-auto p-1">
+                {models.length === 0 ? (
+                  <p className="text-xs text-muted-foreground p-2 text-center">
+                    Sin modelos
+                  </p>
+                ) : (
+                  models.map((model) => {
+                    const isChecked = (value.modelo || []).includes(model);
+                    return (
+                      <label
+                        key={model}
+                        className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-xs cursor-pointer hover:bg-accent"
+                      >
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={() => toggleModelo(model)}
+                          className="h-3.5 w-3.5"
+                        />
+                        <span className="truncate">{model}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              {value.modelo && value.modelo.length > 0 && (
+                <div className="border-t p-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full h-7 text-xs"
+                    onClick={() =>
+                      onChange({
+                        categoria: value.categoria,
+                        subcategoria: value.subcategoria,
+                        submenu: value.submenu,
+                      })
+                    }
+                  >
+                    Limpiar selección
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </div>

@@ -275,7 +275,8 @@ export default function WhatsAppTemplatesPage() {
       let url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=0${search ? `&search=${encodeURIComponent(search)}` : ""}`;
       if (filter?.categoria) url += `&categoria=${encodeURIComponent(filter.categoria)}`;
       if (filter?.subcategoria) url += `&subcategoria=${encodeURIComponent(filter.subcategoria)}`;
-      if (filter?.modelo) url += `&modelo=${encodeURIComponent(filter.modelo)}`;
+      if (filter?.submenu) url += `&submenu=${encodeURIComponent(filter.submenu)}`;
+      if (filter?.modelo?.length) filter.modelo.forEach(m => url += `&modelo=${encodeURIComponent(m)}`);
       const response = await fetch(url, {
         headers: { "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "" },
       });
@@ -302,7 +303,8 @@ export default function WhatsAppTemplatesPage() {
       let url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=${recipients.length}${recipientSearch ? `&search=${encodeURIComponent(recipientSearch)}` : ""}`;
       if (productFilter?.categoria) url += `&categoria=${encodeURIComponent(productFilter.categoria)}`;
       if (productFilter?.subcategoria) url += `&subcategoria=${encodeURIComponent(productFilter.subcategoria)}`;
-      if (productFilter?.modelo) url += `&modelo=${encodeURIComponent(productFilter.modelo)}`;
+      if (productFilter?.submenu) url += `&submenu=${encodeURIComponent(productFilter.submenu)}`;
+      if (productFilter?.modelo?.length) productFilter.modelo.forEach(m => url += `&modelo=${encodeURIComponent(m)}`);
       const response = await fetch(url, {
         headers: { "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "" },
       });
@@ -925,20 +927,24 @@ export default function WhatsAppTemplatesPage() {
             </div>
 
             {/* Total de destinatarios + Agregar teléfonos + Enviar a todos */}
-            {recipientsTotal > 0 && (
+            {(recipientsTotal > 0 || isLoadingRecipients) && (
               <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
                 <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
                   <Users className="h-5 w-5 text-green-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-lg text-green-600">
-                    {(recipientsTotal + extraPhones.length).toLocaleString()} destinatarios
-                    {extraPhones.length > 0 && (
-                      <span className="text-sm font-normal ml-1">
-                        ({recipientsTotal.toLocaleString()} + {extraPhones.length} extra)
-                      </span>
-                    )}
-                  </p>
+                  {isLoadingRecipients ? (
+                    <Skeleton className="h-7 w-40 bg-green-200/50" />
+                  ) : (
+                    <p className="font-bold text-lg text-green-600">
+                      {(recipientsTotal + extraPhones.length).toLocaleString()} destinatarios
+                      {extraPhones.length > 0 && (
+                        <span className="text-sm font-normal ml-1">
+                          ({recipientsTotal.toLocaleString()} + {extraPhones.length} extra)
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
                 <Button
                   variant="outline"
