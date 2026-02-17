@@ -33,9 +33,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { EmailTemplate, stripoEndpoints } from "@/lib/api";
+import { EmailTemplate, stripoEndpoints, csvCampaignEndpoints } from "@/lib/api";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CsvUploader, type ParsedRecipient, type CsvStats } from "@/components/campaigns/csv-uploader";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { EditorRef, EmailEditorProps } from "react-email-editor";
 import { predefinedUnlayerTemplates } from "./templates";
@@ -151,6 +153,12 @@ export function UnlayerEmailEditor({
       setIsLoadingTemplates(false);
     }
   }, []);
+
+  // CSV campaign states
+  const [sendMode, setSendMode] = useState<"database" | "csv">("database");
+  const [csvRecipients, setCsvRecipients] = useState<ParsedRecipient[]>([]);
+  const [csvStats, setCsvStats] = useState<CsvStats | null>(null);
+  const [isSendingCsv, setIsSendingCsv] = useState(false);
 
   // Estado para carga de destinatarios
   const [isLoadingRecipients, setIsLoadingRecipients] = useState(false);
@@ -414,6 +422,59 @@ export function UnlayerEmailEditor({
       toast.error("Error al enviar los emails");
     } finally {
       setIsSendingToAll(false);
+    }
+  };
+
+  // Enviar emails a destinatarios CSV
+  const handleSendCsvEmails = async () => {
+    if (csvRecipients.length === 0) {
+      toast.error("No hay destinatarios válidos en el CSV");
+      return;
+    }
+    if (!emailSubject.trim()) {
+      toast.error("Ingresa un asunto para el email");
+      return;
+    }
+
+    setIsSendingCsv(true);
+    try {
+      const { html } = await exportHtmlAsync();
+      const response = await csvCampaignEndpoints.sendEmails({
+        subject: emailSubject,
+        html,
+        recipients: csvRecipients.map((r) => ({
+          email: r.email!,
+          name: r.name,
+        })),
+        audit: {
+          csvFilename: csvStats?.filename || "unknown.csv",
+          csvTotalRows: csvStats?.totalRows || 0,
+          csvValidRows: csvStats?.validRows || 0,
+          csvInvalidRows: csvStats?.invalidRows || 0,
+          csvDuplicateRows: csvStats?.duplicateRows || 0,
+        },
+      });
+
+      if (response.success && response.data) {
+        const total = response.data.totalRecipients;
+        const secs = Math.ceil(total / 12);
+        const timeStr = secs < 60 ? `${secs}s` : secs < 3600 ? `${Math.ceil(secs / 60)} min` : `${Math.floor(secs / 3600)}h ${Math.ceil((secs % 3600) / 60)}min`;
+        toast.success(
+          `Envío CSV iniciado para ${total.toLocaleString()} destinatarios. Tiempo estimado: ~${timeStr}.`
+        );
+        setShowSendDialog(false);
+        setEmailSubject("");
+        setCsvRecipients([]);
+        setCsvStats(null);
+        setSendMode("database");
+      } else {
+        toast.error(response.message || "Error al iniciar el envío CSV");
+      }
+    } catch (error) {
+      console.error("Error sending CSV campaign emails:", error);
+      toast.error("Error al enviar los emails del CSV");
+    } finally {
+      setIsSendingCsv(false);
     }
   };
 
@@ -1061,182 +1122,206 @@ export function UnlayerEmailEditor({
               )}
             </div>
 
-            {/* Total de destinatarios + Agregar emails + Enviar a todos */}
-            {(recipientsTotal > 0 || isLoadingRecipients) && (
-              <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
-                <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
-                  <Users className="h-5 w-5 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  {isLoadingRecipients ? (
-                    <Skeleton className="h-7 w-40 bg-green-200/50" />
-                  ) : (
-                    <p className="font-bold text-lg text-green-600">
-                      {(recipientsTotal + extraEmails.length).toLocaleString()} destinatarios
-                      {extraEmails.length > 0 && (
-                        <span className="text-sm font-normal ml-1">
-                          ({recipientsTotal.toLocaleString()} + {extraEmails.length} extra)
-                        </span>
+            {/* Tabs: Base de datos vs Cargar CSV */}
+            <Tabs value={sendMode} onValueChange={(v) => setSendMode(v as "database" | "csv")} className="flex-1 overflow-hidden flex flex-col">
+              <TabsList className="w-full grid grid-cols-2">
+                <TabsTrigger value="database" className="gap-1.5">
+                  <Users className="h-4 w-4" />
+                  Base de datos
+                </TabsTrigger>
+                <TabsTrigger value="csv" className="gap-1.5">
+                  <FileText className="h-4 w-4" />
+                  Cargar CSV
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="database" className="flex-1 overflow-hidden flex flex-col space-y-4 mt-4">
+                {/* Total de destinatarios + Agregar emails + Enviar a todos */}
+                {(recipientsTotal > 0 || isLoadingRecipients) && (
+                  <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                    <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                      <Users className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      {isLoadingRecipients ? (
+                        <Skeleton className="h-7 w-40 bg-green-200/50" />
+                      ) : (
+                        <p className="font-bold text-lg text-green-600">
+                          {(recipientsTotal + extraEmails.length).toLocaleString()} destinatarios
+                          {extraEmails.length > 0 && (
+                            <span className="text-sm font-normal ml-1">
+                              ({recipientsTotal.toLocaleString()} + {extraEmails.length} extra)
+                            </span>
+                          )}
+                        </p>
                       )}
-                    </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddEmailsDialog(true)}
+                      className="gap-1 border-green-300 text-green-700 hover:bg-green-100 dark:hover:bg-green-900"
+                    >
+                      <Plus className="h-4 w-4" />
+                      {extraEmails.length > 0 ? `${extraEmails.length} extra` : "Agregar"}
+                    </Button>
+                    <Button
+                      onClick={() => setShowSendToAllConfirm(true)}
+                      disabled={isSendingToAll || !emailSubject.trim()}
+                      className="gap-2 bg-green-600 hover:bg-green-700"
+                    >
+                      <Send className="h-4 w-4" />
+                      Enviar a todos
+                    </Button>
+                  </div>
+                )}
+
+                {/* Filtro de segmentación por producto */}
+                <ProductFilterDropdowns
+                  value={productFilter}
+                  onChange={(filter) => {
+                    setProductFilter(filter);
+                    loadRecipients(recipientSearch, filter);
+                  }}
+                />
+
+                {/* Buscador y controles */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nombre o email..."
+                      value={recipientSearch}
+                      onChange={(e) => setRecipientSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          loadRecipients(recipientSearch, productFilter);
+                        }
+                      }}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadRecipients(recipientSearch, productFilter)}
+                    disabled={isLoadingRecipients}
+                  >
+                    {isLoadingRecipients ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={selectAllRecipients}>
+                    Seleccionar cargados
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={deselectAllRecipients}>
+                    Limpiar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const csvContent = [
+                        ["Nombre", "Email"].join(","),
+                        ...recipients.map(r => [`"${r.name.replace(/"/g, '""')}"`, `"${r.email}"`].join(","))
+                      ].join("\n");
+                      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `destinatarios-email-${new Date().toISOString().split("T")[0]}.csv`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                      toast.success(`${recipients.length} correos exportados a CSV`);
+                    }}
+                    disabled={recipients.length === 0}
+                    className="gap-1"
+                  >
+                    <Download className="h-4 w-4" />
+                    CSV
+                  </Button>
+                </div>
+
+                {/* Contador de seleccionados */}
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {selectedRecipients.size} seleccionados · Mostrando {recipients.length} de {recipientsTotal.toLocaleString()} destinatarios
+                  </span>
+                  {selectedRecipients.size > 0 && (
+                    <Badge variant="secondary" className="ml-auto">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      {selectedRecipients.size} seleccionados
+                    </Badge>
                   )}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAddEmailsDialog(true)}
-                  className="gap-1 border-green-300 text-green-700 hover:bg-green-100 dark:hover:bg-green-900"
-                >
-                  <Plus className="h-4 w-4" />
-                  {extraEmails.length > 0 ? `${extraEmails.length} extra` : "Agregar"}
-                </Button>
-                <Button
-                  onClick={() => setShowSendToAllConfirm(true)}
-                  disabled={isSendingToAll || !emailSubject.trim()}
-                  className="gap-2 bg-green-600 hover:bg-green-700"
-                >
-                  <Send className="h-4 w-4" />
-                  Enviar a todos
-                </Button>
-              </div>
-            )}
 
-            {/* Filtro de segmentación por producto */}
-            <ProductFilterDropdowns
-              value={productFilter}
-              onChange={(filter) => {
-                setProductFilter(filter);
-                loadRecipients(recipientSearch, filter);
-              }}
-            />
-
-            {/* Buscador y controles */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nombre o email..."
-                  value={recipientSearch}
-                  onChange={(e) => setRecipientSearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      loadRecipients(recipientSearch, productFilter);
-                    }
-                  }}
-                  className="pl-9"
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => loadRecipients(recipientSearch, productFilter)}
-                disabled={isLoadingRecipients}
-              >
-                {isLoadingRecipients ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
-              </Button>
-              <Button variant="outline" size="sm" onClick={selectAllRecipients}>
-                Seleccionar cargados
-              </Button>
-              <Button variant="outline" size="sm" onClick={deselectAllRecipients}>
-                Limpiar
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const csvContent = [
-                    ["Nombre", "Email"].join(","),
-                    ...recipients.map(r => [`"${r.name.replace(/"/g, '""')}"`, `"${r.email}"`].join(","))
-                  ].join("\n");
-                  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `destinatarios-email-${new Date().toISOString().split("T")[0]}.csv`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                  toast.success(`${recipients.length} correos exportados a CSV`);
-                }}
-                disabled={recipients.length === 0}
-                className="gap-1"
-              >
-                <Download className="h-4 w-4" />
-                CSV
-              </Button>
-            </div>
-
-            {/* Contador de seleccionados */}
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                {selectedRecipients.size} seleccionados · Mostrando {recipients.length} de {recipientsTotal.toLocaleString()} destinatarios
-              </span>
-              {selectedRecipients.size > 0 && (
-                <Badge variant="secondary" className="ml-auto">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  {selectedRecipients.size} seleccionados
-                </Badge>
-              )}
-            </div>
-
-            {/* Lista de destinatarios */}
-            <div ref={scrollContainerRef} className="flex-1 border rounded-lg h-[350px] overflow-y-auto">
-              <div className="p-2 space-y-1">
-                {isLoadingRecipients ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    <span className="ml-2 text-muted-foreground">Cargando destinatarios...</span>
-                  </div>
-                ) : filteredRecipients.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {recipients.length === 0
-                      ? "Haz clic en 'Buscar' para cargar destinatarios"
-                      : "No se encontraron destinatarios"}
-                  </div>
-                ) : (
-                  <>
-                    {filteredRecipients.map((recipient) => (
-                      <div
-                        key={recipient.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                          selectedRecipients.has(recipient.id)
-                            ? "bg-primary/10 border border-primary/20"
-                            : "hover:bg-muted"
-                        }`}
-                        onClick={() => toggleRecipient(recipient.id)}
-                      >
-                        <Checkbox
-                          checked={selectedRecipients.has(recipient.id)}
-                          onCheckedChange={() => toggleRecipient(recipient.id)}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium truncate">{recipient.name}</span>
+                {/* Lista de destinatarios */}
+                <div ref={scrollContainerRef} className="flex-1 border rounded-lg h-[350px] overflow-y-auto">
+                  <div className="p-2 space-y-1">
+                    {isLoadingRecipients ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        <span className="ml-2 text-muted-foreground">Cargando destinatarios...</span>
+                      </div>
+                    ) : filteredRecipients.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        {recipients.length === 0
+                          ? "Haz clic en 'Buscar' para cargar destinatarios"
+                          : "No se encontraron destinatarios"}
+                      </div>
+                    ) : (
+                      <>
+                        {filteredRecipients.map((recipient) => (
+                          <div
+                            key={recipient.id}
+                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                              selectedRecipients.has(recipient.id)
+                                ? "bg-primary/10 border border-primary/20"
+                                : "hover:bg-muted"
+                            }`}
+                            onClick={() => toggleRecipient(recipient.id)}
+                          >
+                            <Checkbox
+                              checked={selectedRecipients.has(recipient.id)}
+                              onCheckedChange={() => toggleRecipient(recipient.id)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium truncate">{recipient.name}</span>
+                              </div>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {recipient.email}
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {recipient.email}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    {hasMoreRecipients && (
-                      <div ref={loadMoreSentinelRef} className="flex items-center justify-center py-4">
-                        {isLoadingMore ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                            <span className="ml-2 text-xs text-muted-foreground">Cargando más...</span>
-                          </>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Scroll para cargar más</span>
+                        ))}
+                        {hasMoreRecipients && (
+                          <div ref={loadMoreSentinelRef} className="flex items-center justify-center py-4">
+                            {isLoadingMore ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                <span className="ml-2 text-xs text-muted-foreground">Cargando más...</span>
+                              </>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Scroll para cargar más</span>
+                            )}
+                          </div>
                         )}
-                      </div>
+                      </>
                     )}
-                  </>
-                )}
-              </div>
-            </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="csv" className="flex-1 overflow-hidden flex flex-col space-y-4 mt-4">
+                <CsvUploader
+                  mode="email"
+                  onRecipientsReady={setCsvRecipients}
+                  onStatsChange={setCsvStats}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
 
           <DialogFooter className="mt-4">
@@ -1248,22 +1333,40 @@ export function UnlayerEmailEditor({
                 setEmailSubject("");
                 setExtraEmails([]);
                 setExtraEmailsText("");
+                setCsvRecipients([]);
+                setCsvStats(null);
+                setSendMode("database");
               }}
             >
               Cancelar
             </Button>
-            <Button
-              onClick={handleSendEmails}
-              disabled={isSending || selectedRecipients.size === 0 || !emailSubject.trim()}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {isSending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}
-              Enviar a {selectedRecipients.size} destinatario(s)
-            </Button>
+            {sendMode === "database" ? (
+              <Button
+                onClick={handleSendEmails}
+                disabled={isSending || selectedRecipients.size === 0 || !emailSubject.trim()}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isSending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                Enviar a {selectedRecipients.size} destinatario(s)
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSendCsvEmails}
+                disabled={isSendingCsv || csvRecipients.length === 0 || !emailSubject.trim()}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isSendingCsv ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                Enviar CSV ({csvRecipients.length.toLocaleString()})
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

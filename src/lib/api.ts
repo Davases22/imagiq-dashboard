@@ -2882,3 +2882,77 @@ export const smsTemplateEndpoints = {
   },
 };
 
+// ==================== CSV CAMPAIGN ENDPOINTS ====================
+
+export interface CsvAuditData {
+  csvFilename: string;
+  csvTotalRows: number;
+  csvValidRows: number;
+  csvInvalidRows: number;
+  csvDuplicateRows: number;
+  createdBy?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SendLogResponse {
+  id: string;
+  campaignType: string;
+  source: string;
+  csvFilename: string | null;
+  csvTotalRows: number | null;
+  csvValidRows: number | null;
+  csvInvalidRows: number | null;
+  csvDuplicateRows: number | null;
+  subject: string | null;
+  templateId: string | null;
+  templateName: string | null;
+  totalRecipients: number;
+  successfulSends: number;
+  failedSends: number;
+  status: string;
+  errorMessage: string | null;
+  createdBy: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  metadata: Record<string, unknown>;
+}
+
+export const csvCampaignEndpoints = {
+  sendEmails: (data: {
+    subject: string;
+    html: string;
+    recipients: Array<{ email: string; name?: string }>;
+    audit: CsvAuditData;
+  }) =>
+    apiClient.post<{ status: string; sendLogId: string; totalRecipients: number }>(
+      '/api/messaging/csv-campaign-emails',
+      data,
+    ),
+
+  sendSms: (data: {
+    templateId: string;
+    recipients: Array<{ phoneNumber: string; variables?: Record<string, string> }>;
+    audit: CsvAuditData;
+  }) =>
+    apiClient.post<{ status: string; sendLogId: string; totalRecipients: number }>(
+      '/api/messaging/csv-campaign-sms',
+      data,
+    ),
+
+  getSendLogs: (params?: { page?: number; limit?: number; type?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.type) searchParams.append('type', params.type);
+    const qs = searchParams.toString();
+    return apiClient.get<{ data: SendLogResponse[]; total: number }>(
+      `/api/messaging/send-logs${qs ? `?${qs}` : ''}`,
+    );
+  },
+
+  getSendLog: (id: string) =>
+    apiClient.get<SendLogResponse>(`/api/messaging/send-logs/${id}`),
+};
+
