@@ -2858,10 +2858,10 @@ export const smsTemplateEndpoints = {
   },
 
   // Enviar SMS a destinatarios usando un template (backend procesa en background)
-  sendToAll: (templateId: string, maxRecipients?: number, productFilter?: { categoria?: string; subcategoria?: string; modelo?: string }) => {
+  sendToAll: (templateId: string, maxRecipients?: number, productFilter?: { categoria?: string; subcategoria?: string; modelo?: string }, extraPhones?: string[]) => {
     return apiClient.post<{ status: string; message: string; estimatedTotal: number }>(
       `/api/messaging/sms-templates/${templateId}/send-to-all-sms`,
-      { maxRecipients, productFilter },
+      { maxRecipients, productFilter, extraPhones },
     );
   },
 
