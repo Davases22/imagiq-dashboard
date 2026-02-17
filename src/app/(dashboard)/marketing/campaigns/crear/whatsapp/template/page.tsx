@@ -21,6 +21,7 @@ import { WhatsAppTemplatePreview } from "@/components/campaigns/whatsapp/templat
 import { TemplateVariables } from "@/components/campaigns/whatsapp/template/template-variables";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { whatsappTemplateEndpoints } from "@/lib/api";
+import { ProductFilterDropdowns, type ProductFilter } from "@/components/campaigns/product-filter-dropdowns";
 import { mapBackendArrayToFrontend } from "@/lib/whatsappTemplateMapper";
 import { toast } from "sonner";
 
@@ -260,15 +261,19 @@ export default function CrearPlantillaWhatsAppPage() {
   const [showSendToAllConfirm, setShowSendToAllConfirm] = useState(false);
   const [sendToAllCount, setSendToAllCount] = useState<"all" | number>("all");
   const [customSendCount, setCustomSendCount] = useState("");
+  const [productFilter, setProductFilter] = useState<ProductFilter>({});
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const loadRecipients = useCallback(async (search?: string) => {
+  const loadRecipients = useCallback(async (search?: string, filter?: ProductFilter) => {
     setIsLoadingRecipients(true);
     setRecipients([]);
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=0${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+      let url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=0${search ? `&search=${encodeURIComponent(search)}` : ""}`;
+      if (filter?.categoria) url += `&categoria=${encodeURIComponent(filter.categoria)}`;
+      if (filter?.subcategoria) url += `&subcategoria=${encodeURIComponent(filter.subcategoria)}`;
+      if (filter?.modelo) url += `&modelo=${encodeURIComponent(filter.modelo)}`;
+      const response = await fetch(url,
         { headers: { "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "" } }
       );
       if (response.ok) {
@@ -291,8 +296,11 @@ export default function CrearPlantillaWhatsAppPage() {
   const loadMoreRecipients = useCallback(async () => {
     setIsLoadingMore(true);
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=${recipients.length}${recipientSearch ? `&search=${encodeURIComponent(recipientSearch)}` : ""}`,
+      let url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=${recipients.length}${recipientSearch ? `&search=${encodeURIComponent(recipientSearch)}` : ""}`;
+      if (productFilter?.categoria) url += `&categoria=${encodeURIComponent(productFilter.categoria)}`;
+      if (productFilter?.subcategoria) url += `&subcategoria=${encodeURIComponent(productFilter.subcategoria)}`;
+      if (productFilter?.modelo) url += `&modelo=${encodeURIComponent(productFilter.modelo)}`;
+      const response = await fetch(url,
         { headers: { "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "" } }
       );
       if (response.ok) {
@@ -307,7 +315,7 @@ export default function CrearPlantillaWhatsAppPage() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [recipients.length, recipientSearch]);
+  }, [recipients.length, recipientSearch, productFilter]);
 
   // Infinite scroll
   useEffect(() => {
@@ -379,7 +387,7 @@ export default function CrearPlantillaWhatsAppPage() {
       }
 
       // Template is approved — open send dialog
-      loadRecipients();
+      loadRecipients(undefined, productFilter);
       setShowSendDialog(true);
     } catch (error) {
       console.error("Error checking template:", error);
@@ -900,6 +908,15 @@ export default function CrearPlantillaWhatsAppPage() {
               </div>
             )}
 
+            {/* Filtro de segmentación por producto */}
+            <ProductFilterDropdowns
+              value={productFilter}
+              onChange={(filter) => {
+                setProductFilter(filter);
+                loadRecipients(recipientSearch, filter);
+              }}
+            />
+
             {/* Buscador */}
             <div className="flex items-center gap-2 flex-wrap">
               <div className="relative flex-1 min-w-[200px]">
@@ -908,11 +925,11 @@ export default function CrearPlantillaWhatsAppPage() {
                   placeholder="Buscar por nombre, email o teléfono..."
                   value={recipientSearch}
                   onChange={(e) => setRecipientSearch(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") loadRecipients(recipientSearch); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") loadRecipients(recipientSearch, productFilter); }}
                   className="pl-9"
                 />
               </div>
-              <Button variant="outline" size="sm" onClick={() => loadRecipients(recipientSearch)} disabled={isLoadingRecipients}>
+              <Button variant="outline" size="sm" onClick={() => loadRecipients(recipientSearch, productFilter)} disabled={isLoadingRecipients}>
                 {isLoadingRecipients ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
               </Button>
               <Button variant="outline" size="sm" onClick={selectAllRecipients}>Seleccionar cargados</Button>
@@ -1097,8 +1114,11 @@ export default function CrearPlantillaWhatsAppPage() {
                   toast.info(`Cargando ${limit.toLocaleString()} destinatarios...`);
 
                   while (keepFetching && allRecipients.length < limit) {
-                    const res = await fetch(
-                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${PAGE_SIZE}&offset=${offset}`,
+                    let fetchUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${PAGE_SIZE}&offset=${offset}`;
+                    if (productFilter?.categoria) fetchUrl += `&categoria=${encodeURIComponent(productFilter.categoria)}`;
+                    if (productFilter?.subcategoria) fetchUrl += `&subcategoria=${encodeURIComponent(productFilter.subcategoria)}`;
+                    if (productFilter?.modelo) fetchUrl += `&modelo=${encodeURIComponent(productFilter.modelo)}`;
+                    const res = await fetch(fetchUrl,
                       { headers: { "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "" } }
                     );
                     if (!res.ok) break;

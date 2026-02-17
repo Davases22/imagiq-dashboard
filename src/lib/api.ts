@@ -2678,11 +2678,13 @@ export const stripoEndpoints = {
   },
 
   // Enviar email a destinatarios (backend procesa en background)
-  sendToAll: (subject: string, html: string, maxRecipients?: number) => {
+  sendToAll: (subject: string, html: string, maxRecipients?: number, productFilter?: { categoria?: string; subcategoria?: string; modelo?: string }, extraEmails?: string[]) => {
     return apiClient.post<{ status: string; message: string; estimatedTotal: number }>('/api/messaging/send-all-campaign-emails', {
       subject,
       html,
       maxRecipients,
+      productFilter,
+      extraEmails,
     });
   },
 };
@@ -2856,10 +2858,10 @@ export const smsTemplateEndpoints = {
   },
 
   // Enviar SMS a destinatarios usando un template (backend procesa en background)
-  sendToAll: (templateId: string, maxRecipients?: number) => {
+  sendToAll: (templateId: string, maxRecipients?: number, productFilter?: { categoria?: string; subcategoria?: string; modelo?: string }) => {
     return apiClient.post<{ status: string; message: string; estimatedTotal: number }>(
       `/api/messaging/sms-templates/${templateId}/send-to-all-sms`,
-      { maxRecipients },
+      { maxRecipients, productFilter },
     );
   },
 
