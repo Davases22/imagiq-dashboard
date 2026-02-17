@@ -1547,6 +1547,17 @@ export const whatsappTemplateEndpoints = {
       progress: number;
       errors: Array<{ to: string; error: string }>;
     }>(`/api/messaging/bulk-job/${jobId}`),
+  sendToAll: (
+    templateId: string,
+    maxRecipients?: number,
+    productFilter?: { categoria?: string; subcategoria?: string; modelo?: string },
+    extraPhones?: string[],
+  ) => {
+    return apiClient.post<{ status: string; message: string; estimatedTotal: number }>(
+      `/api/messaging/whatsapp-templates/${templateId}/send-to-all`,
+      { maxRecipients, productFilter, extraPhones },
+    );
+  },
 };
 
 // Banner API endpoints

@@ -334,6 +334,7 @@ export interface BackendWhatsAppTemplate {
   fecha_creacion?: string;
   fecha_actualizacion?: string;
   mensajes_enviados?: number;
+  mensajes_fallidos?: number;
   mensajes_entregados?: number;
   mensajes_leidos?: number;
   clics_enlaces?: number;
