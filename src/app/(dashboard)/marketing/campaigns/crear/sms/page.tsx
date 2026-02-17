@@ -199,6 +199,25 @@ export default function CrearSmsTemplatePage() {
   const [sendToAllCount, setSendToAllCount] = useState<"all" | number>("all");
   const [customSendCount, setCustomSendCount] = useState("");
   const [productFilter, setProductFilter] = useState<ProductFilter>({});
+  const [showAddPhonesDialog, setShowAddPhonesDialog] = useState(false);
+  const [extraPhonesText, setExtraPhonesText] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("campaign-extra-phones") || "";
+    }
+    return "";
+  });
+  const [extraPhones, setExtraPhones] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("campaign-extra-phones");
+      if (saved) {
+        return saved
+          .split(/[\n,;]+/)
+          .map((p) => p.trim().replace(/\D/g, ""))
+          .filter((p) => p.length >= 7);
+      }
+    }
+    return [];
+  });
   // Track saved state for unsaved changes detection
   const [savedState, setSavedState] = useState<{ name: string; message: string; category: string } | null>(null);
   const hasUnsavedChanges = isEditing && savedState !== null && (
@@ -631,17 +650,22 @@ export default function CrearSmsTemplatePage() {
 
       const maxRecipients = sendToAllCount === "all" ? undefined : sendToAllCount;
       const activeFilter = productFilter?.categoria ? productFilter : undefined;
-      const response = await smsTemplateEndpoints.sendToAll(templateId, maxRecipients, activeFilter);
+      const response = await smsTemplateEndpoints.sendToAll(templateId, maxRecipients, activeFilter, extraPhones.length > 0 ? extraPhones : undefined);
 
       if (response.success && response.data) {
         const { estimatedTotal } = response.data;
-        const secs = Math.ceil((estimatedTotal || 0) / 20);
+        const extraCount = extraPhones.length;
+        const totalWithExtra = (estimatedTotal || 0) + extraCount;
+        const secs = Math.ceil(totalWithExtra / 20);
         const timeStr = secs < 60 ? `${secs}s` : secs < 3600 ? `${Math.ceil(secs / 60)} min` : `${Math.floor(secs / 3600)}h ${Math.ceil((secs % 3600) / 60)}min`;
         toast.success(
-          `Envío iniciado para ${estimatedTotal?.toLocaleString()} destinatarios. Tiempo estimado: ~${timeStr}. El servidor procesará el envío en segundo plano.`
+          `Envío iniciado para ${totalWithExtra.toLocaleString()} destinatarios${extraCount > 0 ? ` (incluye ${extraCount} teléfonos adicionales)` : ""}. Tiempo estimado: ~${timeStr}.`
         );
         setShowSendToAllConfirm(false);
         setShowSendDialog(false);
+        setExtraPhones([]);
+        setExtraPhonesText("");
+        localStorage.removeItem("campaign-extra-phones");
         loadTemplates();
       } else {
         toast.error(response.message || "Error al enviar SMS");
@@ -1244,15 +1268,31 @@ export default function CrearSmsTemplatePage() {
               </Badge>
             </div>
 
-            {/* Total de destinatarios + Enviar a todos */}
+            {/* Total de destinatarios + Agregar teléfonos + Enviar a todos */}
             {recipientsTotal > 0 && (
               <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
                 <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
                   <Users className="h-5 w-5 text-green-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-lg text-green-600">{recipientsTotal.toLocaleString()} destinatarios</p>
+                  <p className="font-bold text-lg text-green-600">
+                    {(recipientsTotal + extraPhones.length).toLocaleString()} destinatarios
+                    {extraPhones.length > 0 && (
+                      <span className="text-sm font-normal ml-1">
+                        ({recipientsTotal.toLocaleString()} + {extraPhones.length} extra)
+                      </span>
+                    )}
+                  </p>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddPhonesDialog(true)}
+                  className="gap-1 border-green-300 text-green-700 hover:bg-green-100 dark:hover:bg-green-900"
+                >
+                  <Plus className="h-4 w-4" />
+                  {extraPhones.length > 0 ? `${extraPhones.length} extra` : "Agregar"}
+                </Button>
                 <Button
                   onClick={() => setShowSendToAllConfirm(true)}
                   disabled={isSendingToAll || !message.trim()}
@@ -1566,6 +1606,80 @@ export default function CrearSmsTemplatePage() {
                   Confirmar envío a {(sendToAllCount === "all" ? recipientsTotal : sendToAllCount).toLocaleString()}
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para agregar teléfonos extra */}
+      <Dialog open={showAddPhonesDialog} onOpenChange={setShowAddPhonesDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <Phone className="h-5 w-5" />
+              Agregar teléfonos adicionales
+            </DialogTitle>
+            <DialogDescription>
+              Escribe los números de teléfono a los que también quieres enviar, uno por línea o separados por comas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Textarea
+              placeholder={"3151234567\n3209876543\n3001112233"}
+              value={extraPhonesText}
+              onChange={(e) => setExtraPhonesText(e.target.value)}
+              rows={6}
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              {(() => {
+                const parsed = extraPhonesText
+                  .split(/[\n,;]+/)
+                  .map((p) => p.trim().replace(/\D/g, ""))
+                  .filter((p) => p.length >= 7);
+                const unique = [...new Set(parsed)];
+                return `${unique.length} teléfono${unique.length !== 1 ? "s" : ""} válido${unique.length !== 1 ? "s" : ""} detectado${unique.length !== 1 ? "s" : ""}`;
+              })()}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setExtraPhonesText(extraPhones.join("\n"));
+                setShowAddPhonesDialog(false);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() => {
+                const parsed = extraPhonesText
+                  .split(/[\n,;]+/)
+                  .map((p) => p.trim().replace(/\D/g, ""))
+                  .filter((p) => p.length >= 7);
+                const unique = [...new Set(parsed)];
+                setExtraPhones(unique);
+                if (unique.length > 0) {
+                  localStorage.setItem("campaign-extra-phones", unique.join("\n"));
+                } else {
+                  localStorage.removeItem("campaign-extra-phones");
+                }
+                setShowAddPhonesDialog(false);
+                if (unique.length > 0) {
+                  toast.success(`${unique.length} teléfono${unique.length !== 1 ? "s" : ""} adicional${unique.length !== 1 ? "es" : ""} agregado${unique.length !== 1 ? "s" : ""}`);
+                }
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Guardar ({(() => {
+                const parsed = extraPhonesText
+                  .split(/[\n,;]+/)
+                  .map((p) => p.trim().replace(/\D/g, ""))
+                  .filter((p) => p.length >= 7);
+                return [...new Set(parsed)].length;
+              })()} teléfonos)
             </Button>
           </DialogFooter>
         </DialogContent>

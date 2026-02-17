@@ -402,6 +402,7 @@ export function UnlayerEmailEditor({
         setEmailSubject("");
         setExtraEmails([]);
         setExtraEmailsText("");
+        localStorage.removeItem("campaign-extra-emails");
       } else {
         toast.error(response.message || "Error al iniciar el envío de emails");
       }

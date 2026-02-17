@@ -1547,6 +1547,17 @@ export const whatsappTemplateEndpoints = {
       progress: number;
       errors: Array<{ to: string; error: string }>;
     }>(`/api/messaging/bulk-job/${jobId}`),
+  sendToAll: (
+    templateId: string,
+    maxRecipients?: number,
+    productFilter?: { categoria?: string; subcategoria?: string; modelo?: string },
+    extraPhones?: string[],
+  ) => {
+    return apiClient.post<{ status: string; message: string; estimatedTotal: number }>(
+      `/api/messaging/whatsapp-templates/${templateId}/send-to-all`,
+      { maxRecipients, productFilter, extraPhones },
+    );
+  },
 };
 
 // Banner API endpoints
@@ -2858,10 +2869,10 @@ export const smsTemplateEndpoints = {
   },
 
   // Enviar SMS a destinatarios usando un template (backend procesa en background)
-  sendToAll: (templateId: string, maxRecipients?: number, productFilter?: { categoria?: string; subcategoria?: string; modelo?: string }) => {
+  sendToAll: (templateId: string, maxRecipients?: number, productFilter?: { categoria?: string; subcategoria?: string; modelo?: string }, extraPhones?: string[]) => {
     return apiClient.post<{ status: string; message: string; estimatedTotal: number }>(
       `/api/messaging/sms-templates/${templateId}/send-to-all-sms`,
-      { maxRecipients, productFilter },
+      { maxRecipients, productFilter, extraPhones },
     );
   },
 

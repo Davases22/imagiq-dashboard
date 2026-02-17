@@ -178,10 +178,16 @@ export function WhatsAppTemplateForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="MARKETING">Marketing</SelectItem>
-                <SelectItem value="UTILITY">Utilidad</SelectItem>
+                <SelectItem value="UTILITY">Utilidad (Recomendado)</SelectItem>
                 <SelectItem value="AUTHENTICATION">Autenticación</SelectItem>
               </SelectContent>
             </Select>
+            {templateData.category === "MARKETING" && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5 flex items-start gap-1">
+                <span className="mt-0.5">⚠️</span>
+                <span>Los templates Marketing requieren opt-in del destinatario y pueden no entregarse. Se recomienda usar <strong>Utilidad</strong> para mejor entrega.</span>
+              </p>
+            )}
           </div>
 
           <div>

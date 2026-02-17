@@ -24,9 +24,21 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, MoreHorizontal, Edit, Trash2, MessageSquare, Eye, TrendingUp, Copy, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, MoreHorizontal, Edit, Trash2, MessageSquare, Eye, TrendingUp, Copy, ArrowUp, ArrowDown, Send, Users, Search, Phone, Loader2, Download, CheckCircle2 } from "lucide-react";
 import { WhatsAppTemplate } from "@/types";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -35,6 +47,16 @@ import { whatsappTemplateEndpoints } from "@/lib/api";
 import { mapBackendArrayToFrontend } from "@/lib/whatsappTemplateMapper";
 import { toast } from "sonner";
 import { TemplatePreviewModal } from "@/components/campaigns/whatsapp/template/template-preview-modal";
+import { ProductFilterDropdowns, type ProductFilter } from "@/components/campaigns/product-filter-dropdowns";
+
+interface Recipient {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email?: string;
+}
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -120,6 +142,39 @@ export default function WhatsAppTemplatesPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
 
+  // Send dialog states
+  const [showSendDialog, setShowSendDialog] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<WhatsAppTemplate | null>(null);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [selectedRecipientsMap, setSelectedRecipientsMap] = useState<Map<string, Recipient>>(new Map());
+  const [recipientSearch, setRecipientSearch] = useState("");
+  const [recipientsTotal, setRecipientsTotal] = useState(0);
+  const [isLoadingRecipients, setIsLoadingRecipients] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreRecipients, setHasMoreRecipients] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isSendingToAll, setIsSendingToAll] = useState(false);
+  const [showSendToAllConfirm, setShowSendToAllConfirm] = useState(false);
+  const [sendToAllCount, setSendToAllCount] = useState<"all" | number>("all");
+  const [customSendCount, setCustomSendCount] = useState("");
+  const [productFilter, setProductFilter] = useState<ProductFilter>({});
+  const [extraPhones, setExtraPhones] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("campaign-extra-phones");
+      if (saved) {
+        return saved.split(/[\n,;]+/).map((p) => p.trim().replace(/\D/g, "")).filter((p) => p.length >= 7);
+      }
+    }
+    return [];
+  });
+  const [extraPhonesText, setExtraPhonesText] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("campaign-extra-phones") || "";
+    }
+    return "";
+  });
+  const [showAddPhonesDialog, setShowAddPhonesDialog] = useState(false);
+
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
@@ -198,6 +253,198 @@ export default function WhatsAppTemplatesPage() {
       toast.error("Error al conectar con el servidor");
     }
   };
+
+  // ==================== SEND DIALOG LOGIC ====================
+
+  const RECIPIENTS_PAGE_SIZE = 500;
+
+  const mapUsers = (users: any[]): Recipient[] =>
+    users.map((user: any) => ({
+      id: user.id,
+      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      email: user.email,
+    }));
+
+  const loadRecipients = useCallback(async (search?: string, filter?: ProductFilter) => {
+    setIsLoadingRecipients(true);
+    setRecipients([]);
+    try {
+      let url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=0${search ? `&search=${encodeURIComponent(search)}` : ""}`;
+      if (filter?.categoria) url += `&categoria=${encodeURIComponent(filter.categoria)}`;
+      if (filter?.subcategoria) url += `&subcategoria=${encodeURIComponent(filter.subcategoria)}`;
+      if (filter?.modelo) url += `&modelo=${encodeURIComponent(filter.modelo)}`;
+      const response = await fetch(url, {
+        headers: { "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "" },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const recipientsList = mapUsers(data.users || []);
+        setRecipients(recipientsList);
+        setRecipientsTotal(data.total || recipientsList.length);
+        setHasMoreRecipients(recipientsList.length < (data.total || 0));
+      } else {
+        toast.error("Error al cargar destinatarios");
+      }
+    } catch (error) {
+      console.error("Error loading recipients:", error);
+      toast.error("Error al cargar destinatarios");
+    } finally {
+      setIsLoadingRecipients(false);
+    }
+  }, []);
+
+  const loadMoreRecipients = useCallback(async () => {
+    setIsLoadingMore(true);
+    try {
+      let url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=${recipients.length}${recipientSearch ? `&search=${encodeURIComponent(recipientSearch)}` : ""}`;
+      if (productFilter?.categoria) url += `&categoria=${encodeURIComponent(productFilter.categoria)}`;
+      if (productFilter?.subcategoria) url += `&subcategoria=${encodeURIComponent(productFilter.subcategoria)}`;
+      if (productFilter?.modelo) url += `&modelo=${encodeURIComponent(productFilter.modelo)}`;
+      const response = await fetch(url, {
+        headers: { "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "" },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const newUsers = mapUsers(data.users || []);
+        if (newUsers.length === 0) {
+          setHasMoreRecipients(false);
+        } else {
+          setRecipients((prev) => [...prev, ...newUsers]);
+          setRecipientsTotal(data.total || 0);
+          setHasMoreRecipients(recipients.length + newUsers.length < (data.total || 0));
+        }
+      }
+    } catch (error) {
+      console.error("Error loading more recipients:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [recipients.length, recipientSearch, productFilter]);
+
+  // Infinite scroll
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    const scrollContainer = scrollContainerRef.current;
+    if (!sentinel || !scrollContainer) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreRecipients && !isLoadingMore && !isLoadingRecipients) {
+          loadMoreRecipients();
+        }
+      },
+      { root: scrollContainer, threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreRecipients, isLoadingMore, isLoadingRecipients, loadMoreRecipients]);
+
+  const toggleRecipient = (recipient: Recipient) => {
+    setSelectedRecipientsMap((prev) => {
+      const newMap = new Map(prev);
+      if (newMap.has(recipient.id)) {
+        newMap.delete(recipient.id);
+      } else {
+        newMap.set(recipient.id, recipient);
+      }
+      return newMap;
+    });
+  };
+
+  const selectAllRecipients = () => {
+    setSelectedRecipientsMap((prev) => {
+      const newMap = new Map(prev);
+      recipients.forEach((r) => newMap.set(r.id, r));
+      return newMap;
+    });
+  };
+
+  const deselectAllRecipients = () => {
+    setSelectedRecipientsMap(new Map());
+  };
+
+  const handleOpenSendDialog = (template: WhatsAppTemplate) => {
+    setSelectedTemplate(template);
+    setSelectedRecipientsMap(new Map());
+    setRecipientSearch("");
+    loadRecipients(undefined, productFilter);
+    setShowSendDialog(true);
+  };
+
+  const handleSendToSelected = async () => {
+    if (!selectedTemplate || selectedRecipientsMap.size === 0) return;
+    setIsSending(true);
+    try {
+      const selectedUsers = Array.from(selectedRecipientsMap.values());
+      const recipientsData = selectedUsers.map((r) => {
+        const whatsappPhone = r.phone.startsWith("57") ? r.phone : `57${r.phone.replace(/\D/g, "")}`;
+        return {
+          to: whatsappPhone,
+          variables: r.firstName ? [r.firstName] : [],
+        };
+      });
+      const response = await whatsappTemplateEndpoints.sendTemplateBulk({
+        template_id: selectedTemplate.id,
+        recipients: recipientsData,
+      });
+      if (response.success && response.data) {
+        toast.success(`Envío iniciado para ${recipientsData.length} destinatarios`);
+        setShowSendDialog(false);
+        setSelectedRecipientsMap(new Map());
+      } else {
+        toast.error(response.message || "Error al enviar WhatsApp");
+      }
+    } catch (error) {
+      console.error("Error sending WhatsApp:", error);
+      toast.error("Error al enviar los mensajes");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleSendToAll = async () => {
+    if (!selectedTemplate) return;
+    setIsSendingToAll(true);
+    try {
+      const maxRecipients = sendToAllCount === "all" ? undefined : sendToAllCount;
+      const activeFilter = productFilter?.categoria ? productFilter : undefined;
+      const response = await whatsappTemplateEndpoints.sendToAll(
+        selectedTemplate.id,
+        maxRecipients,
+        activeFilter,
+        extraPhones.length > 0 ? extraPhones : undefined,
+      );
+      if (response.success && response.data) {
+        const { estimatedTotal } = response.data;
+        const extraCount = extraPhones.length;
+        const totalWithExtra = (estimatedTotal || 0) + extraCount;
+        const secs = Math.ceil(totalWithExtra / 10); // ~10 msg/s for WhatsApp (more conservative)
+        const timeStr = secs < 60 ? `${secs}s` : secs < 3600 ? `${Math.ceil(secs / 60)} min` : `${Math.floor(secs / 3600)}h ${Math.ceil((secs % 3600) / 60)}min`;
+        toast.success(
+          `Envío iniciado para ${totalWithExtra.toLocaleString()} destinatarios${extraCount > 0 ? ` (incluye ${extraCount} teléfonos adicionales)` : ""}. Tiempo estimado: ~${timeStr}.`
+        );
+        setShowSendToAllConfirm(false);
+        setShowSendDialog(false);
+        setExtraPhones([]);
+        setExtraPhonesText("");
+        localStorage.removeItem("campaign-extra-phones");
+      } else {
+        toast.error(response.message || "Error al enviar WhatsApp");
+      }
+    } catch (error) {
+      console.error("Error sending WhatsApp to all:", error);
+      toast.error("Error al enviar los mensajes");
+    } finally {
+      setIsSendingToAll(false);
+    }
+  };
+
+  // ==================== TABLE COLUMNS ====================
 
   const columns: ColumnDef<WhatsAppTemplate>[] = [
     {
@@ -362,7 +609,6 @@ export default function WhatsAppTemplatesPage() {
                       <MetricCard
                         label="CTR"
                         value={`${template.metrics.ctr}%`}
-                        change={template.status === 'active' ? Number.parseFloat((Math.random() * 8 - 4).toFixed(1)) : undefined}
                         icon={TrendingUp}
                         compact
                       />
@@ -379,7 +625,6 @@ export default function WhatsAppTemplatesPage() {
                     <MetricCard
                       label="Tasa apertura"
                       value={`${template.metrics.openRate}%`}
-                      change={template.status === 'active' ? Number.parseFloat((Math.random() * 10 - 5).toFixed(1)) : undefined}
                       icon={Eye}
                       compact
                     />
@@ -429,6 +674,12 @@ export default function WhatsAppTemplatesPage() {
                 <Eye className="mr-2 h-4 w-4" />
                 Vista previa
               </DropdownMenuItem>
+              {template.status === "active" && (
+                <DropdownMenuItem onClick={() => handleOpenSendDialog(template)}>
+                  <Send className="mr-2 h-4 w-4" />
+                  Enviar
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -546,7 +797,7 @@ export default function WhatsAppTemplatesPage() {
                   {templates.reduce((acc, t) => acc + t.metrics.sent, 0).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Este mes
+                  Total enviados
                 </p>
               </>
             )}
@@ -572,8 +823,8 @@ export default function WhatsAppTemplatesPage() {
                     : '0.0'
                   }%
                 </div>
-                <p className="text-xs text-green-600">
-                  +2.1% vs mes anterior
+                <p className="text-xs text-muted-foreground">
+                  Basado en mensajes leídos
                 </p>
               </>
             )}
@@ -599,8 +850,8 @@ export default function WhatsAppTemplatesPage() {
                     : '0.0'
                   }%
                 </div>
-                <p className="text-xs text-green-600">
-                  +1.8% vs mes anterior
+                <p className="text-xs text-muted-foreground">
+                  Basado en clics sobre entregados
                 </p>
               </>
             )}
@@ -646,6 +897,387 @@ export default function WhatsAppTemplatesPage() {
         isOpen={isPreviewOpen}
         onClose={handleClosePreview}
       />
+
+      {/* Send Dialog */}
+      <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
+        <DialogContent className="!max-w-3xl h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Enviar WhatsApp
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona los destinatarios para enviar la plantilla &quot;{selectedTemplate?.name}&quot;
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Info del template */}
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+              <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                <MessageSquare className="h-5 w-5 text-green-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground uppercase font-medium">Plantilla</p>
+                <p className="font-medium truncate">{selectedTemplate?.name}</p>
+              </div>
+              {selectedTemplate?.category && getCategoryBadge(selectedTemplate.category)}
+            </div>
+
+            {/* Total de destinatarios + Agregar teléfonos + Enviar a todos */}
+            {recipientsTotal > 0 && (
+              <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                  <Users className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-lg text-green-600">
+                    {(recipientsTotal + extraPhones.length).toLocaleString()} destinatarios
+                    {extraPhones.length > 0 && (
+                      <span className="text-sm font-normal ml-1">
+                        ({recipientsTotal.toLocaleString()} + {extraPhones.length} extra)
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddPhonesDialog(true)}
+                  className="gap-1 border-green-300 text-green-700 hover:bg-green-100 dark:hover:bg-green-900"
+                >
+                  <Plus className="h-4 w-4" />
+                  {extraPhones.length > 0 ? `${extraPhones.length} extra` : "Agregar"}
+                </Button>
+                <Button
+                  onClick={() => setShowSendToAllConfirm(true)}
+                  disabled={isSendingToAll}
+                  className="gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  <Send className="h-4 w-4" />
+                  Enviar a todos
+                </Button>
+              </div>
+            )}
+
+            {/* Filtro de segmentación por producto */}
+            <ProductFilterDropdowns
+              value={productFilter}
+              onChange={(filter) => {
+                setProductFilter(filter);
+                loadRecipients(recipientSearch, filter);
+              }}
+            />
+
+            {/* Buscador y controles */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nombre, email o teléfono..."
+                  value={recipientSearch}
+                  onChange={(e) => setRecipientSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") loadRecipients(recipientSearch, productFilter);
+                  }}
+                  className="pl-9"
+                />
+              </div>
+              <Button variant="outline" size="sm" onClick={() => loadRecipients(recipientSearch, productFilter)} disabled={isLoadingRecipients}>
+                {isLoadingRecipients ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={selectAllRecipients}>Seleccionar cargados</Button>
+              <Button variant="outline" size="sm" onClick={deselectAllRecipients}>Limpiar</Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const csvContent = [
+                    ["Nombre", "Teléfono", "Email"].join(","),
+                    ...recipients.map((r) => [`"${r.name.replace(/"/g, '""')}"`, `"${r.phone}"`, `"${r.email || ""}"`].join(","))
+                  ].join("\n");
+                  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `destinatarios-whatsapp-${new Date().toISOString().split("T")[0]}.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  toast.success(`${recipients.length} contactos exportados a CSV`);
+                }}
+                disabled={recipients.length === 0}
+                className="gap-1"
+              >
+                <Download className="h-4 w-4" />
+                CSV
+              </Button>
+            </div>
+
+            {/* Contador de seleccionados */}
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {selectedRecipientsMap.size} seleccionados · Mostrando {recipients.length} de {recipientsTotal.toLocaleString()} destinatarios
+              </span>
+              {selectedRecipientsMap.size > 0 && (
+                <Badge variant="secondary" className="ml-auto">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  {selectedRecipientsMap.size} seleccionados
+                </Badge>
+              )}
+            </div>
+
+            {/* Lista de destinatarios */}
+            <div ref={scrollContainerRef} className="flex-1 border rounded-lg h-[350px] overflow-y-auto">
+              <div className="p-2 space-y-1">
+                {isLoadingRecipients ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-muted-foreground">Cargando destinatarios...</span>
+                  </div>
+                ) : recipients.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Haz clic en Buscar para cargar destinatarios</p>
+                    <p className="text-xs mt-1">Solo se mostrarán usuarios con número de teléfono</p>
+                  </div>
+                ) : (
+                  <>
+                    {recipients.map((recipient) => (
+                      <div
+                        key={recipient.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                          selectedRecipientsMap.has(recipient.id)
+                            ? "bg-primary/10 border border-primary/20"
+                            : "hover:bg-muted"
+                        }`}
+                        onClick={() => toggleRecipient(recipient)}
+                      >
+                        <Checkbox
+                          checked={selectedRecipientsMap.has(recipient.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          onCheckedChange={() => toggleRecipient(recipient)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium truncate">{recipient.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Phone className="h-3 w-3" />
+                            <span className="truncate">{recipient.phone}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {/* Sentinel para infinite scroll */}
+                    {hasMoreRecipients && (
+                      <div ref={loadMoreSentinelRef} className="flex items-center justify-center py-4">
+                        {isLoadingMore ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            <span className="ml-2 text-xs text-muted-foreground">Cargando más...</span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Scroll para cargar más</span>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => { setShowSendDialog(false); setSelectedRecipientsMap(new Map()); }}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSendToSelected}
+              disabled={isSending || selectedRecipientsMap.size === 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Enviar a {selectedRecipientsMap.size} destinatario(s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de confirmación para enviar a todos */}
+      <Dialog open={showSendToAllConfirm} onOpenChange={(open) => {
+        setShowSendToAllConfirm(open);
+        if (!open) { setSendToAllCount("all"); setCustomSendCount(""); }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <Users className="h-5 w-5" />
+              Enviar WhatsApp masivo
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona cuántos destinatarios quieres alcanzar.
+              El envío se procesará en lotes en el servidor.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Cantidad de destinatarios</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "all" as const, label: `Todos (${recipientsTotal.toLocaleString()})` },
+                  { value: 500, label: "500" },
+                  { value: 1000, label: "1.000" },
+                  { value: 5000, label: "5.000" },
+                ].map((opt) => (
+                  <button
+                    key={String(opt.value)}
+                    type="button"
+                    onClick={() => { setSendToAllCount(opt.value); setCustomSendCount(""); }}
+                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                      sendToAllCount === opt.value
+                        ? "border-green-500 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 font-medium"
+                        : "border-border hover:border-green-300 hover:bg-muted/50"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  placeholder="Cantidad personalizada..."
+                  min={1}
+                  max={recipientsTotal}
+                  value={customSendCount}
+                  onChange={(e) => {
+                    setCustomSendCount(e.target.value);
+                    const num = parseInt(e.target.value, 10);
+                    if (num > 0) setSendToAllCount(num);
+                  }}
+                  onFocus={() => {
+                    if (typeof sendToAllCount !== "number" || [500, 1000, 5000].includes(sendToAllCount)) {
+                      setSendToAllCount(0);
+                    }
+                  }}
+                  className={`flex-1 ${customSendCount ? "border-green-500" : ""}`}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-between text-sm p-3 bg-muted/50 rounded-lg">
+              <span className="text-muted-foreground">Enviar a:</span>
+              <span className="font-bold">
+                {sendToAllCount === "all"
+                  ? `${recipientsTotal.toLocaleString()} destinatarios`
+                  : `${sendToAllCount.toLocaleString()} destinatarios`}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm p-3 bg-muted/50 rounded-lg">
+              <span className="text-muted-foreground">Tiempo estimado:</span>
+              <span className="font-bold">
+                {(() => {
+                  const count = sendToAllCount === "all" ? recipientsTotal : sendToAllCount;
+                  const totalSeg = Math.ceil(count / 10); // ~10 msg/s for WhatsApp
+                  if (totalSeg < 60) return `~${totalSeg} segundos`;
+                  if (totalSeg < 3600) return `~${Math.ceil(totalSeg / 60)} minutos`;
+                  const h = Math.floor(totalSeg / 3600);
+                  const m = Math.ceil((totalSeg % 3600) / 60);
+                  return `~${h}h ${m}min`;
+                })()}
+              </span>
+            </div>
+          </div>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowSendToAllConfirm(false)} disabled={isSendingToAll}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSendToAll}
+              disabled={isSendingToAll || (typeof sendToAllCount === "number" && sendToAllCount <= 0)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSendingToAll ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Iniciando envío...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Confirmar envío a {(sendToAllCount === "all" ? recipientsTotal : sendToAllCount).toLocaleString()}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para agregar teléfonos extra */}
+      <Dialog open={showAddPhonesDialog} onOpenChange={setShowAddPhonesDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <Phone className="h-5 w-5" />
+              Agregar teléfonos adicionales
+            </DialogTitle>
+            <DialogDescription>
+              Escribe los números de teléfono a los que también quieres enviar, uno por línea o separados por comas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Textarea
+              placeholder={"3151234567\n3209876543\n3001112233"}
+              value={extraPhonesText}
+              onChange={(e) => setExtraPhonesText(e.target.value)}
+              rows={6}
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              {(() => {
+                const parsed = extraPhonesText.split(/[\n,;]+/).map((p) => p.trim().replace(/\D/g, "")).filter((p) => p.length >= 7);
+                const unique = [...new Set(parsed)];
+                return `${unique.length} teléfono${unique.length !== 1 ? "s" : ""} válido${unique.length !== 1 ? "s" : ""} detectado${unique.length !== 1 ? "s" : ""}`;
+              })()}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setExtraPhonesText(extraPhones.join("\n")); setShowAddPhonesDialog(false); }}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() => {
+                const parsed = extraPhonesText.split(/[\n,;]+/).map((p) => p.trim().replace(/\D/g, "")).filter((p) => p.length >= 7);
+                const unique = [...new Set(parsed)];
+                setExtraPhones(unique);
+                if (unique.length > 0) {
+                  localStorage.setItem("campaign-extra-phones", unique.join("\n"));
+                } else {
+                  localStorage.removeItem("campaign-extra-phones");
+                }
+                setShowAddPhonesDialog(false);
+                if (unique.length > 0) {
+                  toast.success(`${unique.length} teléfono${unique.length !== 1 ? "s" : ""} adicional${unique.length !== 1 ? "es" : ""} agregado${unique.length !== 1 ? "s" : ""}`);
+                }
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Guardar ({(() => {
+                const parsed = extraPhonesText.split(/[\n,;]+/).map((p) => p.trim().replace(/\D/g, "")).filter((p) => p.length >= 7);
+                return [...new Set(parsed)].length;
+              })()} teléfonos)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

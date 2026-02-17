@@ -230,7 +230,7 @@ export default function CrearPlantillaWhatsAppPage() {
     }>;
   }>({
     name: "",
-    category: "MARKETING",
+    category: "UTILITY",
     language: "es",
     header: {
       type: "NONE",
@@ -406,6 +406,10 @@ export default function CrearPlantillaWhatsAppPage() {
       }
       if (templateData.name.length < 3 || templateData.name.length > 512) {
         toast.error("El nombre debe tener entre 3 y 512 caracteres");
+        return false;
+      }
+      if (templateData.header?.type === "TEXT" && (!templateData.header?.content || templateData.header.content.trim().length === 0)) {
+        toast.error("El texto del encabezado es requerido cuando el tipo es Texto");
         return false;
       }
       if (!templateData.body || templateData.body.trim().length === 0) {
@@ -587,26 +591,26 @@ export default function CrearPlantillaWhatsAppPage() {
 
   const createExampleTemplate = () => {
     setTemplateData({
-      name: "promo_descuento_exclusivo",
-      category: "MARKETING",
+      name: "actualizacion_disponibilidad",
+      category: "UTILITY",
       language: "es",
       header: {
         type: "TEXT",
-        content: "Oferta Exclusiva Samsung",
+        content: "Actualización de disponibilidad",
       },
-      body: "Hola {{1}}, en imagiq tenemos una promoción especial solo para ti. Obtén hasta 25% de descuento en toda la línea Galaxy S25 de Samsung. Esta oferta es válida por tiempo limitado. No dejes pasar esta oportunidad única de renovar tu tecnología con los mejores precios del mercado.",
+      body: "Hola {{1}}, te informamos que la línea Samsung Galaxy S25 ya se encuentra disponible en nuestra tienda imagiq. Puedes consultar especificaciones, colores y precios actualizados directamente en nuestro sitio web. Si tienes alguna consulta, estamos para ayudarte.",
       footer: "imagiq - Samsung Store Oficial",
       buttons: [
         {
           id: 1,
           type: "URL",
-          text: "Ver Ofertas",
-          url: "https://www.imagiq.com/ofertas"
+          text: "Ver detalles",
+          url: "https://www.imagiq.com/productos"
         },
         {
           id: 2,
           type: "QUICK_REPLY",
-          text: "Me interesa"
+          text: "Tengo una consulta"
         }
       ],
     });
@@ -616,20 +620,20 @@ export default function CrearPlantillaWhatsAppPage() {
 
   const createImageExample = () => {
     setTemplateData({
-      name: "lanzamiento_producto_samsung",
-      category: "MARKETING",
+      name: "nuevo_producto_disponible",
+      category: "UTILITY",
       language: "es",
       header: {
         type: "IMAGE",
         content: "https://res.cloudinary.com/dbqgbemui/image/upload/v1761873777/Samsung_Store_deken7.png",
       },
-      body: "Hola {{1}}, te presentamos el nuevo Samsung Galaxy Z Fold 6 ya disponible en imagiq. Precio de lanzamiento desde $5.999.000 COP con envío gratis a toda Colombia. Además, por ser cliente preferido tienes un 10% de descuento adicional. Cantidad limitada, aprovecha antes de que se agoten.",
-      footer: "Aplican términos y condiciones - imagiq",
+      body: "Hola {{1}}, te informamos que el Samsung Galaxy Z Fold 6 ya está disponible en imagiq. Precio desde $5.999.000 COP con envío a toda Colombia. Consulta colores, capacidades y detalles técnicos en nuestra tienda. Para cualquier duda sobre este producto, estamos disponibles.",
+      footer: "imagiq - Samsung Store Oficial",
       buttons: [
         {
           id: 1,
           type: "URL",
-          text: "Comprar Ahora",
+          text: "Ver producto",
           url: "https://www.imagiq.com/productos"
         }
       ],
@@ -640,25 +644,25 @@ export default function CrearPlantillaWhatsAppPage() {
 
   const createLocationExample = () => {
     setTemplateData({
-      name: "evento_tienda_imagiq",
-      category: "MARKETING",
+      name: "informacion_tienda_fisica",
+      category: "UTILITY",
       language: "es",
       header: {
         type: "LOCATION",
         content: "",
       },
-      body: "Hola {{1}}, te invitamos al evento exclusivo de Samsung en nuestra tienda imagiq. Tendremos demostraciones en vivo de los últimos Galaxy, regalos sorpresa y descuentos de hasta el 40% en productos seleccionados. Cupos limitados, confirma tu asistencia ahora y no te lo pierdas.",
-      footer: "imagiq - Experiencia Samsung",
+      body: "Hola {{1}}, te compartimos la ubicación de nuestra tienda imagiq Samsung Store. Nuestro horario de atención es de lunes a sábado de 9:00 AM a 7:00 PM. Puedes visitarnos para conocer los productos disponibles o agendar una cita personalizada con uno de nuestros asesores.",
+      footer: "imagiq - Samsung Store Oficial",
       buttons: [
         {
           id: 1,
           type: "QUICK_REPLY",
-          text: "Confirmar asistencia"
+          text: "Agendar cita"
         },
         {
           id: 2,
           type: "PHONE_NUMBER",
-          text: "Más información",
+          text: "Llamar a la tienda",
           phoneNumber: "+57 601 234 5678"
         }
       ],
@@ -669,26 +673,26 @@ export default function CrearPlantillaWhatsAppPage() {
 
   const createDocumentExample = () => {
     setTemplateData({
-      name: "catalogo_samsung_temporada",
-      category: "MARKETING",
+      name: "catalogo_productos_samsung",
+      category: "UTILITY",
       language: "es",
       header: {
         type: "DOCUMENT",
         content: "https://www.imagiq.com/catalogos/samsung-2025.pdf",
       },
-      body: "Hola {{1}}, te compartimos nuestro catálogo de temporada con los mejores productos Samsung disponibles en imagiq. Encuentra ofertas de hasta 30% de descuento en televisores, celulares y electrodomésticos. Descarga el catálogo adjunto y descubre todas las promociones que tenemos para ti.",
-      footer: "imagiq - Tu tienda Samsung autorizada",
+      body: "Hola {{1}}, te compartimos el catálogo actualizado de productos Samsung disponibles en imagiq. Incluye especificaciones técnicas, precios y disponibilidad de celulares, televisores y accesorios. Si necesitas asesoría para elegir el producto adecuado, responde este mensaje.",
+      footer: "imagiq - Samsung Store Oficial",
       buttons: [
         {
           id: 1,
           type: "URL",
-          text: "Ver Tienda Online",
+          text: "Ver catálogo web",
           url: "https://www.imagiq.com/catalogo"
         },
         {
           id: 2,
           type: "QUICK_REPLY",
-          text: "Quiero más info"
+          text: "Necesito asesoría"
         }
       ],
     });
@@ -698,26 +702,26 @@ export default function CrearPlantillaWhatsAppPage() {
 
   const createVideoExample = () => {
     setTemplateData({
-      name: "review_galaxy_s25_ultra",
-      category: "MARKETING",
+      name: "resena_galaxy_s25_ultra",
+      category: "UTILITY",
       language: "es",
       header: {
         type: "VIDEO",
         content: "https://www.imagiq.com/videos/galaxy-s25-review.mp4",
       },
-      body: "Hola {{1}}, mira este video exclusivo del nuevo Samsung Galaxy S25 Ultra disponible en imagiq. Cámara de 200MP, IA Galaxy integrada y batería de 5000mAh. Precio de lanzamiento con 15% de descuento solo por esta semana. Stock limitado, no te quedes sin el tuyo.",
+      body: "Hola {{1}}, te compartimos la reseña del Samsung Galaxy S25 Ultra disponible en imagiq. En el video encontrarás detalles sobre su cámara de 200MP, Galaxy AI y batería de 5000mAh. Si deseas conocer precios o disponibilidad, puedes consultarnos directamente por este medio.",
       footer: "imagiq - Samsung Store Oficial",
       buttons: [
         {
           id: 1,
           type: "URL",
-          text: "Comprar Ahora",
+          text: "Ver especificaciones",
           url: "https://www.imagiq.com/productos/galaxy-s25-ultra"
         },
         {
           id: 2,
           type: "QUICK_REPLY",
-          text: "Me interesa"
+          text: "Consultar precio"
         }
       ],
     });
@@ -725,99 +729,86 @@ export default function CrearPlantillaWhatsAppPage() {
     toast.success("Ejemplo de video cargado");
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSaveTemplate = async () => {
-    const saved = await saveTemplateToMeta();
-    if (saved) {
-      router.push("/marketing/campaigns/templates/whatsapp");
+    setIsSaving(true);
+    try {
+      const saved = await saveTemplateToMeta();
+      if (saved) {
+        router.push("/marketing/campaigns/templates/whatsapp");
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Header - Fixed */}
-      <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b">
-        <div className="flex items-center gap-4">
-          <Link href="/marketing/campaigns/crear">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver
+      <div className="flex-shrink-0 border-b">
+        <div className="flex items-center justify-between px-6 py-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link href="/marketing/campaigns/crear">
+              <Button variant="ghost" size="sm" className="flex-shrink-0">
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Volver
+              </Button>
+            </Link>
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold tracking-tight whitespace-nowrap">Crear Plantilla de WhatsApp</h1>
+              <p className="text-xs text-muted-foreground">
+                Diseña una plantilla de mensaje que podrás usar en tus campañas
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex gap-1 border rounded-lg p-0.5">
+              <Button
+                variant={selectedOS === 'ios' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setSelectedOS('ios')}
+                className="text-xs h-7 px-2"
+              >
+                <Apple className="h-3 w-3 mr-1" />
+                iOS
+              </Button>
+              <Button
+                variant={selectedOS === 'android' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setSelectedOS('android')}
+                className="text-xs h-7 px-2"
+              >
+                <Smartphone className="h-3 w-3 mr-1" />
+                Android
+              </Button>
+            </div>
+            <Button size="sm" onClick={handleSaveTemplate} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              {isSaving ? "Guardando..." : "Guardar Plantilla"}
             </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Crear Plantilla de WhatsApp</h1>
-            <p className="text-sm text-muted-foreground">
-              Diseña una plantilla de mensaje que podrás usar en tus campañas
-            </p>
+            <Button size="sm" onClick={handleOpenSendDialog} disabled={isSavingForSend} className="bg-green-600 hover:bg-green-700">
+              {isSavingForSend ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              Enviar
+            </Button>
           </div>
         </div>
-        <div className="flex gap-2">
-          <div className="flex gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={createExampleTemplate}
-              className="text-xs"
-            >
-              Ejemplo Texto
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={createImageExample}
-              className="text-xs"
-            >
-              Ejemplo Imagen
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={createLocationExample}
-              className="text-xs"
-            >
-              Ejemplo Ubicación
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={createDocumentExample}
-              className="text-xs"
-            >
-              Ejemplo Documento
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={createVideoExample}
-              className="text-xs"
-            >
-              Ejemplo Video
-            </Button>
-          </div>
-          <Button
-            variant={selectedOS === 'ios' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setSelectedOS('ios')}
-            className="text-xs flex items-center gap-1"
-          >
-            <Apple className="h-3 w-3" />
-            iOS
+        <div className="flex items-center gap-1 px-6 pb-2">
+          <span className="text-xs text-muted-foreground mr-1">Ejemplos:</span>
+          <Button variant="outline" size="sm" onClick={createExampleTemplate} className="text-xs h-7 px-2">
+            Texto
           </Button>
-          <Button
-            variant={selectedOS === 'android' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setSelectedOS('android')}
-            className="text-xs flex items-center gap-1"
-          >
-            <Smartphone className="h-3 w-3" />
-            Android
+          <Button variant="outline" size="sm" onClick={createImageExample} className="text-xs h-7 px-2">
+            Imagen
           </Button>
-          <Button size="sm" onClick={handleSaveTemplate}>
-            <Save className="h-4 w-4 mr-2" />
-            Guardar Plantilla
+          <Button variant="outline" size="sm" onClick={createLocationExample} className="text-xs h-7 px-2">
+            Ubicación
           </Button>
-          <Button size="sm" onClick={handleOpenSendDialog} disabled={isSavingForSend} className="bg-green-600 hover:bg-green-700">
-            {isSavingForSend ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-            Enviar
+          <Button variant="outline" size="sm" onClick={createDocumentExample} className="text-xs h-7 px-2">
+            Documento
+          </Button>
+          <Button variant="outline" size="sm" onClick={createVideoExample} className="text-xs h-7 px-2">
+            Video
           </Button>
         </div>
       </div>
