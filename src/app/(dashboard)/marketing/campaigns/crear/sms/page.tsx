@@ -44,6 +44,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { smsTemplateEndpoints, SmsTemplate } from "@/lib/api";
+import { ProductFilterDropdowns, type ProductFilter } from "@/components/campaigns/product-filter-dropdowns";
 
 // GSM-7 basic character set
 const GSM7_BASIC = new Set(
@@ -197,6 +198,7 @@ export default function CrearSmsTemplatePage() {
   const [isSendingToAll, setIsSendingToAll] = useState(false);
   const [sendToAllCount, setSendToAllCount] = useState<"all" | number>("all");
   const [customSendCount, setCustomSendCount] = useState("");
+  const [productFilter, setProductFilter] = useState<ProductFilter>({});
   // Track saved state for unsaved changes detection
   const [savedState, setSavedState] = useState<{ name: string; message: string; category: string } | null>(null);
   const hasUnsavedChanges = isEditing && savedState !== null && (
@@ -362,13 +364,15 @@ export default function CrearSmsTemplatePage() {
     }));
 
   // Cargar destinatarios desde la API (combina local + Novafol/VirtualMedios)
-  const loadRecipients = useCallback(async (search?: string) => {
+  const loadRecipients = useCallback(async (search?: string, filter?: ProductFilter) => {
     setIsLoadingRecipients(true);
     setRecipients([]);
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=0${search ? `&search=${encodeURIComponent(search)}` : ""}`,
-        {
+      let url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=0${search ? `&search=${encodeURIComponent(search)}` : ""}`;
+      if (filter?.categoria) url += `&categoria=${encodeURIComponent(filter.categoria)}`;
+      if (filter?.subcategoria) url += `&subcategoria=${encodeURIComponent(filter.subcategoria)}`;
+      if (filter?.modelo) url += `&modelo=${encodeURIComponent(filter.modelo)}`;
+      const response = await fetch(url, {
           headers: {
             "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "",
           },
@@ -399,9 +403,11 @@ export default function CrearSmsTemplatePage() {
   const loadMoreRecipients = useCallback(async () => {
     setIsLoadingMore(true);
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=${recipients.length}${recipientSearch ? `&search=${encodeURIComponent(recipientSearch)}` : ""}`,
-        {
+      let url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/sms-recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=${recipients.length}${recipientSearch ? `&search=${encodeURIComponent(recipientSearch)}` : ""}`;
+      if (productFilter?.categoria) url += `&categoria=${encodeURIComponent(productFilter.categoria)}`;
+      if (productFilter?.subcategoria) url += `&subcategoria=${encodeURIComponent(productFilter.subcategoria)}`;
+      if (productFilter?.modelo) url += `&modelo=${encodeURIComponent(productFilter.modelo)}`;
+      const response = await fetch(url, {
           headers: {
             "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "",
           },
@@ -420,7 +426,7 @@ export default function CrearSmsTemplatePage() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [recipients.length, recipientSearch]);
+  }, [recipients.length, recipientSearch, productFilter]);
 
   // Infinite scroll: auto-load more when sentinel is visible
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -624,7 +630,8 @@ export default function CrearSmsTemplatePage() {
       }
 
       const maxRecipients = sendToAllCount === "all" ? undefined : sendToAllCount;
-      const response = await smsTemplateEndpoints.sendToAll(templateId, maxRecipients);
+      const activeFilter = productFilter?.categoria ? productFilter : undefined;
+      const response = await smsTemplateEndpoints.sendToAll(templateId, maxRecipients, activeFilter);
 
       if (response.success && response.data) {
         const { estimatedTotal } = response.data;
@@ -707,7 +714,7 @@ export default function CrearSmsTemplatePage() {
                 if (hasUnsavedChanges) {
                   setShowUnsavedWarning(true);
                 } else {
-                  loadRecipients();
+                  loadRecipients(undefined, productFilter);
                   setShowSendDialog(true);
                 }
               }}
@@ -1178,7 +1185,7 @@ export default function CrearSmsTemplatePage() {
               variant="outline"
               onClick={() => {
                 setShowUnsavedWarning(false);
-                loadRecipients();
+                loadRecipients(undefined, productFilter);
                 setShowSendDialog(true);
               }}
             >
@@ -1190,7 +1197,7 @@ export default function CrearSmsTemplatePage() {
                 const saved = await handleSave();
                 if (saved) {
                   setShowUnsavedWarning(false);
-                  loadRecipients();
+                  loadRecipients(undefined, productFilter);
                   setShowSendDialog(true);
                 }
               }}
@@ -1257,6 +1264,15 @@ export default function CrearSmsTemplatePage() {
               </div>
             )}
 
+            {/* Filtro de segmentación por producto */}
+            <ProductFilterDropdowns
+              value={productFilter}
+              onChange={(filter) => {
+                setProductFilter(filter);
+                loadRecipients(recipientSearch, filter);
+              }}
+            />
+
             {/* Buscador y controles */}
             <div className="flex items-center gap-2 flex-wrap">
               <div className="relative flex-1 min-w-[200px]">
@@ -1267,7 +1283,7 @@ export default function CrearSmsTemplatePage() {
                   onChange={(e) => setRecipientSearch(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      loadRecipients(recipientSearch);
+                      loadRecipients(recipientSearch, productFilter);
                     }
                   }}
                   className="pl-9"
@@ -1276,7 +1292,7 @@ export default function CrearSmsTemplatePage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => loadRecipients(recipientSearch)}
+                onClick={() => loadRecipients(recipientSearch, productFilter)}
                 disabled={isLoadingRecipients}
               >
                 {isLoadingRecipients ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}

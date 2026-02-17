@@ -27,7 +27,10 @@ import {
   Users,
   Search,
   CheckCircle2,
+  Plus,
+  Mail,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { EmailTemplate, stripoEndpoints } from "@/lib/api";
@@ -35,6 +38,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import type { EditorRef, EmailEditorProps } from "react-email-editor";
 import { predefinedUnlayerTemplates } from "./templates";
+import { ProductFilterDropdowns, type ProductFilter } from "@/components/campaigns/product-filter-dropdowns";
 
 const PREDEFINED_IDS = new Set(predefinedUnlayerTemplates.map((t) => t.id));
 
@@ -92,6 +96,26 @@ export function UnlayerEmailEditor({
   const [isSendingToAll, setIsSendingToAll] = useState(false);
   const [sendToAllCount, setSendToAllCount] = useState<"all" | number>("all");
   const [customSendCount, setCustomSendCount] = useState("");
+  const [productFilter, setProductFilter] = useState<ProductFilter>({});
+  const [showAddEmailsDialog, setShowAddEmailsDialog] = useState(false);
+  const [extraEmailsText, setExtraEmailsText] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("campaign-extra-emails") || "";
+    }
+    return "";
+  });
+  const [extraEmails, setExtraEmails] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("campaign-extra-emails");
+      if (saved) {
+        return saved
+          .split(/[\n,;]+/)
+          .map((e) => e.trim().toLowerCase())
+          .filter((e) => e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+      }
+    }
+    return [];
+  });
 
   // Ref to hold pending template data to load once editor is ready
   const pendingDesignRef = useRef<any>(null);
@@ -139,13 +163,15 @@ export function UnlayerEmailEditor({
     }));
 
   // Cargar destinatarios desde la base de datos
-  const loadRecipients = useCallback(async (search?: string) => {
+  const loadRecipients = useCallback(async (search?: string, filter?: ProductFilter) => {
     setIsLoadingRecipients(true);
     setRecipients([]);
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=0${search ? `&search=${encodeURIComponent(search)}` : ""}`,
-        {
+      let url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=0${search ? `&search=${encodeURIComponent(search)}` : ""}`;
+      if (filter?.categoria) url += `&categoria=${encodeURIComponent(filter.categoria)}`;
+      if (filter?.subcategoria) url += `&subcategoria=${encodeURIComponent(filter.subcategoria)}`;
+      if (filter?.modelo) url += `&modelo=${encodeURIComponent(filter.modelo)}`;
+      const response = await fetch(url, {
           headers: {
             "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "",
           },
@@ -173,9 +199,11 @@ export function UnlayerEmailEditor({
   const loadMoreRecipients = useCallback(async () => {
     setIsLoadingMore(true);
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=${recipients.length}${recipientSearch ? `&search=${encodeURIComponent(recipientSearch)}` : ""}`,
-        {
+      let url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/users/campaigns/recipients?limit=${RECIPIENTS_PAGE_SIZE}&offset=${recipients.length}${recipientSearch ? `&search=${encodeURIComponent(recipientSearch)}` : ""}`;
+      if (productFilter?.categoria) url += `&categoria=${encodeURIComponent(productFilter.categoria)}`;
+      if (productFilter?.subcategoria) url += `&subcategoria=${encodeURIComponent(productFilter.subcategoria)}`;
+      if (productFilter?.modelo) url += `&modelo=${encodeURIComponent(productFilter.modelo)}`;
+      const response = await fetch(url, {
           headers: {
             "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "",
           },
@@ -192,7 +220,7 @@ export function UnlayerEmailEditor({
     } finally {
       setIsLoadingMore(false);
     }
-  }, [recipients.length, recipientSearch]);
+  }, [recipients.length, recipientSearch, productFilter]);
 
   // Infinite scroll
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -357,18 +385,23 @@ export function UnlayerEmailEditor({
     try {
       const { html } = await exportHtmlAsync();
       const maxRecipients = sendToAllCount === "all" ? undefined : sendToAllCount;
-      const response = await stripoEndpoints.sendToAll(emailSubject, html, maxRecipients);
+      const activeFilter = productFilter?.categoria ? productFilter : undefined;
+      const response = await stripoEndpoints.sendToAll(emailSubject, html, maxRecipients, activeFilter, extraEmails.length > 0 ? extraEmails : undefined);
 
       if (response.success && response.data) {
         const { estimatedTotal } = response.data;
-        const secs = Math.ceil((estimatedTotal || 0) / 12);
+        const extraCount = extraEmails.length;
+        const totalWithExtra = (estimatedTotal || 0) + extraCount;
+        const secs = Math.ceil(totalWithExtra / 12);
         const timeStr = secs < 60 ? `${secs}s` : secs < 3600 ? `${Math.ceil(secs / 60)} min` : `${Math.floor(secs / 3600)}h ${Math.ceil((secs % 3600) / 60)}min`;
         toast.success(
-          `Envío iniciado para ${estimatedTotal?.toLocaleString()} destinatarios. Tiempo estimado: ~${timeStr}. El servidor procesará el envío en segundo plano.`
+          `Envío iniciado para ${totalWithExtra.toLocaleString()} destinatarios${extraCount > 0 ? ` (incluye ${extraCount} correos adicionales)` : ""}. Tiempo estimado: ~${timeStr}.`
         );
         setShowSendToAllConfirm(false);
         setShowSendDialog(false);
         setEmailSubject("");
+        setExtraEmails([]);
+        setExtraEmailsText("");
       } else {
         toast.error(response.message || "Error al iniciar el envío de emails");
       }
@@ -640,7 +673,7 @@ export function UnlayerEmailEditor({
               if (!emailSubject.trim() && templateSubject.trim()) {
                 setEmailSubject(templateSubject);
               }
-              loadRecipients();
+              loadRecipients(undefined, productFilter);
               setShowSendDialog(true);
             }}
             disabled={!editorReady || isLoading || isSaving}
@@ -1007,15 +1040,48 @@ export function UnlayerEmailEditor({
               )}
             </div>
 
-            {/* Total de destinatarios + Enviar a todos */}
+            {/* Asunto del email (obligatorio) */}
+            <div className="space-y-1.5">
+              <Label htmlFor="email-subject" className="text-sm font-medium">
+                Asunto del Email <span className="text-green-600">*</span>
+              </Label>
+              <Input
+                id="email-subject"
+                placeholder="Ej: ¡Oferta especial para ti!"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                className={!emailSubject.trim() ? "border-green-300 focus-visible:ring-green-400" : "border-green-200 focus-visible:ring-green-400"}
+              />
+              {!emailSubject.trim() && (
+                <p className="text-xs text-green-600">El asunto es obligatorio para enviar emails</p>
+              )}
+            </div>
+
+            {/* Total de destinatarios + Agregar emails + Enviar a todos */}
             {recipientsTotal > 0 && (
               <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
                 <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
                   <Users className="h-5 w-5 text-green-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-lg text-green-600">{recipientsTotal.toLocaleString()} destinatarios</p>
+                  <p className="font-bold text-lg text-green-600">
+                    {(recipientsTotal + extraEmails.length).toLocaleString()} destinatarios
+                    {extraEmails.length > 0 && (
+                      <span className="text-sm font-normal ml-1">
+                        ({recipientsTotal.toLocaleString()} + {extraEmails.length} extra)
+                      </span>
+                    )}
+                  </p>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddEmailsDialog(true)}
+                  className="gap-1 border-green-300 text-green-700 hover:bg-green-100 dark:hover:bg-green-900"
+                >
+                  <Plus className="h-4 w-4" />
+                  {extraEmails.length > 0 ? `${extraEmails.length} extra` : "Agregar"}
+                </Button>
                 <Button
                   onClick={() => setShowSendToAllConfirm(true)}
                   disabled={isSendingToAll || !emailSubject.trim()}
@@ -1027,16 +1093,14 @@ export function UnlayerEmailEditor({
               </div>
             )}
 
-            {/* Asunto del email */}
-            <div className="space-y-2">
-              <Label htmlFor="email-subject">Asunto del Email *</Label>
-              <Input
-                id="email-subject"
-                placeholder="Ej: ¡Oferta especial para ti!"
-                value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
-              />
-            </div>
+            {/* Filtro de segmentación por producto */}
+            <ProductFilterDropdowns
+              value={productFilter}
+              onChange={(filter) => {
+                setProductFilter(filter);
+                loadRecipients(recipientSearch, filter);
+              }}
+            />
 
             {/* Buscador y controles */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -1048,7 +1112,7 @@ export function UnlayerEmailEditor({
                   onChange={(e) => setRecipientSearch(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      loadRecipients(recipientSearch);
+                      loadRecipients(recipientSearch, productFilter);
                     }
                   }}
                   className="pl-9"
@@ -1057,7 +1121,7 @@ export function UnlayerEmailEditor({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => loadRecipients(recipientSearch)}
+                onClick={() => loadRecipients(recipientSearch, productFilter)}
                 disabled={isLoadingRecipients}
               >
                 {isLoadingRecipients ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
@@ -1174,6 +1238,8 @@ export function UnlayerEmailEditor({
                 setShowSendDialog(false);
                 setSelectedRecipients(new Set());
                 setEmailSubject("");
+                setExtraEmails([]);
+                setExtraEmailsText("");
               }}
             >
               Cancelar
@@ -1306,6 +1372,81 @@ export function UnlayerEmailEditor({
                   Confirmar envío a {(sendToAllCount === "all" ? recipientsTotal : sendToAllCount).toLocaleString()}
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para agregar correos extra */}
+      <Dialog open={showAddEmailsDialog} onOpenChange={setShowAddEmailsDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <Mail className="h-5 w-5" />
+              Agregar correos adicionales
+            </DialogTitle>
+            <DialogDescription>
+              Escribe los correos electrónicos a los que también quieres enviar, uno por línea o separados por comas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Textarea
+              placeholder={"correo1@ejemplo.com\ncorreo2@ejemplo.com\ncorreo3@ejemplo.com"}
+              value={extraEmailsText}
+              onChange={(e) => setExtraEmailsText(e.target.value)}
+              rows={6}
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              {(() => {
+                const parsed = extraEmailsText
+                  .split(/[\n,;]+/)
+                  .map((e) => e.trim().toLowerCase())
+                  .filter((e) => e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+                const unique = [...new Set(parsed)];
+                return `${unique.length} correo${unique.length !== 1 ? "s" : ""} válido${unique.length !== 1 ? "s" : ""} detectado${unique.length !== 1 ? "s" : ""}`;
+              })()}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setExtraEmailsText(extraEmails.join("\n"));
+                setShowAddEmailsDialog(false);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() => {
+                const parsed = extraEmailsText
+                  .split(/[\n,;]+/)
+                  .map((e) => e.trim().toLowerCase())
+                  .filter((e) => e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+                const unique = [...new Set(parsed)];
+                setExtraEmails(unique);
+                // Guardar en localStorage para persistir entre sesiones
+                if (unique.length > 0) {
+                  localStorage.setItem("campaign-extra-emails", unique.join("\n"));
+                } else {
+                  localStorage.removeItem("campaign-extra-emails");
+                }
+                setShowAddEmailsDialog(false);
+                if (unique.length > 0) {
+                  toast.success(`${unique.length} correo${unique.length !== 1 ? "s" : ""} adicional${unique.length !== 1 ? "es" : ""} agregado${unique.length !== 1 ? "s" : ""}`);
+                }
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Guardar ({(() => {
+                const parsed = extraEmailsText
+                  .split(/[\n,;]+/)
+                  .map((e) => e.trim().toLowerCase())
+                  .filter((e) => e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+                return [...new Set(parsed)].length;
+              })()} correos)
             </Button>
           </DialogFooter>
         </DialogContent>
