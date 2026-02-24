@@ -2048,6 +2048,11 @@ export const pageEndpoints = {
       formData.append("form_success_config", JSON.stringify(data.page.form_success_config));
     }
 
+    // 3.7. Agregar livestream_config si existe (para livestream pages)
+    if (data.page.livestream_config) {
+      formData.append("livestream_config", JSON.stringify(data.page.livestream_config));
+    }
+
     // 4. Agregar new_faqs como JSON string
     formData.append("new_faqs", JSON.stringify(data.new_faqs));
 

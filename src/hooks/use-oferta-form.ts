@@ -3,10 +3,24 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ContentBlock } from "@/types/banner"
 import { pageEndpoints, productCardEndpoints } from "@/lib/api"
-import type { CreateCompletePageRequest, NewBanner, PageFAQ, BannerFiles as ApiBannerFiles, ProductSection, ProductSectionDTO, InfoSection, PageExpanded, BannerUpdate } from "@/types/page"
+import type { CreateCompletePageRequest, NewBanner, PageFAQ, BannerFiles as ApiBannerFiles, ProductSection, ProductSectionDTO, InfoSection, PageExpanded, BannerUpdate, LivestreamConfig } from "@/types/page"
 import type { ProductCard } from "@/types/product-card"
 import { useAuth } from "@/contexts/AuthContext"
 import { useProductCardsContext } from "@/contexts/ProductCardsContext"
+
+const DEFAULT_LIVESTREAM_CONFIG: LivestreamConfig = {
+  primary_video_id: "",
+  scheduled_start: "",
+  enable_chat: true,
+  enable_countdown: true,
+  enable_live_badge: true,
+  enable_replay: true,
+  autoplay: true,
+  failover_enabled: true,
+  failover_message: "Cambiando transmision...",
+  chat_position: "right",
+  enable_pip: true,
+}
 
 interface BannerData {
   id: string
@@ -102,6 +116,10 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
   // Estados de FAQ
   const [faqEnabled, setFaqEnabled] = useState(false)
   const [faqItems, setFaqItems] = useState<FaqItem[]>([])
+
+  // Estados de livestream
+  const [livestreamEnabled, setLivestreamEnabled] = useState(false)
+  const [livestreamConfig, setLivestreamConfig] = useState<LivestreamConfig>(DEFAULT_LIVESTREAM_CONFIG)
 
   const activeBanner = banners.find((b) => b.id === activeBannerId)
 
@@ -328,6 +346,12 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
           })
         }
 
+        // Cargar livestream config si existe
+        if (pageData.livestream_config) {
+          setLivestreamEnabled(true)
+          setLivestreamConfig(pageData.livestream_config as LivestreamConfig)
+        }
+
         // Cargar FAQs si existen
         if (pageData.faqs && pageData.faqs.length > 0) {
           setFaqEnabled(true)
@@ -497,6 +521,8 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
         category: "Ofertas",
         is_public: true,
         is_active: isActive,
+        page_type: livestreamEnabled ? 'livestream' : undefined,
+        livestream_config: livestreamEnabled ? livestreamConfig : undefined,
       }
 
       if (includeSectionsInCreate) {
@@ -714,6 +740,12 @@ export function useOfertaForm(options: UseOfertaFormOptions = {}) {
     setFaqEnabled,
     faqItems,
     setFaqItems,
+
+    // Estados de livestream
+    livestreamEnabled,
+    setLivestreamEnabled,
+    livestreamConfig,
+    setLivestreamConfig,
 
     // Handlers
     handleOfertaFieldChange,
