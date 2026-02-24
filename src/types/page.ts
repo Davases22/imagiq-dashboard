@@ -6,6 +6,25 @@ import type { BackendBanner } from "./banner";
 import type { ProductCard } from "./product-card";
 import type { FormConfig, FormLayout, FormSuccessConfig } from "./form-page";
 
+export interface LivestreamConfig {
+  primary_video_id: string;
+  backup_video_id?: string;
+  scheduled_start: string;
+  scheduled_end?: string;
+  enable_chat: boolean;
+  enable_countdown: boolean;
+  enable_live_badge: boolean;
+  enable_replay: boolean;
+  autoplay: boolean;
+  countdown_title?: string;
+  countdown_subtitle?: string;
+  thumbnail_url?: string;
+  failover_enabled: boolean;
+  failover_message?: string;
+  chat_position: 'right' | 'below';
+  enable_pip: boolean;
+}
+
 // Estado de la página
 export type PageStatus = "draft" | "published" | "scheduled" | "archived";
 
@@ -147,6 +166,7 @@ export interface Page {
   form_config?: FormConfig | null;
   form_layout?: FormLayout | null;
   form_success_config?: FormSuccessConfig | null;
+  livestream_config?: LivestreamConfig | null;
 }
 
 // Página expandida con relaciones
@@ -197,6 +217,7 @@ export interface CreateCompletePageRequest {
     form_config?: FormConfig;
     form_layout?: FormLayout;
     form_success_config?: FormSuccessConfig;
+    livestream_config?: LivestreamConfig;
   };
   new_banners: NewBanner[];
   existing_banner_ids: string[];

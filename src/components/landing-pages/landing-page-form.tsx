@@ -12,6 +12,7 @@ import {
   OfertaBannersManager,
   OfertaSectionsManager,
   OfertaFaqSection,
+  OfertaLivestreamConfig,
 } from "@/components/ofertas"
 import { useOfertaForm } from "@/hooks/use-oferta-form"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -69,6 +70,10 @@ function LandingPageFormComponent({ pageId, mode, onCancel }: LandingPageFormPro
     setFaqEnabled,
     faqItems,
     setFaqItems,
+    livestreamEnabled,
+    setLivestreamEnabled,
+    livestreamConfig,
+    setLivestreamConfig,
     handleOfertaFieldChange,
     handleBannersChange,
     handleSubmit,
@@ -261,6 +266,41 @@ function LandingPageFormComponent({ pageId, mode, onCancel }: LandingPageFormPro
             onItemsChange={setFaqItems}
           />
 
+          {/* Transmision en Vivo */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Transmision en Vivo</CardTitle>
+              <CardDescription>
+                Configura un YouTube Live para esta pagina
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="livestreamEnabled">Activar Live Stream</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Embed de YouTube Live con chat y countdown
+                  </p>
+                </div>
+                <Switch
+                  id="livestreamEnabled"
+                  checked={livestreamEnabled}
+                  onCheckedChange={setLivestreamEnabled}
+                />
+              </div>
+
+              {livestreamEnabled && (
+                <>
+                  <Separator />
+                  <OfertaLivestreamConfig
+                    config={livestreamConfig}
+                    onConfigChange={setLivestreamConfig}
+                  />
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Estado */}
           <Card>
             <CardHeader>
@@ -323,6 +363,8 @@ function LandingPageFormComponent({ pageId, mode, onCancel }: LandingPageFormPro
                   products_section_title: productSectionsTitle,
                   products_section_description: productSectionsDescription,
                   is_active: isActive,
+                  page_type: livestreamEnabled ? 'livestream' : undefined,
+                  livestream_config: livestreamEnabled ? livestreamConfig : undefined,
                   sections: productSections.map(s => ({
                     ...s,
                     // En preview, usamos TODAS las cards que coincidan con sectionId

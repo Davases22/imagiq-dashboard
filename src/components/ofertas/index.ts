@@ -6,6 +6,7 @@ export { OfertaSectionsManager } from "./oferta-sections-manager"
 export { OfertaInfoSection } from "./oferta-info-section"
 export { OfertaFaqSection } from "./oferta-faq-section"
 export { OfertaContentSummary } from "./oferta-content-summary"
+export { OfertaLivestreamConfig } from "./oferta-livestream-config"
 
 // Subcomponentes de secciones
 export { SectionListItem } from "./sections/section-list-item"
