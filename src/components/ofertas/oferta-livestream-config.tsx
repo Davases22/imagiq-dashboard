@@ -270,6 +270,26 @@ export function OfertaLivestreamConfig({ config, onConfigChange }: OfertaLivestr
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="countdown_cta_text">Texto del CTA (boton)</Label>
+          <Input
+            id="countdown_cta_text"
+            placeholder="Ver productos"
+            value={config.countdown_cta_text || ""}
+            onChange={(e) => update({ countdown_cta_text: e.target.value || undefined })}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="countdown_cta_url">URL del CTA</Label>
+          <Input
+            id="countdown_cta_url"
+            placeholder="https://imagiq.com/productos"
+            value={config.countdown_cta_url || ""}
+            onChange={(e) => update({ countdown_cta_url: e.target.value || undefined })}
+          />
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="thumbnail_url">URL del Thumbnail (opcional)</Label>
           <Input
             id="thumbnail_url"
