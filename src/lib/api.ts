@@ -850,6 +850,7 @@ export interface ProductApiData {
   segmento?: string[]; // Array de segmentos del producto (ej: ["Premium"])
   visibleStaging?: boolean[]; // Array de visibilidad en staging por SKU
   visibleProduction?: boolean[]; // Array de visibilidad en producción por SKU
+  gama?: string[]; // Array de gama del producto (ej: ["Linea", "Nuevo", "N-1"])
 }
 
 // Product media update interfaces
