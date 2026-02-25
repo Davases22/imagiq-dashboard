@@ -2503,6 +2503,75 @@ export interface InWebCampaignUpdateRequest {
   status?: 'draft' | 'active' | 'paused' | 'completed';
 }
 
+// Email Campaigns
+export interface EmailCampaignResponse {
+  id: string;
+  name: string;
+  subject: string;
+  status: string;
+  recipientSource: string;
+  totalRecipients: number;
+  successfulSends: number;
+  failedSends: number;
+  openCount: number;
+  clickCount: number;
+  uniqueOpens: number;
+  uniqueClicks: number;
+  unsubscribeCount: number;
+  bounceCount: number;
+  complaintCount: number;
+  createdAt: string;
+  sentAt: string | null;
+  completedAt: string | null;
+  templateName: string | null;
+  createdBy: string | null;
+}
+
+export interface EmailCampaignRecipientResponse {
+  id: string;
+  email: string;
+  name: string | null;
+  status: string;
+  sesMessageId: string | null;
+  sentAt: string | null;
+  deliveredAt: string | null;
+  openCount: number;
+  firstOpenedAt: string | null;
+  lastOpenedAt: string | null;
+  clickCount: number;
+  firstClickedAt: string | null;
+  bouncedAt: string | null;
+  bounceType: string | null;
+  complainedAt: string | null;
+  unsubscribedAt: string | null;
+  errorMessage: string | null;
+}
+
+export const emailCampaignEndpoints = {
+  getAll: (params?: { page?: number; limit?: number; status?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.status) searchParams.append('status', params.status);
+    const queryString = searchParams.toString();
+    return apiClient.get<{ data: EmailCampaignResponse[]; total: number }>(
+      `/api/campaigns/email${queryString ? `?${queryString}` : ''}`
+    );
+  },
+  getOne: (id: string) =>
+    apiClient.get<EmailCampaignResponse>(`/api/campaigns/email/${id}`),
+  getRecipients: (campaignId: string, params?: { page?: number; limit?: number; status?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.status) searchParams.append('status', params.status);
+    const queryString = searchParams.toString();
+    return apiClient.get<{ data: EmailCampaignRecipientResponse[]; total: number }>(
+      `/api/campaigns/email/${campaignId}/recipients${queryString ? `?${queryString}` : ''}`
+    );
+  },
+};
+
 export const campaignEndpoints = {
   // Crear campaña InWeb (con FormData para soportar upload de imágenes)
   createInWeb: (formData: FormData) =>
@@ -2719,14 +2788,18 @@ export const stripoEndpoints = {
   },
 
   // Enviar email a destinatarios (backend procesa en background)
-  sendToAll: (subject: string, html: string, maxRecipients?: number, productFilter?: { categoria?: string; subcategoria?: string; submenu?: string; modelo?: string[] }, extraEmails?: string[]) => {
-    return apiClient.post<{ status: string; message: string; estimatedTotal: number }>('/api/messaging/send-all-campaign-emails', {
-      subject,
-      html,
-      maxRecipients,
-      productFilter,
-      extraEmails,
-    });
+  sendToAll: (data: {
+    subject: string;
+    html: string;
+    maxRecipients?: number;
+    productFilter?: { categoria?: string; subcategoria?: string; submenu?: string; modelo?: string[] };
+    extraEmails?: string[];
+    campaignName?: string;
+    designJson?: any;
+    templateId?: string;
+    templateName?: string;
+  }) => {
+    return apiClient.post<{ status: string; message: string; estimatedTotal: number }>('/api/messaging/send-all-campaign-emails', data);
   },
 };
 
@@ -2955,6 +3028,10 @@ export const csvCampaignEndpoints = {
     html: string;
     recipients: Array<{ email: string; name?: string }>;
     audit: CsvAuditData;
+    campaignName?: string;
+    designJson?: any;
+    templateId?: string;
+    templateName?: string;
   }) =>
     apiClient.post<{ status: string; sendLogId: string; totalRecipients: number }>(
       '/api/messaging/csv-campaign-emails',

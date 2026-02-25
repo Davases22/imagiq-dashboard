@@ -29,6 +29,12 @@ import {
   CheckCircle2,
   Plus,
   Mail,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -75,15 +81,20 @@ export function UnlayerEmailEditor({
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateSubject, setTemplateSubject] = useState("");
+  const [campaignName, setCampaignName] = useState("");
   const [currentTemplateId, setCurrentTemplateId] = useState<string | undefined>(templateId);
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [previewTheme, setPreviewTheme] = useState<"light" | "dark">("light");
   const [showTemplatesDialog, setShowTemplatesDialog] = useState(false);
   const [predefinedTemplates, setPredefinedTemplates] = useState<EmailTemplate[]>([]);
   const [userTemplates, setUserTemplates] = useState<EmailTemplate[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [templateSearch, setTemplateSearch] = useState("");
   const [templateFilter, setTemplateFilter] = useState<"all" | "predefined" | "saved">("all");
+  const [renamingTemplateId, setRenamingTemplateId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
 
   // Estados para envío de emails
   const [showSendDialog, setShowSendDialog] = useState(false);
@@ -97,7 +108,7 @@ export function UnlayerEmailEditor({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showSendToAllConfirm, setShowSendToAllConfirm] = useState(false);
   const [isSendingToAll, setIsSendingToAll] = useState(false);
-  const [sendToAllCount, setSendToAllCount] = useState<"all" | number>("all");
+  const [sendToAllCount, setSendToAllCount] = useState<"all" | "extras_only" | number>("all");
   const [customSendCount, setCustomSendCount] = useState("");
   const [productFilter, setProductFilter] = useState<ProductFilter>({});
   const [showAddEmailsDialog, setShowAddEmailsDialog] = useState(false);
@@ -153,6 +164,42 @@ export function UnlayerEmailEditor({
       setIsLoadingTemplates(false);
     }
   }, []);
+
+  const handleRenameTemplate = async (id: string, newName: string) => {
+    if (!newName.trim()) return;
+    try {
+      const response = await stripoEndpoints.updateTemplate(id, { name: newName.trim() });
+      if (response.success) {
+        setUserTemplates((prev) => prev.map((t) => t.id === id ? { ...t, name: newName.trim() } : t));
+        toast.success("Nombre actualizado");
+      } else {
+        toast.error("Error al renombrar");
+      }
+    } catch {
+      toast.error("Error al renombrar");
+    }
+    setRenamingTemplateId(null);
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    try {
+      const response = await stripoEndpoints.deleteTemplate(id);
+      if (response.success) {
+        setUserTemplates((prev) => prev.filter((t) => t.id !== id));
+        if (currentTemplateId === id) {
+          setCurrentTemplateId(undefined);
+          setTemplateName("");
+          setTemplateSubject("");
+        }
+        toast.success("Plantilla eliminada");
+      } else {
+        toast.error("Error al eliminar");
+      }
+    } catch {
+      toast.error("Error al eliminar");
+    }
+    setDeletingTemplateId(null);
+  };
 
   // CSV campaign states
   const [sendMode, setSendMode] = useState<"database" | "csv">("database");
@@ -306,7 +353,7 @@ export function UnlayerEmailEditor({
     });
   };
 
-  // Enviar emails
+  // Enviar emails a seleccionados
   const handleSendEmails = async () => {
     if (selectedRecipients.size === 0) {
       toast.error("Selecciona al menos un destinatario");
@@ -321,62 +368,37 @@ export function UnlayerEmailEditor({
     setIsSending(true);
 
     try {
-      const { html } = await exportHtmlAsync();
+      const { html, design } = await exportHtmlAsync();
       const selectedEmails = recipients
         .filter((r) => selectedRecipients.has(r.id))
         .map((r) => ({ email: r.email, name: r.name }));
 
-      let successCount = 0;
-      let failCount = 0;
+      const response = await csvCampaignEndpoints.sendEmails({
+        subject: emailSubject,
+        html,
+        recipients: selectedEmails,
+        audit: {
+          csvFilename: "seleccion-manual",
+          csvTotalRows: selectedEmails.length,
+          csvValidRows: selectedEmails.length,
+          csvInvalidRows: 0,
+          csvDuplicateRows: 0,
+        },
+        campaignName: campaignName.trim() || undefined,
+        designJson: design ? { templateType: "unlayer", design } : undefined,
+        templateId: currentTemplateId && !isPredefinedTemplate ? currentTemplateId : undefined,
+        templateName: templateName || undefined,
+      });
 
-      // Send to all selected recipients in parallel (batches of 5)
-      const BATCH_SIZE = 5;
-      for (let i = 0; i < selectedEmails.length; i += BATCH_SIZE) {
-        const batch = selectedEmails.slice(i, i + BATCH_SIZE);
-        const results = await Promise.allSettled(
-          batch.map(async (recipient) => {
-            // Replace [Nombre] placeholder with actual recipient name
-            const firstName = recipient.name.split(" ")[0] || recipient.name;
-            const personalizedHtml = html
-              .replace(/\[Nombre\]/gi, firstName)
-              .replace(/\[nombre\]/gi, firstName);
-
-            const response = await fetch(
-              `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/messaging/send-campaign-email`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "",
-                },
-                body: JSON.stringify({
-                  to: recipient.email,
-                  subject: emailSubject,
-                  html: personalizedHtml,
-                  recipientName: recipient.name,
-                }),
-              }
-            );
-
-            if (!response.ok) throw new Error("Failed");
-          })
-        );
-        for (const r of results) {
-          if (r.status === "fulfilled") successCount++;
-          else failCount++;
-        }
+      if (response.success && response.data) {
+        const total = response.data.totalRecipients;
+        toast.success(`Envío iniciado para ${total} destinatario(s)`);
+        setShowSendDialog(false);
+        setSelectedRecipients(new Set());
+        setEmailSubject("");
+      } else {
+        toast.error(response.message || "Error al enviar los emails");
       }
-
-      if (successCount > 0) {
-        toast.success(`${successCount} email(s) enviado(s) correctamente`);
-      }
-      if (failCount > 0) {
-        toast.error(`${failCount} email(s) fallaron al enviar`);
-      }
-
-      setShowSendDialog(false);
-      setSelectedRecipients(new Set());
-      setEmailSubject("");
     } catch (error) {
       console.error("Error sending emails:", error);
       toast.error("Error al enviar los emails");
@@ -394,31 +416,75 @@ export function UnlayerEmailEditor({
 
     setIsSendingToAll(true);
     try {
-      const { html } = await exportHtmlAsync();
-      const maxRecipients = sendToAllCount === "all" ? undefined : sendToAllCount;
-      const activeFilter = productFilter?.categoria ? productFilter : undefined;
-      const response = await stripoEndpoints.sendToAll(emailSubject, html, maxRecipients, activeFilter, extraEmails.length > 0 ? extraEmails : undefined);
+      const { html, design } = await exportHtmlAsync();
+      const isExtrasOnly = sendToAllCount === "extras_only";
+      const campaignMeta = {
+        campaignName: campaignName.trim() || undefined,
+        designJson: design ? { templateType: "unlayer", design } : undefined,
+        templateId: currentTemplateId && !isPredefinedTemplate ? currentTemplateId : undefined,
+        templateName: templateName || undefined,
+      };
 
-      if (response.success && response.data) {
-        const { estimatedTotal } = response.data;
-        const extraCount = extraEmails.length;
-        const totalWithExtra = (estimatedTotal || 0) + extraCount;
-        const secs = Math.ceil(totalWithExtra / 12);
-        const timeStr = secs < 60 ? `${secs}s` : secs < 3600 ? `${Math.ceil(secs / 60)} min` : `${Math.floor(secs / 3600)}h ${Math.ceil((secs % 3600) / 60)}min`;
-        toast.success(
-          `Envío iniciado para ${totalWithExtra.toLocaleString()} destinatarios${extraCount > 0 ? ` (incluye ${extraCount} correos adicionales)` : ""}. Tiempo estimado: ~${timeStr}.`
-        );
-        setShowSendToAllConfirm(false);
-        setShowSendDialog(false);
-        setEmailSubject("");
-        setExtraEmails([]);
-        setExtraEmailsText("");
-        localStorage.removeItem("campaign-extra-emails");
+      if (isExtrasOnly) {
+        // Solo enviar a correos adicionales - usar CSV endpoint para no tocar la BD de usuarios
+        const response = await csvCampaignEndpoints.sendEmails({
+          subject: emailSubject,
+          html,
+          recipients: extraEmails.map((email) => ({
+            email,
+            name: email.split("@")[0] || email,
+          })),
+          audit: {
+            csvFilename: "extras-manuales",
+            csvTotalRows: extraEmails.length,
+            csvValidRows: extraEmails.length,
+            csvInvalidRows: 0,
+            csvDuplicateRows: 0,
+          },
+          ...campaignMeta,
+        });
+
+        if (response.success && response.data) {
+          toast.success(`Envío iniciado para ${extraEmails.length} correos adicionales.`);
+          setShowSendToAllConfirm(false);
+          setShowSendDialog(false);
+          setEmailSubject("");
+        } else {
+          toast.error(response.message || "Error al iniciar el envío");
+        }
       } else {
-        toast.error(response.message || "Error al iniciar el envío de emails");
+        const maxRecipients = sendToAllCount === "all" ? undefined : sendToAllCount as number;
+        const activeFilter = productFilter?.categoria ? productFilter : undefined;
+        const response = await stripoEndpoints.sendToAll({
+          subject: emailSubject,
+          html,
+          maxRecipients,
+          productFilter: activeFilter,
+          extraEmails: extraEmails.length > 0 ? extraEmails : undefined,
+          ...campaignMeta,
+        });
+
+        if (response.success && response.data) {
+          const { estimatedTotal } = response.data;
+          const extraCount = extraEmails.length;
+          const totalWithExtra = (estimatedTotal || 0) + extraCount;
+          const secs = Math.ceil(totalWithExtra / 12);
+          const timeStr = secs < 60 ? `${secs}s` : secs < 3600 ? `${Math.ceil(secs / 60)} min` : `${Math.floor(secs / 3600)}h ${Math.ceil((secs % 3600) / 60)}min`;
+          toast.success(
+            `Envío iniciado para ${totalWithExtra.toLocaleString()} destinatarios${extraCount > 0 ? ` (incluye ${extraCount} correos adicionales)` : ""}. Tiempo estimado: ~${timeStr}.`
+          );
+          setShowSendToAllConfirm(false);
+          setShowSendDialog(false);
+          setEmailSubject("");
+          setExtraEmails([]);
+          setExtraEmailsText("");
+          localStorage.removeItem("campaign-extra-emails");
+        } else {
+          toast.error(response.message || "Error al iniciar el envío de emails");
+        }
       }
     } catch (error) {
-      console.error("Error sending emails to all:", error);
+      console.error("Error sending emails:", error);
       toast.error("Error al enviar los emails");
     } finally {
       setIsSendingToAll(false);
@@ -438,7 +504,7 @@ export function UnlayerEmailEditor({
 
     setIsSendingCsv(true);
     try {
-      const { html } = await exportHtmlAsync();
+      const { html, design } = await exportHtmlAsync();
       const response = await csvCampaignEndpoints.sendEmails({
         subject: emailSubject,
         html,
@@ -453,6 +519,10 @@ export function UnlayerEmailEditor({
           csvInvalidRows: csvStats?.invalidRows || 0,
           csvDuplicateRows: csvStats?.duplicateRows || 0,
         },
+        campaignName: campaignName.trim() || undefined,
+        designJson: design ? { templateType: "unlayer", design } : undefined,
+        templateId: currentTemplateId && !isPredefinedTemplate ? currentTemplateId : undefined,
+        templateName: templateName || undefined,
       });
 
       if (response.success && response.data) {
@@ -500,6 +570,9 @@ export function UnlayerEmailEditor({
     setCurrentTemplateId(template.id);
     setTemplateName(template.name);
     setTemplateSubject(template.subject);
+    if (!campaignName.trim()) {
+      setCampaignName(template.name);
+    }
 
     setShowTemplatesDialog(false);
     toast.success(`Template "${template.name}" aplicado`);
@@ -521,6 +594,9 @@ export function UnlayerEmailEditor({
           setTemplateName(template.name);
           setTemplateSubject(template.subject);
           setCurrentTemplateId(template.id);
+          if (!campaignName.trim()) {
+            setCampaignName(template.name);
+          }
 
           const designJson = template.designJson as {
             templateType?: string;
@@ -640,26 +716,6 @@ export function UnlayerEmailEditor({
     }
   };
 
-  const handleExportHtml = async () => {
-    try {
-      const { html } = await exportHtmlAsync();
-
-      const blob = new Blob([html], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${templateName || "email-template"}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast.success("HTML exportado correctamente");
-    } catch {
-      toast.error("Error al exportar HTML");
-    }
-  };
-
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -671,13 +727,27 @@ export function UnlayerEmailEditor({
               Volver
             </Button>
           )}
-          <div>
-            <h1 className="text-xl font-semibold">
-              {currentTemplateId && !isPredefinedTemplate ? "Editar Plantilla" : "Crear Plantilla de Email"}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Editor de email drag-and-drop
-            </p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="text-lg font-semibold leading-tight">
+                {currentTemplateId && !isPredefinedTemplate ? "Editar Plantilla" : "Crear Plantilla"}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Editor de email drag-and-drop
+              </p>
+            </div>
+            <div className="h-8 w-px bg-border" />
+            <div className="flex flex-col gap-0.5">
+              <label className="text-[10px] uppercase font-medium text-muted-foreground tracking-wider">
+                Nombre de la Campaña
+              </label>
+              <Input
+                placeholder="Ej: Galaxy Unpacked Febrero 2026"
+                value={campaignName}
+                onChange={(e) => setCampaignName(e.target.value)}
+                className="w-[280px] h-7 text-sm border-dashed"
+              />
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -699,14 +769,6 @@ export function UnlayerEmailEditor({
           >
             <Eye className="mr-2 h-4 w-4" />
             Preview
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleExportHtml}
-            disabled={!editorReady || isLoading}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Exportar HTML
           </Button>
           <Button
             onClick={handleSave}
@@ -830,41 +892,103 @@ export function UnlayerEmailEditor({
         </DialogContent>
       </Dialog>
 
-      {/* Preview Dialog */}
+      {/* Preview Dialog - Gmail style */}
       <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-        <DialogContent className="!max-w-4xl h-[80vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>Vista Previa</span>
-              <div className="flex items-center gap-2 mr-8">
+        <DialogContent className="!max-w-4xl h-[90vh] p-0 gap-0 overflow-hidden !border-zinc-700">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-900">
+            <DialogTitle className="text-sm font-medium text-zinc-200">Vista Previa del Email</DialogTitle>
+            <div className="flex items-center gap-2 mr-6">
+              {/* Device toggle */}
+              <div className="flex items-center gap-1">
                 <Button
                   variant={previewMode === "desktop" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setPreviewMode("desktop")}
+                  className={`h-7 px-2 text-xs gap-1 ${previewMode !== "desktop" ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" : ""}`}
                 >
-                  <Monitor className="h-4 w-4" />
+                  <Monitor className="h-3.5 w-3.5" />
+                  Desktop
                 </Button>
                 <Button
                   variant={previewMode === "mobile" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setPreviewMode("mobile")}
+                  className={`h-7 px-2 text-xs gap-1 ${previewMode !== "mobile" ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" : ""}`}
                 >
-                  <Smartphone className="h-4 w-4" />
+                  <Smartphone className="h-3.5 w-3.5" />
+                  Móvil
                 </Button>
               </div>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto flex justify-center p-4 bg-muted/30 rounded-lg">
-            <div
-              className={`bg-white shadow-lg rounded-lg overflow-hidden transition-all ${
-                previewMode === "mobile" ? "w-[375px]" : "w-full max-w-[600px]"
-              }`}
-            >
-              <iframe
-                srcDoc={previewHtml}
-                className="w-full h-full min-h-[500px] border-0"
-                title="Email Preview"
-              />
+
+              {/* Separator */}
+              <div className="w-px h-5 bg-zinc-700" />
+
+              {/* Theme toggle */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant={previewTheme === "light" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setPreviewTheme("light")}
+                  className={`h-7 px-2 text-xs gap-1 ${previewTheme !== "light" ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" : ""}`}
+                >
+                  <Sun className="h-3.5 w-3.5" />
+                  Día
+                </Button>
+                <Button
+                  variant={previewTheme === "dark" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setPreviewTheme("dark")}
+                  className={`h-7 px-2 text-xs gap-1 ${previewTheme !== "dark" ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" : ""}`}
+                >
+                  <Moon className="h-3.5 w-3.5" />
+                  Noche
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Gmail-like email view */}
+          <div className={`flex-1 overflow-auto ${previewTheme === "dark" ? "bg-zinc-950" : "bg-[#f6f8fc]"}`}>
+            <div className={`mx-auto transition-all ${previewMode === "mobile" ? "max-w-[375px]" : "max-w-[700px]"}`}>
+              {/* Email header - Gmail style */}
+              <div className={`border-b px-6 py-4 mt-0 ${previewTheme === "dark" ? "bg-zinc-900 border-zinc-700" : "bg-white border-gray-200"}`}>
+                {/* Subject */}
+                <h2 className={`text-lg font-normal mb-3 ${previewTheme === "dark" ? "text-zinc-100" : "text-gray-900"}`}>
+                  {templateSubject || emailSubject || "Sin asunto"}
+                </h2>
+                {/* Sender info */}
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                    SS
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-medium text-sm ${previewTheme === "dark" ? "text-zinc-100" : "text-gray-900"}`}>Samsung Store</span>
+                      <span className={`text-xs ${previewTheme === "dark" ? "text-zinc-500" : "text-gray-500"}`}>&lt;no-reply@imagiq.com&gt;</span>
+                    </div>
+                    <div className={`text-xs mt-0.5 ${previewTheme === "dark" ? "text-zinc-500" : "text-gray-500"}`}>
+                      para mí
+                    </div>
+                  </div>
+                  <span className={`text-xs flex-shrink-0 ${previewTheme === "dark" ? "text-zinc-500" : "text-gray-500"}`}>
+                    {new Date().toLocaleString("es-CO", { hour: "numeric", minute: "2-digit", hour12: true })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Email body */}
+              <div className={previewTheme === "dark" ? "bg-zinc-900" : "bg-white"}>
+                <iframe
+                  srcDoc={previewTheme === "dark"
+                    ? `<html><head><style>body{background:#18181b;color-scheme:dark;}</style></head><body>${previewHtml.replace(/<html[^>]*>|<\/html>/gi, '').replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '').replace(/<body[^>]*>/, '').replace(/<\/body>/, '')}</body></html>`
+                    : previewHtml
+                  }
+                  className="w-full border-0"
+                  style={{ minHeight: "600px", height: "calc(90vh - 200px)" }}
+                  title="Email Preview"
+                />
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -1046,21 +1170,71 @@ export function UnlayerEmailEditor({
                         {filteredUser.map((template) => (
                           <div
                             key={template.id}
-                            className="flex items-center gap-3 p-3 border rounded-lg hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-950/20 transition-colors cursor-pointer"
-                            onClick={() => applyTemplate(template)}
+                            className="flex items-center gap-3 p-3 border rounded-lg hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-950/20 transition-colors"
                           >
                             <div className="h-10 w-10 rounded bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
                               <FileText className="h-5 w-5 text-green-600" />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-sm truncate">{template.name}</h4>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {template.subject}
-                              </p>
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => applyTemplate(template)}>
+                              {renamingTemplateId === template.id ? (
+                                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <Input
+                                    value={renameValue}
+                                    onChange={(e) => setRenameValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleRenameTemplate(template.id, renameValue);
+                                      if (e.key === "Escape") setRenamingTemplateId(null);
+                                    }}
+                                    className="h-7 text-sm"
+                                    autoFocus
+                                  />
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => handleRenameTemplate(template.id, renameValue)}>
+                                    <Check className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setRenamingTemplateId(null)}>
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <>
+                                  <h4 className="font-medium text-sm truncate">{template.name}</h4>
+                                  <p className="text-xs text-muted-foreground truncate">{template.subject}</p>
+                                </>
+                              )}
                             </div>
-                            <Button size="sm" variant="outline" className="flex-shrink-0 border-green-600 text-green-600 hover:bg-green-600 hover:text-white">
-                              Usar
-                            </Button>
+                            {deletingTemplateId === template.id ? (
+                              <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <span className="text-xs text-destructive mr-1">Eliminar?</span>
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDeleteTemplate(template.id)}>
+                                  <Check className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setDeletingTemplateId(null)}>
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            ) : renamingTemplateId !== template.id ? (
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                  onClick={(e) => { e.stopPropagation(); setRenamingTemplateId(template.id); setRenameValue(template.name); setDeletingTemplateId(null); }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); setDeletingTemplateId(template.id); setRenamingTemplateId(null); }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="flex-shrink-0 border-green-600 text-green-600 hover:bg-green-600 hover:text-white" onClick={() => applyTemplate(template)}>
+                                  Usar
+                                </Button>
+                              </div>
+                            ) : null}
                           </div>
                         ))}
                       </div>
@@ -1075,7 +1249,7 @@ export function UnlayerEmailEditor({
 
       {/* Send Email Dialog */}
       <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
-        <DialogContent className="!max-w-4xl h-[85vh]">
+        <DialogContent className="!max-w-4xl h-[95vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Send className="h-5 w-5" />
@@ -1093,9 +1267,9 @@ export function UnlayerEmailEditor({
                 <LayoutTemplate className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground uppercase font-medium">Plantilla a enviar</p>
+                <p className="text-xs text-muted-foreground uppercase font-medium">Campaña</p>
                 <p className="font-medium truncate">
-                  {templateName || "Sin nombre (plantilla nueva)"}
+                  {campaignName || templateName || "Sin nombre"}
                 </p>
               </div>
               {templateSubject && (
@@ -1376,7 +1550,7 @@ export function UnlayerEmailEditor({
         setShowSendToAllConfirm(open);
         if (!open) { setSendToAllCount("all"); setCustomSendCount(""); }
       }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg !z-[10001]" overlayClassName="!z-[10000]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-green-600">
               <Users className="h-5 w-5" />
@@ -1392,12 +1566,13 @@ export function UnlayerEmailEditor({
             <div className="space-y-2">
               <Label className="text-sm font-medium">Cantidad de destinatarios</Label>
               <div className="grid grid-cols-2 gap-2">
-                {[
+                {([
                   { value: "all" as const, label: `Todos (${recipientsTotal.toLocaleString()})` },
+                  ...(extraEmails.length > 0 ? [{ value: "extras_only" as const, label: `Solo adicionales (${extraEmails.length})` }] : []),
                   { value: 500, label: "500" },
                   { value: 1000, label: "1.000" },
                   { value: 5000, label: "5.000" },
-                ].map((opt) => (
+                ] as Array<{ value: "all" | "extras_only" | number; label: string }>).map((opt) => (
                   <button
                     key={String(opt.value)}
                     type="button"
@@ -1432,23 +1607,33 @@ export function UnlayerEmailEditor({
               />
             </div>
 
+            {campaignName.trim() && (
+              <div className="flex justify-between text-sm p-3 bg-muted/50 rounded-lg">
+                <span className="text-muted-foreground flex-shrink-0">Campaña:</span>
+                <span className="font-bold text-right ml-2">{campaignName}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm p-3 bg-muted/50 rounded-lg">
-              <span className="text-muted-foreground">Enviar a:</span>
+              <span className="text-muted-foreground flex-shrink-0">Enviar a:</span>
               <span className="font-bold">
                 {sendToAllCount === "all"
-                  ? `${recipientsTotal.toLocaleString()} destinatarios`
-                  : `${sendToAllCount.toLocaleString()} destinatarios`}
+                  ? `${(recipientsTotal + extraEmails.length).toLocaleString()} destinatarios`
+                  : sendToAllCount === "extras_only"
+                    ? `${extraEmails.length} correos adicionales`
+                    : `${sendToAllCount.toLocaleString()} destinatarios`}
               </span>
             </div>
-            <div className="flex justify-between text-sm p-3 bg-muted/50 rounded-lg">
-              <span className="text-muted-foreground">Asunto:</span>
-              <span className="font-bold truncate ml-2">{emailSubject}</span>
+            <div className="text-sm p-3 bg-muted/50 rounded-lg">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground flex-shrink-0">Asunto:</span>
+              </div>
+              <p className="font-bold mt-1 break-words">{emailSubject}</p>
             </div>
             <div className="flex justify-between text-sm p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
               <span className="text-muted-foreground">Tiempo estimado:</span>
               <span className="font-bold text-green-600">
                 {(() => {
-                  const count = sendToAllCount === "all" ? recipientsTotal : sendToAllCount;
+                  const count = sendToAllCount === "all" ? (recipientsTotal + extraEmails.length) : sendToAllCount === "extras_only" ? extraEmails.length : sendToAllCount;
                   const totalSeg = Math.ceil(count / 12);
                   if (totalSeg < 60) return `~${totalSeg} segundos`;
                   if (totalSeg < 3600) return `~${Math.ceil(totalSeg / 60)} minutos`;
@@ -1469,7 +1654,7 @@ export function UnlayerEmailEditor({
             </Button>
             <Button
               onClick={handleSendToAll}
-              disabled={isSendingToAll || (typeof sendToAllCount === "number" && sendToAllCount <= 0)}
+              disabled={isSendingToAll || (typeof sendToAllCount === "number" && sendToAllCount <= 0) || (sendToAllCount === "extras_only" && extraEmails.length === 0)}
               className="bg-green-600 hover:bg-green-700"
             >
               {isSendingToAll ? (
@@ -1480,7 +1665,7 @@ export function UnlayerEmailEditor({
               ) : (
                 <>
                   <Send className="mr-2 h-4 w-4" />
-                  Confirmar envío a {(sendToAllCount === "all" ? recipientsTotal : sendToAllCount).toLocaleString()}
+                  Confirmar envío a {(sendToAllCount === "all" ? (recipientsTotal + extraEmails.length) : sendToAllCount === "extras_only" ? extraEmails.length : sendToAllCount).toLocaleString()}
                 </>
               )}
             </Button>
@@ -1490,7 +1675,7 @@ export function UnlayerEmailEditor({
 
       {/* Dialog para agregar correos extra */}
       <Dialog open={showAddEmailsDialog} onOpenChange={setShowAddEmailsDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md !z-[10001]" overlayClassName="!z-[10000]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-green-600">
               <Mail className="h-5 w-5" />
