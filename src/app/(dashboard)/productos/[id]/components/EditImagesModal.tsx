@@ -18,6 +18,7 @@ import { productEndpoints } from "@/lib/api"
 import { toast } from "sonner"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || ""
 
 interface EditImagesModalProps {
   isOpen: boolean
@@ -339,6 +340,7 @@ export function EditImagesModal({
             method: "DELETE",
             headers: {
               "Content-Type": "application/json",
+              ...(API_KEY && { "X-API-Key": API_KEY }),
             },
             body: JSON.stringify({ sku: selectedColor.sku }),
           })

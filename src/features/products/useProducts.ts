@@ -41,6 +41,8 @@ export interface ProductColor {
   premiumImages?: string[]; // URLs de las imágenes del CARRUSEL premium (sin marcadores especiales)
   devicePremiumImage?: string | null; // URL de la imagen premium del DISPOSITIVO (puede ser null)
   premiumVideos?: string[]; // URLs de los videos premium del carrusel
+  visibleStaging?: boolean; // Visible en staging
+  visibleProduction?: boolean; // Visible en producción
 }
 
 export interface ProductCardProps {
@@ -73,6 +75,8 @@ export interface ProductCardProps {
   setSelectedColor?: (color: ProductColor) => void;
   puntos_q?: number; // Puntos Q acumulables por producto (valor fijo por ahora)
   segmento?: string[]; // Array de segmentos del producto (ej: ["Premium"])
+  visibleStaging?: boolean; // Visible en staging (primer SKU)
+  visibleProduction?: boolean; // Visible en producción (primer SKU)
 }
 
 
