@@ -730,6 +730,29 @@ export const productEndpoints = {
         message: error instanceof Error ? error.message : "Request failed",
       }));
   },
+
+  // Visibility endpoints
+  updateVisibility: (sku: string, data: { visibleStaging?: boolean; visibleProduction?: boolean }) => {
+    const safeSku = encodeSkuForPath(sku);
+    return apiClient.patch<{ success: boolean; message: string }>(
+      `/api/products/${safeSku}/visibility`,
+      data
+    );
+  },
+
+  getVisibility: (sku: string) => {
+    const safeSku = encodeSkuForPath(sku);
+    return apiClient.get<{ sku: string; visibleStaging: boolean; visibleProduction: boolean }>(
+      `/api/products/${safeSku}/visibility`
+    );
+  },
+
+  // Cache management
+  clearCache: () => {
+    return apiClient.delete<{ success: boolean; deletedCount: number; message: string }>(
+      `/api/products/cache`
+    );
+  },
 };
 
 // Product filter parameters interface
@@ -825,6 +848,8 @@ export interface ProductApiData {
   imagen_final_premium?: (string | null)[]; // Array de strings: Imagen premium del DISPOSITIVO (una por color)
   video_premium?: string[][]; // Array de arrays: Videos del carrusel
   segmento?: string[]; // Array de segmentos del producto (ej: ["Premium"])
+  visibleStaging?: boolean[]; // Array de visibilidad en staging por SKU
+  visibleProduction?: boolean[]; // Array de visibilidad en producción por SKU
 }
 
 // Product media update interfaces

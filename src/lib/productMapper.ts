@@ -30,6 +30,8 @@ export interface ProductColor {
   premiumImages?: string[]; // URLs de las imágenes del CARRUSEL premium (sin marcadores especiales)
   devicePremiumImage?: string | null; // URL de la imagen premium del DISPOSITIVO (puede ser null)
   premiumVideos?: string[]; // URLs de los videos premium del carrusel
+  visibleStaging?: boolean; // Visible en staging
+  visibleProduction?: boolean; // Visible en producción
 }
 
 
@@ -63,6 +65,8 @@ export interface ProductCardProps {
   setSelectedColor?: (color: ProductColor) => void;
   puntos_q?: number; // Puntos Q acumulables por producto (valor fijo por ahora)
   segmento?: string[]; // Array de segmentos del producto (ej: ["Premium"])
+  visibleStaging?: boolean; // Visible en staging
+  visibleProduction?: boolean; // Visible en producción
 }
 
 // Mapeo de colores de la API a colores del frontend
@@ -163,6 +167,9 @@ export function mapApiProductToFrontend(apiProduct: ProductApiData): ProductCard
     sku: skuArray.length > 0 ? skuArray.join(', ') : null,
     detailedDescription: desDetalladaArray.length > 0 ? desDetalladaArray.join(' ') : null,
     segmento: segmentoArray,
+    // Visibilidad: tomar del primer color/variante disponible
+    visibleStaging: colors.length > 0 ? colors[0].visibleStaging : false,
+    visibleProduction: colors.length > 0 ? colors[0].visibleProduction : false,
   };
 }
 
@@ -430,6 +437,12 @@ function createProductColorsFromArray(apiProduct: ProductApiData): ProductColor[
         )
       : undefined;
 
+    // Visibility flags
+    const visibleStagingArray = Array.isArray(apiProduct.visibleStaging) ? apiProduct.visibleStaging : [];
+    const visibleProductionArray = Array.isArray(apiProduct.visibleProduction) ? apiProduct.visibleProduction : [];
+    const visibleStaging = visibleStagingArray[index] ?? false;
+    const visibleProduction = visibleProductionArray[index] ?? false;
+
     variants.push({
       name: color.toLowerCase().replace(/\s+/g, '-'),
       hex: colorInfo.hex,
@@ -448,7 +461,9 @@ function createProductColorsFromArray(apiProduct: ProductApiData): ProductColor[
       imageDetailsUrls,
       premiumImages, // Imágenes del CARRUSEL premium (array)
       devicePremiumImage, // Imagen premium del DISPOSITIVO (string|null)
-      premiumVideos // Videos del CARRUSEL premium (array)
+      premiumVideos, // Videos del CARRUSEL premium (array)
+      visibleStaging,
+      visibleProduction,
     });
   });
 

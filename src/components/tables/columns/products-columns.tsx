@@ -19,6 +19,7 @@ import { es } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +44,45 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ProductCardProps } from "@/features/products/useProducts";
-import { GroupedNotificationsResponse, NotificationProducto } from "@/lib/api";
+import { GroupedNotificationsResponse, NotificationProducto, productEndpoints } from "@/lib/api";
+
+// Componente de switch con estado, color verde y llamada al API
+function VisibilitySwitch({
+  defaultValue,
+  sku,
+  field,
+}: {
+  defaultValue: boolean;
+  sku: string;
+  field: "visibleStaging" | "visibleProduction";
+}) {
+  const [checked, setChecked] = useState(defaultValue);
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = async (value: boolean) => {
+    setChecked(value);
+    setLoading(true);
+    try {
+      await productEndpoints.updateVisibility(sku, { [field]: value });
+    } catch (error) {
+      console.error("Error updating visibility:", error);
+      setChecked(!value); // Revert on error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center">
+      <Switch
+        checked={checked}
+        onCheckedChange={handleChange}
+        disabled={loading}
+        className={checked ? "data-[state=checked]:bg-green-500" : ""}
+      />
+    </div>
+  );
+}
 
 // Componente separado para la celda de acciones que usa useRouter
 function ActionsCell({
@@ -561,6 +600,38 @@ export const createProductColumns = (
     //     return value.includes(status)
     //   },
     // },
+    {
+      id: "staging",
+      header: "Staging",
+      cell: ({ row }) => {
+        const product = row.original;
+        const firstSku = product.colors?.[0]?.sku || product.sku?.split(", ")[0] || "";
+        return (
+          <VisibilitySwitch
+            defaultValue={product.visibleStaging ?? false}
+            sku={firstSku}
+            field="visibleStaging"
+          />
+        );
+      },
+      enableSorting: false,
+    },
+    {
+      id: "production",
+      header: "Producción",
+      cell: ({ row }) => {
+        const product = row.original;
+        const firstSku = product.colors?.[0]?.sku || product.sku?.split(", ")[0] || "";
+        return (
+          <VisibilitySwitch
+            defaultValue={product.visibleProduction ?? false}
+            sku={firstSku}
+            field="visibleProduction"
+          />
+        );
+      },
+      enableSorting: false,
+    },
     {
       id: "actions",
       enableHiding: false,
