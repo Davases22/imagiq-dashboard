@@ -21,9 +21,13 @@ export default function CampañasPage() {
     limit: 100,
   });
 
-  // Contar campañas activas de In-Web
+  // Contar campañas activas por tipo
   const activeInWebCount = useMemo(() => {
-    return inWebCampaigns.filter(campaign => campaign.status === 'active').length;
+    return inWebCampaigns.filter(c => c.type === 'in-web' && c.status === 'active').length;
+  }, [inWebCampaigns]);
+
+  const activeEmailCount = useMemo(() => {
+    return inWebCampaigns.filter(c => c.type === 'email' && (c.status === 'sending' || c.status === 'completed')).length;
   }, [inWebCampaigns]);
 
   return (
@@ -112,7 +116,11 @@ export default function CampañasPage() {
                   <BrandIcon brand="Gmail" size={24} className="text-blue-600 dark:text-blue-400" />
                   <div>
                     <div className="font-medium text-sm">Email</div>
-                    <div className="text-xs text-muted-foreground">3 campañas activas</div>
+                    <div className="text-xs text-muted-foreground">
+                      {activeEmailCount === 1
+                        ? "1 campaña"
+                        : `${activeEmailCount} campañas`}
+                    </div>
                   </div>
                 </div>
                 <Link href="/marketing/campaigns/crear/email">

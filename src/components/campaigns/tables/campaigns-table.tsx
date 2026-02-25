@@ -102,21 +102,26 @@ const createCampaignColumns = (
     header: "Estado",
     cell: ({ row }) => {
       const status = row.getValue("status") as string;
+      const variantMap: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+        active: "default",
+        completed: "secondary",
+        sending: "default",
+        paused: "outline",
+        failed: "destructive",
+        draft: "outline",
+      };
+      const labelMap: Record<string, string> = {
+        active: "Activa",
+        completed: "Completada",
+        sending: "Enviando",
+        paused: "Pausada",
+        failed: "Fallida",
+        draft: "Borrador",
+      };
       return (
-        <Badge
-          variant={
-            status === "active"
-              ? "default"
-              : status === "completed"
-              ? "secondary"
-              : status === "paused"
-              ? "outline"
-              : "destructive"
-          }
-        >
-          {status === "active" ? "Activa" :
-           status === "completed" ? "Completada" :
-           status === "paused" ? "Pausada" : "Borrador"}
+        <Badge variant={variantMap[status] || "outline"}>
+          {status === "sending" && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+          {labelMap[status] || status}
         </Badge>
       );
     },
@@ -128,7 +133,8 @@ const createCampaignColumns = (
     accessorKey: "reach",
     header: "Alcance",
     cell: ({ row }) => {
-      const reach = row.getValue("reach") as number;
+      const campaign = row.original;
+      const reach = campaign.totalRecipients || campaign.reach;
       return reach > 0 ? reach.toLocaleString() : "-";
     },
   },
@@ -171,6 +177,7 @@ const createCampaignColumns = (
     cell: ({ row }) => {
       const campaign = row.original;
       const isInWebCampaign = campaign.type === 'in-web';
+      const isEmailCampaign = campaign.type === 'email';
 
       return (
         <DropdownMenu>
@@ -182,6 +189,20 @@ const createCampaignColumns = (
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+            {isEmailCampaign && (
+              <>
+                <DropdownMenuItem onClick={() => onViewDetails(campaign)}>
+                  Ver detalles
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={() => onDelete(campaign)}
+                >
+                  Eliminar
+                </DropdownMenuItem>
+              </>
+            )}
             {isInWebCampaign && (
               <>
                 <DropdownMenuItem onClick={() => onViewDetails(campaign)}>
@@ -202,14 +223,14 @@ const createCampaignColumns = (
               </DropdownMenuItem>
             )}
             {isInWebCampaign && (
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 className="text-red-600"
                 onClick={() => onDelete(campaign)}
               >
                 Eliminar
               </DropdownMenuItem>
             )}
-            {!isInWebCampaign && (
+            {!isInWebCampaign && !isEmailCampaign && (
               <>
                 <DropdownMenuItem>
                   {campaign.status === 'active' ? 'Pausar' : 'Activar'}
@@ -235,8 +256,10 @@ const campaignTypes = [
 
 const campaignStatuses = [
   { label: "Activa", value: "active" },
+  { label: "Enviando", value: "sending" },
   { label: "Completada", value: "completed" },
   { label: "Pausada", value: "paused" },
+  { label: "Fallida", value: "failed" },
   { label: "Borrador", value: "draft" },
 ];
 
@@ -277,6 +300,8 @@ export function CampaignsTable() {
   const handleViewDetails = (campaign: Campaign) => {
     if (campaign.type === 'in-web') {
       router.push(`/marketing/campaigns/inweb/${campaign.id}`);
+    } else if (campaign.type === 'email') {
+      router.push(`/marketing/campaigns/email/${campaign.id}`);
     }
   };
 

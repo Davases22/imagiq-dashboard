@@ -251,11 +251,15 @@ export interface Campaign {
   id: string;
   name: string;
   type: 'email' | 'sms' | 'whatsapp' | 'in-web';
-  status: 'draft' | 'active' | 'paused' | 'completed';
+  status: 'draft' | 'active' | 'paused' | 'completed' | 'sending' | 'failed';
   reach: number;
   clicks: number;
   conversions: number;
   createdAt: Date;
+  subject?: string;
+  totalRecipients?: number;
+  successfulSends?: number;
+  failedSends?: number;
 }
 
 export interface WhatsAppTemplate {

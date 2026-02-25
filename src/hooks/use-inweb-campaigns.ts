@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Campaign } from '@/types';
-import { campaignEndpoints, InWebCampaignResponse, InWebCampaignsListResponse } from '@/lib/api';
+import { campaignEndpoints, InWebCampaignResponse, InWebCampaignsListResponse, emailCampaignEndpoints, EmailCampaignResponse } from '@/lib/api';
 import { toast } from 'sonner';
 
 interface UseInWebCampaignsParams {
@@ -20,7 +20,7 @@ interface UseInWebCampaignsReturn {
 }
 
 /**
- * Hook para obtener y gestionar campañas InWeb desde la API
+ * Hook para obtener y gestionar campañas InWeb + Email desde la API
  */
 export function useInWebCampaigns(params: UseInWebCampaignsParams = {}): UseInWebCampaignsReturn {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -29,50 +29,85 @@ export function useInWebCampaigns(params: UseInWebCampaignsParams = {}): UseInWe
   const [total, setTotal] = useState(0);
 
   /**
-   * Mapea una campaña de la API al formato Campaign del frontend
+   * Mapea una campaña InWeb de la API al formato Campaign del frontend
    */
-  const mapCampaignFromAPI = (apiCampaign: InWebCampaignResponse): Campaign => {
+  const mapInWebCampaign = (apiCampaign: InWebCampaignResponse): Campaign => {
     return {
       id: apiCampaign.id,
       name: apiCampaign.campaign_name,
       type: 'in-web',
       status: apiCampaign.status,
-      reach: 0, // Métricas aún no disponibles
-      clicks: 0, // Métricas aún no disponibles
-      conversions: 0, // Métricas aún no disponibles
+      reach: 0,
+      clicks: 0,
+      conversions: 0,
       createdAt: new Date(apiCampaign.created_at),
     };
   };
 
   /**
-   * Obtiene las campañas desde la API
+   * Mapea una campaña Email de la API al formato Campaign del frontend
+   */
+  const mapEmailCampaign = (apiCampaign: EmailCampaignResponse): Campaign => {
+    return {
+      id: apiCampaign.id,
+      name: apiCampaign.name || apiCampaign.subject || 'Sin nombre',
+      type: 'email',
+      status: apiCampaign.status as Campaign['status'],
+      reach: apiCampaign.totalRecipients || 0,
+      clicks: apiCampaign.clickCount || apiCampaign.uniqueClicks || 0,
+      conversions: apiCampaign.openCount || apiCampaign.uniqueOpens || 0,
+      createdAt: new Date(apiCampaign.createdAt),
+      subject: apiCampaign.subject,
+      totalRecipients: apiCampaign.totalRecipients,
+      successfulSends: apiCampaign.successfulSends,
+      failedSends: apiCampaign.failedSends,
+    };
+  };
+
+  /**
+   * Obtiene las campañas desde la API (InWeb + Email)
    */
   const fetchCampaigns = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const response = await campaignEndpoints.getInWebCampaigns({
-        page: params.page || 1,
-        limit: params.limit || 10,
-        status: params.status,
-      });
+      // Fetch both InWeb and Email campaigns in parallel
+      const [inWebResponse, emailResponse] = await Promise.allSettled([
+        campaignEndpoints.getInWebCampaigns({
+          page: params.page || 1,
+          limit: params.limit || 100,
+          status: params.status,
+        }),
+        emailCampaignEndpoints.getAll({
+          page: 1,
+          limit: 100,
+        }),
+      ]);
 
-      // apiClient.get retorna { data, success, message }
-      if (!response.success) {
-        throw new Error(response.message || 'Error al obtener campañas');
+      let allCampaigns: Campaign[] = [];
+
+      // Process InWeb campaigns
+      if (inWebResponse.status === 'fulfilled' && inWebResponse.value.success) {
+        const campaignsData = inWebResponse.value.data as InWebCampaignsListResponse;
+        if (campaignsData && Array.isArray(campaignsData.data)) {
+          allCampaigns.push(...campaignsData.data.map(mapInWebCampaign));
+        }
       }
 
-      // response.data es InWebCampaignsListResponse que tiene { data: [...], total, page, limit }
-      const campaignsData = response.data as InWebCampaignsListResponse;
-      
-      if (!campaignsData || !Array.isArray(campaignsData.data)) {
-        throw new Error('Formato de respuesta inesperado');
+      // Process Email campaigns
+      if (emailResponse.status === 'fulfilled' && emailResponse.value.success) {
+        const emailData = emailResponse.value.data as { data: EmailCampaignResponse[]; total: number };
+        if (emailData && Array.isArray(emailData.data)) {
+          allCampaigns.push(...emailData.data.map(mapEmailCampaign));
+        }
       }
 
-      const mappedCampaigns = campaignsData.data.map(mapCampaignFromAPI);
-      setCampaigns(mappedCampaigns);
-      setTotal(campaignsData.total || campaignsData.data.length);
+      // Sort by createdAt descending
+      allCampaigns.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+      setCampaigns(allCampaigns);
+      setTotal(allCampaigns.length);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Error al obtener campañas');
       setError(error);
@@ -89,13 +124,12 @@ export function useInWebCampaigns(params: UseInWebCampaignsParams = {}): UseInWe
   const deleteCampaign = async (id: string) => {
     try {
       const response = await campaignEndpoints.deleteInWebCampaign(id);
-      
+
       if (!response.success) {
         throw new Error(response.message || 'Error al eliminar la campaña');
       }
-      
+
       toast.success('Campaña eliminada correctamente');
-      // Refrescar la lista después de eliminar
       await fetchCampaigns();
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Error al eliminar la campaña');
@@ -111,13 +145,12 @@ export function useInWebCampaigns(params: UseInWebCampaignsParams = {}): UseInWe
   const pauseCampaign = async (id: string) => {
     try {
       const response = await campaignEndpoints.updateInWebCampaignStatus(id, 'paused');
-      
+
       if (!response.success) {
         throw new Error(response.message || 'Error al pausar la campaña');
       }
-      
+
       toast.success('Campaña pausada correctamente');
-      // Refrescar la lista después de pausar
       await fetchCampaigns();
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Error al pausar la campaña');
@@ -142,4 +175,3 @@ export function useInWebCampaigns(params: UseInWebCampaignsParams = {}): UseInWe
     pauseCampaign,
   };
 }
-
