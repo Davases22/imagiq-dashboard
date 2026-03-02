@@ -1895,6 +1895,54 @@ export const tiendasEndpoints = {
   getAll: () => apiClient.get<BackendTienda[]>("/api/stores"),
 };
 
+// ============ KIOSK ADMIN ============
+export interface KioskAccountStatus {
+  exists: boolean;
+  store?: {
+    id: string;
+    codigo: string;
+    descripcion: string;
+    email: string;
+    cod_bodega: string;
+    activo: boolean;
+    rol: number;
+    email_verificado: boolean;
+    requiere_otp: boolean;
+  };
+  ultimo_login?: string | null;
+  fecha_creacion?: string;
+  activo?: boolean;
+  requiere_otp?: boolean;
+}
+
+export interface KioskAdminCreateResponse {
+  store: {
+    id: string;
+    codigo: string;
+    descripcion: string;
+    email: string;
+    activo: boolean;
+  };
+  created: boolean;
+}
+
+export const kioskAdminEndpoints = {
+  checkAccount: (email: string) =>
+    apiClient.post<KioskAccountStatus>("/api/auth/kiosk/admin-check", { email }, true),
+  createAccount: (email: string, contrasena: string) =>
+    apiClient.post<KioskAdminCreateResponse>("/api/auth/kiosk/admin-create", { email, contrasena }, true),
+  toggleOtp: (email: string, requiere_otp: boolean) =>
+    apiClient.post<{ store: { requiere_otp: boolean }; requiere_otp: boolean }>(
+      "/api/auth/kiosk/admin-toggle-otp",
+      { email, requiere_otp },
+      true,
+    ),
+  resetPassword: (email: string, newPassword: string) =>
+    apiClient.post<{ updated: boolean }>("/api/auth/kiosk/admin-reset-password", { email, newPassword }, true),
+  deleteAccount: (email: string) =>
+    apiClient.post<{ deleted: boolean }>("/api/auth/kiosk/admin-delete", { email }, true),
+};
+
 // ============ OFERTAS DESTACADAS ============
 export interface OfertaDestacada {
   uuid: string;

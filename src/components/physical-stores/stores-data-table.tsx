@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal, Eye, Settings, Package } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Eye, Monitor } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,19 +45,20 @@ import { BackendTienda } from "@/lib/api";
 interface StoresDataTableProps {
   stores: BackendTienda[];
   onViewStore: (store: BackendTienda) => void;
-  onManageOrders: (store: BackendTienda) => void;
-  onStoreSettings: (store: BackendTienda) => void;
+  onKioskAccount: (store: BackendTienda) => void;
 }
 
 export function StoresDataTable({
   stores,
   onViewStore,
-  onManageOrders,
-  onStoreSettings,
+  onKioskAccount,
 }: StoresDataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
+    contacto: false,
+    codBodega: false,
+  });
   const [rowSelection, setRowSelection] = React.useState({});
 
   const columns: ColumnDef<BackendTienda>[] = [
@@ -122,10 +123,10 @@ export function StoresDataTable({
       cell: ({ row }) => {
         const store = row.original;
         return (
-          <div>
-            <div className="text-sm">{store.direccion || '-'}</div>
+          <div className="max-w-[200px]">
+            <div className="text-sm truncate" title={store.direccion || ''}>{store.direccion || '-'}</div>
             {store.ubicacion_cc && (
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground truncate" title={store.ubicacion_cc}>
                 {store.ubicacion_cc}
               </div>
             )}
@@ -137,7 +138,9 @@ export function StoresDataTable({
       accessorKey: "horario",
       header: "Horario",
       cell: ({ row }) => (
-        <div className="text-sm">{row.getValue("horario") || '-'}</div>
+        <div className="text-sm max-w-[200px] truncate" title={row.getValue("horario") || ''}>
+          {row.getValue("horario") || '-'}
+        </div>
       ),
     },
     {
@@ -191,13 +194,9 @@ export function StoresDataTable({
                 <Eye className="mr-2 h-4 w-4" />
                 Ver Detalles
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onManageOrders(store)}>
-                <Package className="mr-2 h-4 w-4" />
-                Gestionar Órdenes
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onStoreSettings(store)}>
-                <Settings className="mr-2 h-4 w-4" />
-                Configuración
+              <DropdownMenuItem onClick={() => onKioskAccount(store)}>
+                <Monitor className="mr-2 h-4 w-4" />
+                Cuenta de Quiosco
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -237,7 +236,7 @@ export function StoresDataTable({
           className="max-w-sm"
         />
       </div>
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-hidden">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
