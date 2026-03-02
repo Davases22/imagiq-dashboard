@@ -4,18 +4,18 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import { StoresDataTable } from "@/components/physical-stores/stores-data-table";
 import { PickupVerificationModal } from "@/components/physical-stores/pickup-verification-modal";
+import { KioskAccountDialog } from "@/components/physical-stores/kiosk-account-dialog";
+import { StoreDetailDialog } from "@/components/physical-stores/store-detail-dialog";
+import type { BackendTienda } from "@/lib/api";
 import {
   Store,
   Package,
   QrCode,
   BarChart3,
   Settings,
-  Search,
 } from "lucide-react";
-import { toast } from "sonner";
 import { useTiendas } from "@/hooks/use-tiendas";
 import { usePickupMetrics } from "@/hooks/use-pickup-metrics";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -30,7 +30,10 @@ export default function PuntoFisicoPage() {
   } = usePickupMetrics();
 
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [kioskDialogStore, setKioskDialogStore] = useState<BackendTienda | null>(null);
+  const [isKioskDialogOpen, setIsKioskDialogOpen] = useState(false);
+  const [detailStore, setDetailStore] = useState<BackendTienda | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const handleVerificationSuccess = () => {
     // Refrescar métricas después de una verificación exitosa
@@ -120,19 +123,6 @@ export default function PuntoFisicoPage() {
         </TabsList>
 
         <TabsContent value="stores" className="space-y-3">
-          {/* Search */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar tiendas..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </div>
-
           {/* Stores Table */}
           <Card>
             <CardHeader>
@@ -144,15 +134,14 @@ export default function PuntoFisicoPage() {
               ) : (
                 <StoresDataTable
                   stores={tiendas}
-                  onViewStore={(store) =>
-                    toast.info(`Viendo detalles de ${store.descripcion}`)
-                  }
-                  onManageOrders={(store) =>
-                    toast.info(`Gestionar órdenes de ${store.descripcion}`)
-                  }
-                  onStoreSettings={(store) =>
-                    toast.info(`Configuración de ${store.descripcion}`)
-                  }
+                  onViewStore={(store) => {
+                    setDetailStore(store);
+                    setIsDetailOpen(true);
+                  }}
+                  onKioskAccount={(store) => {
+                    setKioskDialogStore(store);
+                    setIsKioskDialogOpen(true);
+                  }}
                 />
               )}
             </CardContent>
@@ -198,6 +187,26 @@ export default function PuntoFisicoPage() {
         open={isVerificationModalOpen}
         onClose={() => setIsVerificationModalOpen(false)}
         onVerificationSuccess={handleVerificationSuccess}
+      />
+
+      {/* Store Detail Dialog */}
+      <StoreDetailDialog
+        open={isDetailOpen}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setDetailStore(null);
+        }}
+        store={detailStore}
+      />
+
+      {/* Kiosk Account Dialog */}
+      <KioskAccountDialog
+        open={isKioskDialogOpen}
+        onClose={() => {
+          setIsKioskDialogOpen(false);
+          setKioskDialogStore(null);
+        }}
+        store={kioskDialogStore}
       />
     </div>
   );
