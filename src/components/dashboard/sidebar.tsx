@@ -130,7 +130,7 @@ const navSecondary = [
   },
   {
     title: "Configuraciones",
-    url: "/configuraciones",
+    url: "/pagina-web/configuracion",
     icon: Settings,
   },
   {

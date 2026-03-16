@@ -69,7 +69,7 @@ const getStyles = (placement: string | undefined, device: DeviceType, isLandingP
   if (isFlexible) {
     return {
       aspectRatio: "",
-      maxWidth: "max-w-md", // ~448px para banners de categoría (verticales)
+      maxWidth: "max-w-[318px]", // Mismo ancho que en el frontend (~300-320px en columna de categoría)
       mediaClass: "w-full h-auto pointer-events-none",
       minHeight: "min-h-[150px]",
     };
@@ -83,7 +83,7 @@ const getStyles = (placement: string | undefined, device: DeviceType, isLandingP
   if (isLandingPage) {
     return {
       aspectRatio: isDesktop ? "aspect-[126/31]" : "aspect-[207/155]",
-      maxWidth: isDesktop ? "max-w-full" : "max-w-sm",
+      maxWidth: isDesktop ? "max-w-full" : "max-w-[420px]",
       mediaClass: "absolute inset-0 w-full h-full object-cover pointer-events-none",
       minHeight: "",
     };
@@ -94,7 +94,7 @@ const getStyles = (placement: string | undefined, device: DeviceType, isLandingP
   if (placement?.startsWith("ofertas-")) {
     return {
       aspectRatio: isDesktop ? "aspect-[1210/310]" : "aspect-[414/310]",
-      maxWidth: isDesktop ? "max-w-2xl" : "max-w-sm",
+      maxWidth: isDesktop ? "max-w-2xl" : "max-w-[420px]",
       mediaClass: "absolute inset-0 w-full h-full object-cover pointer-events-none",
       minHeight: "",
     };
@@ -104,26 +104,28 @@ const getStyles = (placement: string | undefined, device: DeviceType, isLandingP
   if (placement === "hero") {
     return {
       aspectRatio: isDesktop ? "aspect-[16/9]" : "aspect-[9/16]",
-      maxWidth: isDesktop ? "max-w-2xl" : "max-w-sm", // ~672px desktop
+      maxWidth: isDesktop ? "max-w-2xl" : "max-w-[420px]", // ~672px desktop
       mediaClass: "absolute inset-0 w-full h-full object-cover pointer-events-none",
       minHeight: "",
     };
   }
 
   // Home banners - tamaño intermedio
+  // Mobile: el frontend usa min-h-[580px] a ~420px ancho → aspecto ~21:29 (NO 9:16)
   if (placement?.startsWith("home-")) {
     return {
-      aspectRatio: isDesktop ? "aspect-[16/9]" : "aspect-[9/16]",
-      maxWidth: isDesktop ? "max-w-xl" : "max-w-sm", // ~576px desktop
+      aspectRatio: isDesktop ? "aspect-[16/9]" : "aspect-[21/29]",
+      maxWidth: isDesktop ? "max-w-xl" : "max-w-[420px]", // ~576px desktop
       mediaClass: "absolute inset-0 w-full h-full object-cover pointer-events-none",
       minHeight: "",
     };
   }
 
   // Otros banners (por defecto)
+  // Mobile: mismo aspecto que home banners por defecto
   return {
-    aspectRatio: isDesktop ? "aspect-[16/9]" : "aspect-[9/16]",
-    maxWidth: isDesktop ? "max-w-2xl" : "max-w-sm",
+    aspectRatio: isDesktop ? "aspect-[16/9]" : "aspect-[21/29]",
+    maxWidth: isDesktop ? "max-w-2xl" : "max-w-[420px]",
     mediaClass: "absolute inset-0 w-full h-full object-cover pointer-events-none",
     minHeight: "",
   };
@@ -132,36 +134,32 @@ const getStyles = (placement: string | undefined, device: DeviceType, isLandingP
 const isSingleView = (placement?: string) =>
   placement === "product-detail" || placement === "category-top" || Boolean(placement?.startsWith("banner-"));
 
-// Helper para escalar tamaños en el preview (40% del tamaño original en desktop, 60% en mobile)
-const scaleFontSize = (size: string, isMobile: boolean): string => {
-  const regex = /([\d.]+)(rem|px|em)/;
-  const match = regex.exec(size);
-  if (match) {
-    // En mobile usamos un factor mayor (0.6) para que se vea más legible
-    const factor = isMobile ? 1 : 0.4;
-    const value = Number.parseFloat(match[1]) * factor;
-    return `${value}${match[2]}`;
-  }
-  return size;
-};
-
-const scalePadding = (padding: string, isMobile: boolean): string => {
-  return padding.replaceAll(/([\d.]+)(px|rem|em)/g, (_match, num, unit) => {
-    const factor = isMobile ? 0.6 : 0.4;
-    const value = Number.parseFloat(num) * factor;
-    return `${value}${unit}`;
-  });
+// Tamaño real del banner según placement y dispositivo (para escala proporcional del preview)
+const getRealBannerWidth = (placement?: string, dev?: DeviceType): number => {
+  const isMob = dev === 'mobile';
+  if (placement?.startsWith("ofertas-")) return isMob ? 420 : 1210;
+  if (placement === "hero") return isMob ? 420 : 1920;
+  // Category/banner-* banners: el frontend usa scale={0.41} en ProductBannerCard
+  // Preview ~318px / 776px ≈ 0.41 → coincide con el frontend
+  if (placement === "category-top" || placement?.startsWith("banner-")) return 776;
+  if (placement?.startsWith("home-")) return isMob ? 420 : 1440;
+  return isMob ? 420 : 1440;
 };
 
 // Componente para renderizar bloques de contenido con drag & drop
+// Replica exactamente la lógica de renderizado del frontend (HeroSection + DynamicBannerClean)
 function ContentBlockOverlay({
   block,
   device,
+  placement,
+  scaleFactor,
   onPositionChange,
   onDragStart
 }: {
   block: ContentBlock;
   device: DeviceType;
+  placement?: string;
+  scaleFactor: number;
   onPositionChange?: (blockId: string, position: { x: number; y: number }) => void;
   onDragStart?: (blockId: string, e: React.MouseEvent, element: HTMLDivElement) => void;
 }) {
@@ -169,7 +167,9 @@ function ContentBlockOverlay({
   const position = isMobile ? block.position_mobile : block.position_desktop;
 
   // Container configs con fallback a desktop si no hay mobile config
-  const textAlign = (isMobile && block.textAlign_mobile) ? block.textAlign_mobile : (block.textAlign || 'left');
+  // HeroSection usa 'left' por defecto, DynamicBannerClean usa 'center'
+  const defaultTextAlign = placement === 'hero' ? 'left' : 'center';
+  const textAlign = (isMobile && block.textAlign_mobile) ? block.textAlign_mobile : (block.textAlign || defaultTextAlign);
   const gap = (isMobile && block.gap_mobile) ? block.gap_mobile : (block.gap || '12px');
 
   const blockRef = useRef<HTMLDivElement>(null);
@@ -181,6 +181,28 @@ function ContentBlockOverlay({
     onDragStart(block.id, e, blockRef.current);
   };
 
+  // Replicar la lógica de transform del frontend:
+  // - HeroSection: siempre translate(-50%, -50%)
+  // - ProductBannerCard (category/banner-*): siempre translate(-50%, -50%) con centerContent={true}
+  // - DynamicBannerClean (home-*): ajusta translateX según textAlign
+  const isAlwaysCentered = placement === 'hero' || placement === 'category-top' || placement?.startsWith('banner-');
+  let transformX = '-50%';
+  if (!isAlwaysCentered) {
+    if (textAlign === 'left') transformX = '0%';
+    else if (textAlign === 'right') transformX = '-100%';
+  }
+
+  // Helper: escalar valores CSS numéricos proporcionalmente al preview
+  // Escala fontSize, padding, gap, textShadow, borderRadius, etc.
+  // Deja intactos valores sin unidades como 'normal', 'none', colores, etc.
+  const sc = (value: string | undefined, fallback: string): string => {
+    const v = value || fallback;
+    if (!v || v === 'none' || v === 'normal') return v;
+    return v.replace(/([\d.]+)(px|rem|em)/g, (_, num, unit) => {
+      return `${(parseFloat(num) * scaleFactor).toFixed(2)}${unit}`;
+    });
+  };
+
   return (
     <div
       ref={blockRef}
@@ -188,7 +210,7 @@ function ContentBlockOverlay({
       style={{
         left: `${position.x}%`,
         top: `${position.y}%`,
-        transform: 'translate(-50%, -50%)',
+        transform: `translate(${transformX}, -50%)`,
         cursor: onPositionChange ? 'move' : 'default',
       }}
       onMouseDown={handleMouseDown}
@@ -204,12 +226,12 @@ function ContentBlockOverlay({
         </div>
       )}
 
+      {/* Contenido con tamaños escalados proporcionalmente al preview */}
       <div
         className="flex flex-col pointer-events-auto"
         style={{
-          gap,
+          gap: sc(gap, '12px'),
           textAlign,
-          minWidth: 'max-content',
         }}
       >
         {/* Título */}
@@ -221,13 +243,13 @@ function ContentBlockOverlay({
           return (
             <h2
               style={{
-                fontSize: scaleFontSize(titleConfig.fontSize || '2rem', isMobile),
+                fontSize: sc(titleConfig.fontSize, '2rem'),
                 fontWeight: titleConfig.fontWeight || '700',
                 color: titleConfig.color || '#ffffff',
                 lineHeight: titleConfig.lineHeight || '1.2',
                 textTransform: titleConfig.textTransform || 'none',
-                letterSpacing: titleConfig.letterSpacing || 'normal',
-                textShadow: titleConfig.textShadow || '2px 2px 4px rgba(0,0,0,0.5)',
+                letterSpacing: sc(titleConfig.letterSpacing, 'normal'),
+                textShadow: sc(titleConfig.textShadow, '2px 2px 4px rgba(0,0,0,0.5)'),
                 margin: 0,
                 whiteSpace: 'pre-line',
               }}
@@ -246,7 +268,7 @@ function ContentBlockOverlay({
           return (
             <h3
               style={{
-                fontSize: scaleFontSize(subtitleConfig.fontSize || '1.5rem', isMobile),
+                fontSize: sc(subtitleConfig.fontSize, '1.5rem'),
                 fontWeight: subtitleConfig.fontWeight || '600',
                 color: subtitleConfig.color || '#ffffff',
                 lineHeight: subtitleConfig.lineHeight || '1.3',
@@ -269,10 +291,11 @@ function ContentBlockOverlay({
           return (
             <p
               style={{
-                fontSize: scaleFontSize(descriptionConfig.fontSize || '1rem', isMobile),
+                fontSize: sc(descriptionConfig.fontSize, '1rem'),
                 fontWeight: descriptionConfig.fontWeight || '400',
                 color: descriptionConfig.color || '#ffffff',
                 lineHeight: descriptionConfig.lineHeight || '1.5',
+                textTransform: descriptionConfig.textTransform || 'none',
                 margin: 0,
                 whiteSpace: 'pre-line',
               }}
@@ -294,13 +317,14 @@ function ContentBlockOverlay({
                 type="button"
                 className="inline-block cursor-grab active:cursor-grabbing"
                 style={{
-                  fontSize: scaleFontSize(ctaConfig.fontSize || '1rem', isMobile),
+                  fontSize: sc(ctaConfig.fontSize, '1rem'),
                   fontWeight: ctaConfig.fontWeight || '600',
                   backgroundColor: ctaConfig.backgroundColor || '#ffffff',
                   color: ctaConfig.color || '#000000',
-                  padding: scalePadding(ctaConfig.padding || '12px 24px', isMobile),
-                  borderRadius: ctaConfig.borderRadius || '8px',
+                  padding: sc(ctaConfig.padding, '12px 24px'),
+                  borderRadius: sc(ctaConfig.borderRadius, '8px'),
                   border: ctaConfig.border || 'none',
+                  textTransform: ctaConfig.textTransform || 'none',
                   textAlign: 'center',
                   whiteSpace: 'pre-line',
                 }}
@@ -364,6 +388,25 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor));
+
+  // Medir ancho del contenedor para escala proporcional del preview
+  const [containerWidth, setContainerWidth] = useState(0);
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Factor de escala: preview width / banner real width
+  // Clamp a máximo 1.0 para nunca agrandar el texto (solo reducir)
+  const previewScaleFactor = containerWidth > 0
+    ? Math.min(containerWidth / getRealBannerWidth(placement, device), 1.0)
+    : 0.35;
 
   /**
    * Obtiene el tamaño real del banner (no el del preview) según el placement
@@ -496,13 +539,29 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
   const handleBlockDragStart = (blockId: string, e: React.MouseEvent, element: HTMLDivElement) => {
     if (!containerRef.current) return;
 
+    // Buscar el bloque para determinar su textAlign
+    const block = contentBlocks?.find(b => b.id === blockId);
+    const isMob = device === 'mobile';
+    const blockTextAlign = (isMob && block?.textAlign_mobile)
+      ? block.textAlign_mobile
+      : (block?.textAlign || 'center');
+
     const elementRect = element.getBoundingClientRect();
 
-    // Calcular el offset del mouse respecto al centro del elemento
-    const offsetX = e.clientX - (elementRect.left + elementRect.width / 2);
-    const offsetY = e.clientY - (elementRect.top + elementRect.height / 2);
+    // El anchor point debe coincidir con el transform usado en el frontend:
+    // - hero: siempre centro
+    // - otros: depende de textAlign
+    let anchorX: number;
+    if (placement === 'hero' || blockTextAlign === 'center') {
+      anchorX = elementRect.left + elementRect.width / 2;
+    } else if (blockTextAlign === 'right') {
+      anchorX = elementRect.right;
+    } else {
+      anchorX = elementRect.left;
+    }
+    const anchorY = elementRect.top + elementRect.height / 2;
 
-    setDragOffset({ x: offsetX, y: offsetY });
+    setDragOffset({ x: e.clientX - anchorX, y: e.clientY - anchorY });
     setDraggedBlockId(blockId);
     setIsDragging(true);
   };
@@ -533,6 +592,8 @@ function BannerContent({ bannerId, image, video, title, description, cta, colorF
                     key={block.id}
                     block={block}
                     device={device}
+                    placement={placement}
+                    scaleFactor={previewScaleFactor}
                     onPositionChange={onBlockPositionChange ? (blockId, pos) => {
                       // Pasar el device para actualizar solo la posición del dispositivo activo
                       onBlockPositionChange(blockId, device, pos);
