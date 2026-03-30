@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Save, Loader2, Globe, Bot, Map, FileText, Plus, X, ExternalLink, Copy } from "lucide-react"
+import { ArrowLeft, Save, Loader2, Globe, Bot, Map, FileText, Plus, X, ExternalLink, Copy, Upload, ImageIcon } from "lucide-react"
 import { toast } from "sonner"
 import { SerpPreview } from "@/components/seo/SerpPreview"
 import { OgPreview } from "@/components/seo/OgPreview"
@@ -46,6 +46,7 @@ export default function SeoPage() {
 
   const [newPath, setNewPath] = useState("")
   const [newProfile, setNewProfile] = useState("")
+  const [isUploadingOg, setIsUploadingOg] = useState(false)
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -113,6 +114,43 @@ export default function SeoPage() {
     const updated = [...socialProfiles, newProfile.trim()]
     updateField("social_profiles", JSON.stringify(updated))
     setNewProfile("")
+  }
+
+  const handleOgImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Formato no valido. Usa JPG, PNG o WebP")
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("La imagen no debe superar 2MB")
+      return
+    }
+
+    try {
+      setIsUploadingOg(true)
+      const formData = new FormData()
+      formData.append("image", file)
+
+      const res = await fetch(`${API_URL}/api/multimedia/logo/upload/header-logo-dark`, {
+        method: "POST",
+        headers: { ...(API_KEY && { "X-API-Key": API_KEY }) },
+        body: formData,
+      })
+
+      if (!res.ok) throw new Error("Error al subir imagen")
+
+      const data = await res.json()
+      updateField("default_og_image", data.url)
+      toast.success("Imagen OG subida correctamente")
+    } catch {
+      toast.error("Error al subir la imagen")
+    } finally {
+      setIsUploadingOg(false)
+      e.target.value = ""
+    }
   }
 
   const removeSocialProfile = (index: number) => {
@@ -225,27 +263,63 @@ export default function SeoPage() {
                   <div className="space-y-2">
                     <Label>Imagen para redes sociales (OG Image)</Label>
                     <p className="text-xs text-muted-foreground">Tamano recomendado: 1200x630px. Se muestra al compartir en Facebook, Twitter, WhatsApp, etc.</p>
-                    <div className="flex items-start gap-3">
-                      <Input
-                        value={settings.default_og_image || ""}
-                        onChange={e => updateField("default_og_image", e.target.value)}
-                        placeholder="https://res.cloudinary.com/.../og-image.png"
-                        className="flex-1"
-                      />
-                      {settings.default_og_image && (
-                        <Button variant="ghost" size="icon" onClick={() => updateField("default_og_image", "")}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                    {settings.default_og_image && (
-                      <div className="mt-2 rounded-lg border overflow-hidden" style={{ aspectRatio: "1200/630", maxWidth: 300 }}>
-                        <img
-                          src={settings.default_og_image.startsWith("/") ? `${settings.site_url || ""}${settings.default_og_image}` : settings.default_og_image}
-                          alt="OG Image preview"
-                          className="w-full h-full object-cover"
-                          onError={e => { (e.target as HTMLImageElement).style.display = "none" }}
-                        />
+
+                    {settings.default_og_image ? (
+                      <div className="space-y-3">
+                        <div className="relative rounded-lg border overflow-hidden" style={{ aspectRatio: "1200/630" }}>
+                          <img
+                            src={settings.default_og_image.startsWith("/") ? `${settings.site_url || ""}${settings.default_og_image}` : settings.default_og_image}
+                            alt="OG Image preview"
+                            className="w-full h-full object-cover"
+                            onError={e => { (e.target as HTMLImageElement).src = "" }}
+                          />
+                          <div className="absolute top-2 right-2 flex gap-1">
+                            <label className="cursor-pointer">
+                              <Button variant="secondary" size="icon" asChild>
+                                <span><ImageIcon className="h-4 w-4" /></span>
+                              </Button>
+                              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleOgImageUpload} disabled={isUploadingOg} />
+                            </label>
+                            <Button variant="destructive" size="icon" onClick={() => updateField("default_og_image", "")}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          {isUploadingOg && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <Loader2 className="h-8 w-8 animate-spin text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={settings.default_og_image || ""}
+                            onChange={e => updateField("default_og_image", e.target.value)}
+                            placeholder="https://res.cloudinary.com/.../og-image.png"
+                            className="flex-1 text-xs"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 cursor-pointer hover:bg-accent/50 transition-colors ${isUploadingOg ? "opacity-50 cursor-not-allowed" : ""}`} style={{ aspectRatio: "1200/630" }}>
+                          {isUploadingOg ? (
+                            <Loader2 className="h-10 w-10 mb-3 animate-spin text-primary" />
+                          ) : (
+                            <Upload className="h-10 w-10 mb-3 text-muted-foreground" />
+                          )}
+                          <span className="text-sm text-primary font-medium">{isUploadingOg ? "Subiendo..." : "Click para subir imagen"}</span>
+                          <span className="text-xs text-muted-foreground mt-1">JPG, PNG o WebP. Max 2MB</span>
+                          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleOgImageUpload} disabled={isUploadingOg} />
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">o pega una URL:</span>
+                          <Input
+                            value={settings.default_og_image || ""}
+                            onChange={e => updateField("default_og_image", e.target.value)}
+                            placeholder="https://res.cloudinary.com/.../og-image.png"
+                            className="flex-1 text-xs"
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
