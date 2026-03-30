@@ -67,7 +67,7 @@ export default function PaginaWebPage() {
       description: "Optimiza tu sitio para motores de búsqueda",
       icon: TrendingUp,
       path: "/pagina-web/seo",
-      available: false,
+      available: true,
     },
     {
       id: "configuracion",
