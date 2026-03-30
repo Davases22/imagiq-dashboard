@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -59,11 +59,20 @@ function VisibilitySwitch({
   const [checked, setChecked] = useState(defaultValue);
   const [loading, setLoading] = useState(false);
 
+  // Sincronizar estado cuando los datos del servidor cambian (paginación, refetch)
+  useEffect(() => {
+    setChecked(defaultValue);
+  }, [defaultValue]);
+
   const handleChange = async (value: boolean) => {
     setChecked(value);
     setLoading(true);
     try {
-      await productEndpoints.updateVisibility(sku, { [field]: value });
+      const response = await productEndpoints.updateVisibility(sku, { [field]: value });
+      if (!response.success) {
+        console.error("Error updating visibility:", response.message);
+        setChecked(!value); // Revert on error
+      }
     } catch (error) {
       console.error("Error updating visibility:", error);
       setChecked(!value); // Revert on error
