@@ -164,129 +164,161 @@ export default function SeoPage() {
         </TabsList>
 
         {/* ─── TAB: General ─── */}
-        <TabsContent value="general" className="space-y-4">
-          {/* SERP Preview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Vista previa en Google</CardTitle>
-              <CardDescription>Asi se vera tu sitio en los resultados de busqueda</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <SerpPreview
-                title={settings.default_title || ""}
-                description={settings.default_description || ""}
-                url={settings.site_url || "https://imagiq.com"}
-              />
-            </CardContent>
-          </Card>
+        <TabsContent value="general">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
+            {/* Left: Edit fields */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Configuracion general</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Nombre del sitio</Label>
+                      <Input
+                        value={settings.site_name || ""}
+                        onChange={e => updateField("site_name", e.target.value)}
+                        placeholder="Imagiq Samsung Store"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>URL del sitio</Label>
+                      <Input
+                        value={settings.site_url || ""}
+                        onChange={e => updateField("site_url", e.target.value)}
+                        placeholder="https://imagiq.com"
+                      />
+                    </div>
+                  </div>
 
-          {/* OG Preview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Vista previa en redes sociales</CardTitle>
-              <CardDescription>Asi se vera cuando compartan tu sitio</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <OgPreview
-                title={settings.default_title || ""}
-                description={settings.default_description || ""}
-                image={settings.default_og_image || ""}
-                siteName={settings.site_name || ""}
-                url={settings.site_url || ""}
-              />
-            </CardContent>
-          </Card>
+                  <div className="space-y-2">
+                    <Label>Plantilla de titulo</Label>
+                    <Input
+                      value={settings.title_template || ""}
+                      onChange={e => updateField("title_template", e.target.value)}
+                      placeholder="%s | Imagiq Samsung Store"
+                    />
+                    <p className="text-xs text-muted-foreground">Usa %s donde ira el titulo de cada pagina</p>
+                  </div>
 
-          {/* Settings fields */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Configuracion general</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Nombre del sitio</Label>
-                  <Input
-                    value={settings.site_name || ""}
-                    onChange={e => updateField("site_name", e.target.value)}
-                    placeholder="Imagiq Samsung Store"
+                  <div className="space-y-2">
+                    <Label>Titulo por defecto</Label>
+                    <Input
+                      value={settings.default_title || ""}
+                      onChange={e => updateField("default_title", e.target.value)}
+                    />
+                    <CharCounter value={settings.default_title || ""} min={30} max={60} label="Titulo" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Descripcion por defecto</Label>
+                    <Textarea
+                      value={settings.default_description || ""}
+                      onChange={e => updateField("default_description", e.target.value)}
+                      rows={3}
+                    />
+                    <CharCounter value={settings.default_description || ""} min={120} max={160} label="Descripcion" />
+                  </div>
+
+                  {/* OG Image */}
+                  <div className="space-y-2">
+                    <Label>Imagen para redes sociales (OG Image)</Label>
+                    <p className="text-xs text-muted-foreground">Tamano recomendado: 1200x630px. Se muestra al compartir en Facebook, Twitter, WhatsApp, etc.</p>
+                    <div className="flex items-start gap-3">
+                      <Input
+                        value={settings.default_og_image || ""}
+                        onChange={e => updateField("default_og_image", e.target.value)}
+                        placeholder="https://res.cloudinary.com/.../og-image.png"
+                        className="flex-1"
+                      />
+                      {settings.default_og_image && (
+                        <Button variant="ghost" size="icon" onClick={() => updateField("default_og_image", "")}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {settings.default_og_image && (
+                      <div className="mt-2 rounded-lg border overflow-hidden" style={{ aspectRatio: "1200/630", maxWidth: 300 }}>
+                        <img
+                          src={settings.default_og_image.startsWith("/") ? `${settings.site_url || ""}${settings.default_og_image}` : settings.default_og_image}
+                          alt="OG Image preview"
+                          className="w-full h-full object-cover"
+                          onError={e => { (e.target as HTMLImageElement).style.display = "none" }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Codigo de verificacion de Google</Label>
+                    <Input
+                      value={settings.google_verification || ""}
+                      onChange={e => updateField("google_verification", e.target.value)}
+                      placeholder="google-site-verification=..."
+                    />
+                  </div>
+
+                  {/* Social Profiles — full URL in badges */}
+                  <div className="space-y-2">
+                    <Label>Perfiles sociales</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={newProfile}
+                        onChange={e => setNewProfile(e.target.value)}
+                        placeholder="https://www.instagram.com/imagiq_colombia"
+                        onKeyDown={e => e.key === "Enter" && addSocialProfile()}
+                      />
+                      <Button variant="outline" size="icon" onClick={addSocialProfile}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {socialProfiles.map((url, i) => (
+                        <Badge key={i} variant="secondary" className="flex items-center gap-1 max-w-full">
+                          <span className="truncate text-xs" title={url}>{url}</span>
+                          <button onClick={() => removeSocialProfile(i)} className="flex-shrink-0 ml-1">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right: Previews sticky */}
+            <div className="lg:sticky lg:top-4 lg:self-start space-y-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Vista previa en Google</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SerpPreview
+                    title={settings.default_title || ""}
+                    description={settings.default_description || ""}
+                    url={settings.site_url || "https://imagiq.com"}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label>URL del sitio</Label>
-                  <Input
-                    value={settings.site_url || ""}
-                    onChange={e => updateField("site_url", e.target.value)}
-                    placeholder="https://imagiq.com"
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Vista previa en redes sociales</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <OgPreview
+                    title={settings.default_title || ""}
+                    description={settings.default_description || ""}
+                    image={settings.default_og_image?.startsWith("/") ? `${settings.site_url || ""}${settings.default_og_image}` : (settings.default_og_image || "")}
+                    siteName={settings.site_name || ""}
+                    url={settings.site_url || ""}
                   />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Plantilla de titulo</Label>
-                <Input
-                  value={settings.title_template || ""}
-                  onChange={e => updateField("title_template", e.target.value)}
-                  placeholder="%s | Imagiq Samsung Store"
-                />
-                <p className="text-xs text-muted-foreground">Usa %s donde ira el titulo de cada pagina</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Titulo por defecto</Label>
-                <Input
-                  value={settings.default_title || ""}
-                  onChange={e => updateField("default_title", e.target.value)}
-                />
-                <CharCounter value={settings.default_title || ""} min={30} max={60} label="Titulo" />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Descripcion por defecto</Label>
-                <Textarea
-                  value={settings.default_description || ""}
-                  onChange={e => updateField("default_description", e.target.value)}
-                  rows={3}
-                />
-                <CharCounter value={settings.default_description || ""} min={120} max={160} label="Descripcion" />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Codigo de verificacion de Google</Label>
-                <Input
-                  value={settings.google_verification || ""}
-                  onChange={e => updateField("google_verification", e.target.value)}
-                  placeholder="google-site-verification=..."
-                />
-              </div>
-
-              {/* Social Profiles */}
-              <div className="space-y-2">
-                <Label>Perfiles sociales</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={newProfile}
-                    onChange={e => setNewProfile(e.target.value)}
-                    placeholder="https://instagram.com/imagiqstore"
-                    onKeyDown={e => e.key === "Enter" && addSocialProfile()}
-                  />
-                  <Button variant="outline" size="icon" onClick={addSocialProfile}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {socialProfiles.map((url, i) => (
-                    <Badge key={i} variant="secondary" className="flex items-center gap-1">
-                      {new URL(url).hostname}
-                      <button onClick={() => removeSocialProfile(i)}>
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
 
         {/* ─── TAB: Robots ─── */}
