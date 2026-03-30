@@ -46,10 +46,11 @@ export function WhatsAppTemplatePreview({ templateData, variableValues = {}, sel
             <img
               src={templateData.header.content}
               alt="Header"
-              className="w-full h-32 object-cover rounded-t-xl"
+              className="w-full rounded-t-xl"
+              style={{ aspectRatio: "1.91 / 1", objectFit: "cover" }}
             />
           ) : (
-            <div className="w-full h-32 bg-gray-200 dark:bg-gray-700 flex items-center justify-center rounded-t-xl">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center rounded-t-xl" style={{ aspectRatio: "1.91 / 1" }}>
               <ImageIcon className="h-8 w-8 text-gray-400" />
             </div>
           )}
@@ -60,7 +61,7 @@ export function WhatsAppTemplatePreview({ templateData, variableValues = {}, sel
     if (templateData.header.type === "VIDEO") {
       return (
         <div className="mb-1.5 -mx-2 -mt-2">
-          <div className="w-full h-32 bg-gray-200 dark:bg-gray-700 flex items-center justify-center rounded-t-xl">
+          <div className="w-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center rounded-t-xl" style={{ aspectRatio: "16 / 9" }}>
             <Video className="h-8 w-8 text-gray-400" />
           </div>
         </div>

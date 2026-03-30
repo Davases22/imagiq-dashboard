@@ -50,9 +50,12 @@ export function WhatsAppTemplateForm({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validar tamaño (16MB máx para WhatsApp)
-    if (file.size > 16 * 1024 * 1024) {
-      toast.error("El archivo no puede superar 16MB");
+    // Validar tamaño según tipo (Meta WhatsApp API limits)
+    const maxSizeMB = templateData.header.type === "IMAGE" ? 5
+      : templateData.header.type === "VIDEO" ? 16
+      : 100; // DOCUMENT
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      toast.error(`El archivo no puede superar ${maxSizeMB}MB`);
       return;
     }
 
@@ -94,7 +97,7 @@ export function WhatsAppTemplateForm({
 
   const getAcceptTypes = () => {
     switch (templateData.header.type) {
-      case "IMAGE": return "image/jpeg,image/png,image/webp";
+      case "IMAGE": return "image/jpeg,image/png";
       case "VIDEO": return "video/mp4,video/3gpp";
       case "DOCUMENT": return "application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
       default: return "";
@@ -360,7 +363,8 @@ export function WhatsAppTemplateForm({
                     <img
                       src={templateData.header.content}
                       alt="Preview"
-                      className="w-full h-32 object-cover rounded-md"
+                      className="w-full rounded-md"
+                      style={{ aspectRatio: "1.91 / 1", objectFit: "cover" }}
                     />
                   )}
                   {templateData.header.type === "VIDEO" && (
@@ -419,9 +423,9 @@ export function WhatsAppTemplateForm({
                       <Upload className="h-8 w-8 text-muted-foreground" />
                       <p className="text-sm font-medium">Haz clic para subir</p>
                       <p className="text-xs text-muted-foreground">
-                        {templateData.header.type === "IMAGE" && "JPG, PNG o WebP (máx. 16MB)"}
-                        {templateData.header.type === "VIDEO" && "MP4 o 3GPP (máx. 16MB)"}
-                        {templateData.header.type === "DOCUMENT" && "PDF o Word (máx. 16MB)"}
+                        {templateData.header.type === "IMAGE" && "JPG o PNG — 1125x600 px (ratio 1.91:1) — máx. 5MB"}
+                        {templateData.header.type === "VIDEO" && "MP4 o 3GPP — 720p (1280x720) — H.264 — máx. 16MB"}
+                        {templateData.header.type === "DOCUMENT" && "PDF recomendado — máx. 100MB"}
                       </p>
                     </div>
                   )}
