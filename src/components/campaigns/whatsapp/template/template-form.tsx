@@ -119,7 +119,7 @@ export function WhatsAppTemplateForm({
       type,
       text: "",
       ...(type === "PHONE_NUMBER" && { phoneNumber: "" }),
-      ...(type === "URL" && { url: "" }),
+      ...(type === "URL" && { url: "https://www.imagiq.com" }),
     };
     onTemplateDataChange({
       ...templateData,
@@ -528,15 +528,26 @@ export function WhatsAppTemplateForm({
             <Badge variant="secondary">Opcional</Badge>
           </div>
           {templateData.buttons.length < 10 && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => addButton("QUICK_REPLY")}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Respuesta Rápida
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => addButton("QUICK_REPLY")}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Respuesta Rápida
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => addButton("URL")}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Visitar URL
+              </Button>
+            </div>
           )}
         </div>
 
