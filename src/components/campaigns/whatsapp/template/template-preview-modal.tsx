@@ -52,8 +52,8 @@ export function TemplatePreviewModal({ template, isOpen, onClose }: TemplatePrev
       // Usar el example del template si existe
       variableValues[variable] = template.variables[varNumber - 1];
     } else {
-      // Usar formato simple var1, var2, etc.
-      variableValues[variable] = `var${varNumber}`;
+      // Usar nombre descriptivo para la primera variable (nombre del cliente)
+      variableValues[variable] = varNumber === 1 ? 'nombre del cliente' : `var${varNumber}`;
     }
   });
 
