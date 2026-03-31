@@ -146,21 +146,27 @@ export function WhatsAppTemplatePreview({ templateData, variableValues = {}, sel
     return (
       <div className="mt-2 space-y-1">
         {templateData.buttons.map((button: any) => (
-          <button
-            key={button.id}
-            className="w-full py-1.5 px-2 text-center text-[#1C8854] font-medium text-xs border-t border-gray-200 dark:border-gray-700 flex items-center justify-center gap-1.5"
-          >
-            {button.type === "QUICK_REPLY" && (
-              <CornerUpLeft className="h-3 w-3" />
+          <div key={button.id}>
+            <button
+              className="w-full py-1.5 px-2 text-center text-[#1C8854] font-medium text-xs border-t border-gray-200 dark:border-gray-700 flex items-center justify-center gap-1.5"
+            >
+              {button.type === "QUICK_REPLY" && (
+                <CornerUpLeft className="h-3 w-3" />
+              )}
+              {button.type === "PHONE_NUMBER" && (
+                <Phone className="h-3 w-3" />
+              )}
+              {button.type === "URL" && (
+                <ExternalLink className="h-3 w-3" />
+              )}
+              {button.text || "Texto del botón"}
+            </button>
+            {button.type === "URL" && button.url && (
+              <p className="text-[9px] text-muted-foreground text-center truncate px-2 -mt-0.5">
+                {button.url}
+              </p>
             )}
-            {button.type === "PHONE_NUMBER" && (
-              <Phone className="h-3 w-3" />
-            )}
-            {button.type === "URL" && (
-              <ExternalLink className="h-3 w-3" />
-            )}
-            {button.text || "Texto del botón"}
-          </button>
+          </div>
         ))}
       </div>
     );
