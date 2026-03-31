@@ -423,6 +423,18 @@ export default function CrearPlantillaWhatsAppPage() {
         toast.error("Formato de idioma inválido");
         return false;
       }
+      // Meta requires footer without emojis or newlines
+      if (templateData.footer) {
+        const emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/u;
+        if (emojiRegex.test(templateData.footer)) {
+          toast.error("El pie de página no puede contener emojis (requisito de Meta)");
+          return false;
+        }
+        if (templateData.footer.includes('\n')) {
+          toast.error("El pie de página no puede contener saltos de línea (requisito de Meta)");
+          return false;
+        }
+      }
 
       // Check for duplicate template name before creating
       const existingResponse = await whatsappTemplateEndpoints.getAll();
@@ -471,18 +483,19 @@ export default function CrearPlantillaWhatsAppPage() {
         toast.success("Plantilla guardada correctamente en Meta");
         return true;
       } else {
-        // Extract error message from various response formats
+        // Extract error message from Meta API response
         let errorMsg = res.message || "No se pudo crear la plantilla";
         if (resData?.error) {
           if (typeof resData.error === 'string') {
             try {
               const parsed = JSON.parse(resData.error);
-              errorMsg = parsed?.error?.message || parsed?.message || resData.error;
+              errorMsg = parsed?.error?.error_user_msg || parsed?.error?.error_user_title || parsed?.error?.message || parsed?.message || resData.error;
             } catch {
               errorMsg = resData.error;
             }
           } else if (typeof resData.error === 'object') {
-            errorMsg = resData.error?.message || resData.error?.error?.message || JSON.stringify(resData.error);
+            // Meta API returns error_user_msg with the human-readable message
+            errorMsg = resData.error?.error_user_msg || resData.error?.error_user_title || resData.error?.message || resData.error?.error?.error_user_msg || resData.error?.error?.message || JSON.stringify(resData.error);
           }
         }
         toast.error(errorMsg);
