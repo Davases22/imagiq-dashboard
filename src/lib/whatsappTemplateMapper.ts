@@ -39,10 +39,22 @@ export function mapBackendToFrontend(
       componentesToProcess.forEach((component: any) => {
         switch (component.type) {
           case 'HEADER':
-            header = {
-              type: (component.text ? 'TEXT' : 'NONE') as 'TEXT' | 'NONE',
-              content: component.text || '',
-            };
+            if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT', 'LOCATION'].includes(component.format)) {
+              // Media header: extract URL from example.header_handle or header_url
+              const mediaUrl =
+                component.example?.header_handle?.[0] ||
+                component.example?.header_url?.[0] ||
+                '';
+              header = {
+                type: component.format as 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'LOCATION',
+                content: mediaUrl,
+              };
+            } else {
+              header = {
+                type: component.text ? 'TEXT' : 'NONE',
+                content: component.text || '',
+              };
+            }
             break;
           case 'BODY':
             body = component.text || '';
