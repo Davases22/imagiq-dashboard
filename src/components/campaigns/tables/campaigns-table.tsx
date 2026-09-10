@@ -29,6 +29,7 @@ import { Campaign } from "@/types";
 import { useInWebCampaigns } from "@/hooks/use-inweb-campaigns";
 import { campaignEndpoints } from "@/lib/api";
 import { MoreHorizontal, Mail, MessageSquare, Smartphone, Monitor, Loader2 } from "lucide-react";
+import { BrandIcon } from "@/components/icons/BrandIcon";
 import { toast } from "sonner";
 
 const getTypeIcon = (type: string) => {
@@ -38,7 +39,7 @@ const getTypeIcon = (type: string) => {
     case 'sms':
       return <Smartphone className="h-4 w-4" />;
     case 'whatsapp':
-      return <MessageSquare className="h-4 w-4" />;
+      return <BrandIcon brand="WhatsApp" size={16} className="text-green-600 dark:text-green-400" />;
     case 'in-web':
       return <Monitor className="h-4 w-4" />;
     default:
@@ -148,7 +149,7 @@ const createCampaignColumns = (
   },
   {
     accessorKey: "conversions",
-    header: "Conversiones",
+    header: "Aperturas",
     cell: ({ row }) => {
       const conversions = row.getValue("conversions") as number;
       return conversions > 0 ? conversions.toLocaleString() : "-";

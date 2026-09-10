@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Campaign } from '@/types';
-import { campaignEndpoints, InWebCampaignResponse, InWebCampaignsListResponse, emailCampaignEndpoints, EmailCampaignResponse } from '@/lib/api';
+import { campaignEndpoints, InWebCampaignResponse, InWebCampaignsListResponse, emailCampaignEndpoints, EmailCampaignResponse, whatsappCampaignEndpoints, WhatsAppCampaignResponse } from '@/lib/api';
 import { toast } from 'sonner';
 
 interface UseInWebCampaignsParams {
@@ -76,7 +76,38 @@ export function useInWebCampaigns(params: UseInWebCampaignsParams = {}): UseInWe
   };
 
   /**
-   * Obtiene las campañas desde la API (InWeb + Email)
+   * Mapea una campaña de WhatsApp (envío masivo de plantilla) al formato
+   * Campaign. El alcance es el total de destinatarios y las "aperturas" por
+   * campaña no existen aún (las lecturas se miden a nivel de plantilla), así
+   * que van en 0 y la tabla las muestra como "-".
+   */
+  const mapWhatsAppCampaign = (c: WhatsAppCampaignResponse): Campaign => {
+    const filtro = c.filtro
+      ? [c.filtro.categoria, c.filtro.subcategoria, c.filtro.submenu]
+          .filter(Boolean)
+          .join('/')
+      : '';
+    return {
+      id: c.id,
+      name: `${c.templateName}${filtro ? ` (${filtro})` : ''}`,
+      type: 'whatsapp',
+      status: (c.status === 'sending'
+        ? 'sending'
+        : c.status === 'failed'
+          ? 'failed'
+          : 'completed') as Campaign['status'],
+      reach: c.totalDestinatarios || 0,
+      clicks: 0,
+      conversions: 0,
+      createdAt: new Date(c.createdAt),
+      totalRecipients: c.totalDestinatarios,
+      successfulSends: c.enviados,
+      failedSends: c.fallidos,
+    };
+  };
+
+  /**
+   * Obtiene las campañas desde la API (InWeb + Email + WhatsApp)
    */
   const fetchCampaigns = async () => {
     setIsLoading(true);
@@ -84,7 +115,7 @@ export function useInWebCampaigns(params: UseInWebCampaignsParams = {}): UseInWe
 
     try {
       // Fetch both InWeb and Email campaigns in parallel
-      const [inWebResponse, emailResponse] = await Promise.allSettled([
+      const [inWebResponse, emailResponse, whatsappResponse] = await Promise.allSettled([
         campaignEndpoints.getInWebCampaigns({
           page: params.page || 1,
           limit: params.limit || 100,
@@ -94,6 +125,7 @@ export function useInWebCampaigns(params: UseInWebCampaignsParams = {}): UseInWe
           page: 1,
           limit: 100,
         }),
+        whatsappCampaignEndpoints.getAll(),
       ]);
 
       let allCampaigns: Campaign[] = [];
@@ -111,6 +143,14 @@ export function useInWebCampaigns(params: UseInWebCampaignsParams = {}): UseInWe
         const emailData = emailResponse.value.data as { data: EmailCampaignResponse[]; total: number };
         if (emailData && Array.isArray(emailData.data)) {
           allCampaigns.push(...emailData.data.map(mapEmailCampaign));
+        }
+      }
+
+      // Process WhatsApp campaigns (envíos masivos de plantillas)
+      if (whatsappResponse.status === 'fulfilled' && whatsappResponse.value.success) {
+        const waData = whatsappResponse.value.data as { data: WhatsAppCampaignResponse[]; total: number };
+        if (waData && Array.isArray(waData.data)) {
+          allCampaigns.push(...waData.data.map(mapWhatsAppCampaign));
         }
       }
 
