@@ -32,14 +32,26 @@ export function useInWebCampaigns(params: UseInWebCampaignsParams = {}): UseInWe
    * Mapea una campaña InWeb de la API al formato Campaign del frontend
    */
   const mapInWebCampaign = (apiCampaign: InWebCampaignResponse): Campaign => {
+    // Estado honesto: en BD nada expira el status ('active' para siempre),
+    // así que campañas vencidas hace meses salían como "Activa". Si la fecha
+    // final ya pasó, se muestra completada sin importar el status guardado.
+    const vencida =
+      apiCampaign.final_date && new Date(apiCampaign.final_date) < new Date();
+    const status = (
+      vencida && apiCampaign.status === 'active' ? 'completed' : apiCampaign.status
+    ) as Campaign['status'];
+
     return {
       id: apiCampaign.id,
       name: apiCampaign.campaign_name,
       type: 'in-web',
-      status: apiCampaign.status,
-      reach: 0,
-      clicks: 0,
-      conversions: 0,
+      status,
+      // Métricas reales de PostHog (impresiones/clics), inyectadas por el
+      // gateway. Antes iban hardcodeadas en 0 y toda campaña in-web mostraba
+      // "-" aunque el tracking existiera.
+      reach: apiCampaign.impressions ?? 0,
+      clicks: apiCampaign.clicks ?? 0,
+      conversions: apiCampaign.redirects ?? 0,
       createdAt: new Date(apiCampaign.created_at),
     };
   };
@@ -97,8 +109,11 @@ export function useInWebCampaigns(params: UseInWebCampaignsParams = {}): UseInWe
           ? 'failed'
           : 'completed') as Campaign['status'],
       reach: c.totalDestinatarios || 0,
+      // Los clics de WhatsApp no se rastrean (los botones de URL de Meta no
+      // notifican); las aperturas sí: son los "leídos" que reporta el webhook
+      // de Meta a nivel de plantilla.
       clicks: 0,
-      conversions: 0,
+      conversions: c.leidos ?? 0,
       createdAt: new Date(c.createdAt),
       totalRecipients: c.totalDestinatarios,
       successfulSends: c.enviados,
