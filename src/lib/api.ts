@@ -2596,6 +2596,27 @@ export interface EmailCampaignRecipientResponse {
   errorMessage: string | null;
 }
 
+/** Campaña de envío masivo de WhatsApp registrada por el backend */
+export interface WhatsAppCampaignResponse {
+  id: string;
+  templateName: string;
+  templateId: string | null;
+  filtro: { categoria?: string; subcategoria?: string; submenu?: string } | null;
+  totalDestinatarios: number;
+  enviados: number;
+  fallidos: number;
+  status: string;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export const whatsappCampaignEndpoints = {
+  getAll: () =>
+    apiClient.get<{ data: WhatsAppCampaignResponse[]; total: number }>(
+      '/api/messaging/whatsapp-campaigns'
+    ),
+};
+
 export const emailCampaignEndpoints = {
   getAll: (params?: { page?: number; limit?: number; status?: string }) => {
     const searchParams = new URLSearchParams();
