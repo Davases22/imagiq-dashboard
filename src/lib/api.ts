@@ -2462,6 +2462,10 @@ export interface InWebCampaignRequest {
 
 // Tipos para campañas InWeb
 export interface InWebCampaignResponse {
+  /** Métricas reales desde PostHog, inyectadas por el gateway (best-effort) */
+  impressions?: number;
+  clicks?: number;
+  redirects?: number;
   id: string;
   campaign_name: string;
   campaign_type: string;
@@ -2600,6 +2604,9 @@ export interface EmailCampaignRecipientResponse {
 export interface WhatsAppCampaignResponse {
   id: string;
   templateName: string;
+  /** Acumulados de la plantilla (webhook de Meta), inyectados por messaging-ms */
+  entregados?: number;
+  leidos?: number;
   templateId: string | null;
   filtro: { categoria?: string; subcategoria?: string; submenu?: string } | null;
   totalDestinatarios: number;
