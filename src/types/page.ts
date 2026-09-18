@@ -6,6 +6,13 @@ import type { BackendBanner } from "./banner";
 import type { ProductCard } from "./product-card";
 import type { FormConfig, FormLayout, FormSuccessConfig } from "./form-page";
 
+/** Producto del catálogo destacado en un Live. `id` es el codigoMarketBase. */
+export interface FeaturedProduct {
+  id: string;
+  name: string;
+  image?: string;
+}
+
 export interface LivestreamConfig {
   primary_video_id: string;
   backup_video_id?: string;
@@ -25,6 +32,8 @@ export interface LivestreamConfig {
   failover_message?: string;
   chat_position: 'right' | 'below';
   enable_pip: boolean;
+  /** Productos del catálogo que se muestran junto al video (máx. 12) */
+  featured_products?: FeaturedProduct[];
 }
 
 // Estado de la página
