@@ -230,28 +230,25 @@ function LandingPageFormComponent({ pageId, mode, onCancel }: LandingPageFormPro
             </CardContent>
           </Card>
 
-          {/* Secciones de Productos (tarjetas personalizadas).
-              En un Live no aplica: los productos se eligen del catálogo en "Productos del Live". */}
-          {!livestreamEnabled && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Secciones de Productos</CardTitle>
-                <CardDescription>
-                  Organiza productos por categorías, menús o submenús
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <OfertaSectionsManager
-                  title={productSectionsTitle}
-                  description={productSectionsDescription}
-                  onTitleChange={setProductSectionsTitle}
-                  onDescriptionChange={setProductSectionsDescription}
-                  sections={productSections}
-                  onSectionsChange={setProductSections}
-                />
-              </CardContent>
-            </Card>
-          )}
+          {/* Secciones de Productos */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Secciones de Productos</CardTitle>
+              <CardDescription>
+                Organiza productos por categorías, menús o submenús
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <OfertaSectionsManager
+                title={productSectionsTitle}
+                description={productSectionsDescription}
+                onTitleChange={setProductSectionsTitle}
+                onDescriptionChange={setProductSectionsDescription}
+                sections={productSections}
+                onSectionsChange={setProductSections}
+              />
+            </CardContent>
+          </Card>
 
           {/* Sección Informativa - TEMPORALMENTE DESHABILITADA */}
           {/* <OfertaInfoSection
