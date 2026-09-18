@@ -1,12 +1,30 @@
 "use client"
 
+import { useState } from "react"
+import Image from "next/image"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import type { LivestreamConfig } from "@/types/page"
-import { Video, MessageSquare, Clock, Radio, Shield, Layout } from "lucide-react"
+import { AddProductDialog } from "@/components/ofertas-destacadas/AddProductDialog"
+import type { FeaturedProduct, LivestreamConfig } from "@/types/page"
+import {
+  Video,
+  MessageSquare,
+  Clock,
+  Radio,
+  Shield,
+  Layout,
+  ShoppingBag,
+  Plus,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react"
+
+const MAX_FEATURED_PRODUCTS = 12
 
 interface OfertaLivestreamConfigProps {
   config: LivestreamConfig
@@ -41,12 +59,137 @@ function extractVideoId(input: string): string {
 }
 
 export function OfertaLivestreamConfig({ config, onConfigChange }: OfertaLivestreamConfigProps) {
+  const [productDialogOpen, setProductDialogOpen] = useState(false)
+  const featuredProducts = config.featured_products ?? []
+
   const update = (partial: Partial<LivestreamConfig>) => {
     onConfigChange({ ...config, ...partial })
   }
 
+  const setFeatured = (products: FeaturedProduct[]) => {
+    update({ featured_products: products.length > 0 ? products : undefined })
+  }
+
+  const addFeatured = async (id: string, name: string, _categoriaId?: string, image?: string) => {
+    if (featuredProducts.some((p) => p.id === id)) return
+    if (featuredProducts.length >= MAX_FEATURED_PRODUCTS) return
+    setFeatured([...featuredProducts, { id, name, image }])
+  }
+
+  const removeFeatured = (id: string) => {
+    setFeatured(featuredProducts.filter((p) => p.id !== id))
+  }
+
+  const moveFeatured = (index: number, direction: -1 | 1) => {
+    const target = index + direction
+    if (target < 0 || target >= featuredProducts.length) return
+    const next = [...featuredProducts]
+    ;[next[index], next[target]] = [next[target], next[index]]
+    setFeatured(next)
+  }
+
   return (
     <div className="space-y-6">
+      {/* Productos destacados */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <ShoppingBag className="h-4 w-4" />
+            Productos del Live
+            <span className="text-xs text-muted-foreground font-normal">
+              {featuredProducts.length}/{MAX_FEATURED_PRODUCTS}
+            </span>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setProductDialogOpen(true)}
+            disabled={featuredProducts.length >= MAX_FEATURED_PRODUCTS}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            Agregar producto
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Se muestran con la tarjeta del catálogo (precio, colores, carrito) debajo del video, en el orden de esta lista.
+        </p>
+
+        {featuredProducts.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            Aún no hay productos. Agrega los que se van a mostrar durante la transmisión.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {featuredProducts.map((product, index) => (
+              <div
+                key={product.id}
+                className="flex items-center gap-3 rounded-lg border p-2"
+              >
+                <div className="relative h-12 w-12 shrink-0 rounded bg-gray-100">
+                  {product.image ? (
+                    <Image src={product.image} alt={product.name} fill className="object-contain" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
+                      Sin imagen
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{product.name}</p>
+                  <p className="text-xs text-muted-foreground">ID: {product.id}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => moveFeatured(index, -1)}
+                    disabled={index === 0}
+                    aria-label="Subir"
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => moveFeatured(index, 1)}
+                    disabled={index === featuredProducts.length - 1}
+                    aria-label="Bajar"
+                  >
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-destructive"
+                    onClick={() => removeFeatured(product.id)}
+                    aria-label="Quitar"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <AddProductDialog
+          open={productDialogOpen}
+          onClose={() => setProductDialogOpen(false)}
+          onAdd={addFeatured}
+          title="Agregar producto al Live"
+          description={`Busca en el catálogo los productos que se mostrarán debajo del video (máximo ${MAX_FEATURED_PRODUCTS}).`}
+          excludeIds={featuredProducts.map((p) => p.id)}
+        />
+      </div>
+
+      <Separator />
+
       {/* Video IDs */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 text-sm font-medium">

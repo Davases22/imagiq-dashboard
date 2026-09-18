@@ -867,6 +867,7 @@ export function UnlayerEmailEditor({
               stockImages: {
                 enabled: true,
                 safeSearch: true,
+                defaultSearchTerm: "",
               },
             },
           }}

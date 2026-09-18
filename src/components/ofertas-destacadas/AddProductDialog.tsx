@@ -39,8 +39,18 @@ interface Product {
 interface AddProductDialogProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (productoId: string, productoNombre: string, categoriaId?: string) => Promise<void>;
+  onAdd: (
+    productoId: string,
+    productoNombre: string,
+    categoriaId?: string,
+    imagen?: string
+  ) => Promise<void>;
   ofertasExistentes?: Array<{ categoria_id?: string | null; codigo_market: string }>;
+  /** Textos del encabezado (por defecto, los de ofertas destacadas) */
+  title?: string;
+  description?: string;
+  /** codigoMarketBase ya seleccionados: se muestran como agregados */
+  excludeIds?: string[];
 }
 
 export function AddProductDialog({
@@ -48,6 +58,9 @@ export function AddProductDialog({
   onClose,
   onAdd,
   ofertasExistentes = [],
+  title = "Agregar Producto a Ofertas",
+  description = "Selecciona uno o más productos para agregarlos al dropdown de ofertas destacadas (máximo 12 productos / 3 por categoría)",
+  excludeIds = [],
 }: AddProductDialogProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -150,14 +163,15 @@ export function AddProductDialog({
 
   const handleAddProduct = async (
     productoId: string,
-    productoNombre: string
+    productoNombre: string,
+    imagen?: string
   ) => {
     setAdding(productoId);
     try {
       // Determinar categoría: si es "sin-categoria", enviar undefined
       const categoriaId = categoriaSeleccionada === "sin-categoria" ? undefined : categoriaSeleccionada || undefined;
 
-      await onAdd(productoId, productoNombre, categoriaId);
+      await onAdd(productoId, productoNombre, categoriaId, imagen);
       // No cerrar el diálogo para permitir agregar más productos
     } catch (error) {
       console.error("Error agregando producto:", error);
@@ -178,10 +192,8 @@ export function AddProductDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Agregar Producto a Ofertas</DialogTitle>
-          <DialogDescription>
-            Selecciona uno o más productos para agregarlos al dropdown de ofertas destacadas (máximo 12 productos / 3 por categoría)
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         {/* Selector de Categoría */}
@@ -286,6 +298,7 @@ export function AddProductDialog({
                   product.imageDetailsUrls[0]?.[0]) ||
                 null;
               const productId = product.codigoMarketBase;
+              const yaAgregado = excludeIds.includes(productId);
 
               return (
                 <div
@@ -319,11 +332,14 @@ export function AddProductDialog({
                   {/* Botón agregar */}
                   <Button
                     size="sm"
-                    onClick={() => handleAddProduct(productId, nombre)}
-                    disabled={adding !== null}
+                    variant={yaAgregado ? "outline" : "default"}
+                    onClick={() => handleAddProduct(productId, nombre, imagen || undefined)}
+                    disabled={adding !== null || yaAgregado}
                   >
                     {adding === productId ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : yaAgregado ? (
+                      "Agregado"
                     ) : (
                       <>
                         <Plus className="mr-1 h-4 w-4" />
