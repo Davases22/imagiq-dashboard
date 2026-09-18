@@ -90,6 +90,23 @@ export function OfertaLivestreamConfig({ config, onConfigChange }: OfertaLivestr
 
   return (
     <div className="space-y-6">
+      {/* Modo prueba */}
+      <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <div className="space-y-0.5">
+          <Label htmlFor="staging_only">Solo en staging (modo prueba)</Label>
+          <p className="text-xs text-muted-foreground">
+            Encendido: el Live se ve solo en staging.imagiq.com. Apágalo el día del evento para que salga en www.imagiq.com.
+          </p>
+        </div>
+        <Switch
+          id="staging_only"
+          checked={!!config.staging_only}
+          onCheckedChange={(v) => update({ staging_only: v || undefined })}
+        />
+      </div>
+
+      <Separator />
+
       {/* Productos destacados */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
