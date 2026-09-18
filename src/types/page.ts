@@ -34,6 +34,8 @@ export interface LivestreamConfig {
   enable_pip: boolean;
   /** Productos del catálogo que se muestran junto al video (máx. 12) */
   featured_products?: FeaturedProduct[];
+  /** Modo prueba: el Live solo se muestra en staging, nunca en www.imagiq.com */
+  staging_only?: boolean;
 }
 
 // Estado de la página

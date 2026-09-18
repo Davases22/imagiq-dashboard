@@ -29,12 +29,33 @@ interface Product {
   codigoMarketBase: string;
   nombreMarket: string | string[];
   modelo?: string | string[];
+  categoria?: string;
   urlImagenes?: string[];
   imagePreviewUrl?: string[];
   imageDetailsUrls?: string[][];
   imagen_final_premium?: (string | null)[];
   imagen_premium?: string[][];
 }
+
+const SIN_DATO = "NO APLICA";
+
+const primero = (v?: string | string[] | null): string => {
+  const x = Array.isArray(v) ? v[0] : v;
+  return (x ?? "").trim();
+};
+
+/** Repuestos y referencias internas del catálogo: sin categoría ni modelo reales. */
+const esRepuesto = (p: Product): boolean =>
+  (p.categoria ?? "").toUpperCase() === SIN_DATO &&
+  primero(p.modelo).toUpperCase() === SIN_DATO;
+
+/** Nombre visible: el modelo salvo que sea "NO APLICA"; si no, el nombre comercial. */
+const nombreVisible = (p: Product): string => {
+  const modelo = primero(p.modelo);
+  const nombre = primero(p.nombreMarket);
+  if (modelo && modelo.toUpperCase() !== SIN_DATO) return modelo;
+  return nombre || modelo || "";
+};
 
 interface AddProductDialogProps {
   open: boolean;
@@ -121,7 +142,9 @@ export function AddProductDialog({
         const paginationData = response.data.data;
 
         if (paginationData && Array.isArray(paginationData.products)) {
-          setProducts(paginationData.products);
+          setProducts(
+            (paginationData.products as Product[]).filter((p) => !esRepuesto(p))
+          );
           setTotalProducts(paginationData.total || 0);
           setTotalPages(paginationData.totalPages || 1);
           setCurrentPage(paginationData.page || page);
@@ -277,16 +300,7 @@ export function AddProductDialog({
 
           <div className="p-4 space-y-2">
             {products.map((product) => {
-              const nombreMarket = Array.isArray(product.nombreMarket)
-                ? product.nombreMarket[0]
-                : product.nombreMarket;
-
-              const nombreModelo = Array.isArray(product.modelo)
-                ? product.modelo[0]
-                : product.modelo;
-
-              // Priorizar modelo sobre nombreMarket
-              const nombre = nombreModelo || nombreMarket || "";
+              const nombre = nombreVisible(product);
               // Buscar imagen en varios campos posibles
               const imagen =
                 (product.imagen_final_premium &&
