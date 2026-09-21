@@ -47,6 +47,11 @@ const statusConfig: Record<
     label: "Pendientes",
     icon: Clock,
   },
+  PENDING_PAYMENT: {
+    color: "#fbbf24", // amber-400
+    label: "Esperando pago",
+    icon: Clock,
+  },
   APPROVED: {
     color: "#22c55e", // green-500
     label: "Aprobadas",

@@ -91,7 +91,7 @@ export function OfertaLivestreamConfig({ config, onConfigChange }: OfertaLivestr
   return (
     <div className="space-y-6">
       {/* Modo prueba */}
-      <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-3">
+      <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/30">
         <div className="space-y-0.5">
           <Label htmlFor="staging_only">Solo en staging (modo prueba)</Label>
           <p className="text-xs text-muted-foreground">
