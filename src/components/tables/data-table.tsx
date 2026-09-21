@@ -90,7 +90,9 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     data,
     columns,
-    pageCount: pageCount ?? -1,
+    // Solo con paginación del servidor: -1 le decía a TanStack "desconocido" y
+    // la barra pintaba "Página 1 de -1" en las tablas paginadas en el cliente.
+    pageCount: pageCount || undefined,
     state: {
       sorting,
       columnVisibility,

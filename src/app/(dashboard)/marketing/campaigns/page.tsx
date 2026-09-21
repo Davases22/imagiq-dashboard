@@ -112,7 +112,12 @@ export default function CampañasPage() {
                       Plantillas
                     </Button>
                   </Link>
-                  <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => router.push('/marketing/campaigns/crear/whatsapp')}
+                  >
                     Crear
                   </Button>
                 </div>

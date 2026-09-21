@@ -16,7 +16,7 @@ export default function CrearCampaignEmailPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] -m-6">
+    <div className="h-[calc(100vh-4rem)] -m-4">
       <UnlayerEmailEditor onBack={handleBack} onSaved={handleSaved} />
     </div>
   );
