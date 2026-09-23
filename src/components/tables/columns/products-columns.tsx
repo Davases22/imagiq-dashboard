@@ -407,20 +407,7 @@ export const createProductColumns = (
         const product = row.original;
 
         // Buscar datos de notificaciones para este producto
-        let notificationData: NotificationProducto | null = null;
-        if (notificationsData) {
-          // Buscar en todos los grupos de notificaciones
-          for (const group of notificationsData.notificaciones) {
-            // Buscar el producto por SKU en los productos del grupo
-            const foundProduct = group.productos.find(
-              (p) => product.sku && p.sku === product.sku,
-            );
-            if (foundProduct) {
-              notificationData = foundProduct;
-              break;
-            }
-          }
-        }
+        const notificationData = buscarNotificacion(product, notificationsData);
 
         return (
           <ActionsCell
@@ -432,6 +419,63 @@ export const createProductColumns = (
       },
     },
   ];
+
+/**
+ * Busca las solicitudes de aviso de una fila de la tabla.
+ *
+ * No se puede comparar por igualdad: cuando la fila representa un bundle, el
+ * mapeador le pone como `sku` TODOS los de sus variantes pegados con ", "
+ * (ver productMapper, `skuArray.join(', ')`). Un sku suelto nunca iba a ser
+ * igual a veintitrés pegados, así que productos que sí tenían correos salían
+ * con un guion.
+ *
+ * Además se SUMAN todas las variantes que tengan solicitudes: si dos colores
+ * del mismo televisor tienen gente esperando, la fila del bundle debe mostrar
+ * el total, no el de una sola.
+ */
+function buscarNotificacion(
+  product: ProductCardProps,
+  notificationsData?: GroupedNotificationsResponse | null,
+): NotificationProducto | null {
+  if (!notificationsData || !product.sku) return null;
+
+  const skusFila = new Set(
+    String(product.sku)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+  if (skusFila.size === 0) return null;
+
+  const coincidencias = notificationsData.notificaciones
+    .flatMap((g) => g.productos)
+    .filter((p) => p.sku && skusFila.has(p.sku));
+
+  if (coincidencias.length === 0) return null;
+  if (coincidencias.length === 1) return coincidencias[0];
+
+  const fechas = (f: (p: NotificationProducto) => string | null, cmp: (a: number, b: number) => number) =>
+    coincidencias
+      .map(f)
+      .filter((d): d is string => Boolean(d))
+      .sort((a, b) => cmp(new Date(a).getTime(), new Date(b).getTime()))[0] ?? null;
+
+  // El `sku` tiene que seguir siendo UNO real: es el que abre la página de
+  // detalle. Se elige la variante con más solicitudes.
+  const principal = [...coincidencias].sort(
+    (a, b) => b.totalNotificaciones - a.totalNotificaciones,
+  )[0];
+
+  return {
+    sku: principal.sku,
+    totalNotificaciones: coincidencias.reduce((n, p) => n + p.totalNotificaciones, 0),
+    notificacionesPendientes: coincidencias.reduce((n, p) => n + p.notificacionesPendientes, 0),
+    notificacionesEnviadas: coincidencias.reduce((n, p) => n + p.notificacionesEnviadas, 0),
+    emails: coincidencias.flatMap((p) => p.emails ?? []),
+    fechaCreacion: fechas((p) => p.fechaCreacion, (a, b) => a - b),
+    fechaActualizacion: fechas((p) => p.fechaActualizacion, (a, b) => b - a),
+  };
+}
 
   const solicitudesColumn: ColumnDef<ProductCardProps> = {
     id: "solicitudes",
@@ -455,22 +499,7 @@ export const createProductColumns = (
     },
     cell: ({ row }) => {
       const product = row.original;
-
-      // Buscar datos de notificaciones para este producto
-      let notificationData: NotificationProducto | null = null;
-      if (notificationsData) {
-        // Buscar en todos los grupos de notificaciones
-        for (const group of notificationsData.notificaciones) {
-          // Buscar el producto por SKU en los productos del grupo
-          const foundProduct = group.productos.find(
-            (p) => product.sku && p.sku === product.sku,
-          );
-          if (foundProduct) {
-            notificationData = foundProduct;
-            break;
-          }
-        }
-      }
+      const notificationData = buscarNotificacion(product, notificationsData);
 
       const pendientes = notificationData?.notificacionesPendientes || 0;
       const enviadas = notificationData?.notificacionesEnviadas || 0;
@@ -515,36 +544,10 @@ export const createProductColumns = (
       );
     },
     sortingFn: (rowA, rowB) => {
-      const productA = rowA.original;
-      const productB = rowB.original;
-
-      // Buscar datos de notificaciones para cada producto
-      let notificationDataA: NotificationProducto | null = null;
-      let notificationDataB: NotificationProducto | null = null;
-
-      if (notificationsData) {
-        for (const group of notificationsData.notificaciones) {
-          const foundA = group.productos.find(
-            (p) => productA.sku && p.sku === productA.sku,
-          );
-          if (foundA) {
-            notificationDataA = foundA;
-            break;
-          }
-        }
-        for (const group of notificationsData.notificaciones) {
-          const foundB = group.productos.find(
-            (p) => productB.sku && p.sku === productB.sku,
-          );
-          if (foundB) {
-            notificationDataB = foundB;
-            break;
-          }
-        }
-      }
-
-      const totalA = notificationDataA?.totalNotificaciones || 0;
-      const totalB = notificationDataB?.totalNotificaciones || 0;
+      const totalA =
+        buscarNotificacion(rowA.original, notificationsData)?.totalNotificaciones ?? 0;
+      const totalB =
+        buscarNotificacion(rowB.original, notificationsData)?.totalNotificaciones ?? 0;
 
       return totalA - totalB;
     },
