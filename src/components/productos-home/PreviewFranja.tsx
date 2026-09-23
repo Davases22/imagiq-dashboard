@@ -24,6 +24,12 @@ interface Props {
  *
  * Como viene de otro dominio, el contenido no se puede medir desde aquí: la
  * altura va fija y holgada para que entren las tarjetas completas.
+ *
+ * Sin atributo sandbox a propósito. Con sandbox="allow-scripts" el documento
+ * queda con origen opaco y la tienda revienta al arrancar: sus proveedores
+ * (sesión, carrito, analítica) leen cookie y localStorage, y ahí eso lanza
+ * SecurityError. Tampoco hace falta: al ser otro dominio, la política de mismo
+ * origen ya impide que esta página toque el dashboard.
  */
 export function PreviewFranja({ codigos, cupos }: Props) {
   const src = useMemo(() => {
@@ -50,9 +56,6 @@ export function PreviewFranja({ codigos, cupos }: Props) {
           title="Vista previa de la franja"
           className="h-[620px] w-full border-0"
           loading="lazy"
-          // Sin allow-same-origin: la vista previa no necesita leer nada de
-          // este dominio, y así no puede tocar la sesión del dashboard.
-          sandbox="allow-scripts"
         />
       </div>
       <p className="text-xs text-muted-foreground">
