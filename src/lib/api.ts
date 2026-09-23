@@ -2081,26 +2081,44 @@ export interface CreateProductoHomeDto {
 export type UpdateProductoHomeDto = Partial<CreateProductoHomeDto>;
 
 export const productosHomeEndpoints = {
+  // Todas van con useAuth (el último argumento): el gateway exige el Bearer
+  // del dashboard en estos endpoints. La API key no alcanza porque es pública
+  // —viaja en el bundle del sitio—, así que sin el token cualquiera podría
+  // cambiar los productos de la portada.
+  //
   // A diferencia de ofertas destacadas, esto NO viene enriquecido: el backend
   // solo guarda la curaduría (qué código, qué sección, qué orden).
   getAll: (seccion?: SeccionHome) =>
     apiClient.get<ProductoHome[]>(
       seccion
         ? `/api/products/productos-home?seccion=${seccion}`
-        : "/api/products/productos-home"
+        : "/api/products/productos-home",
+      true
     ),
 
   create: (data: CreateProductoHomeDto) =>
-    apiClient.post<ProductoHome>("/api/products/productos-home", data),
+    apiClient.post<ProductoHome>("/api/products/productos-home", data, true),
 
   update: (uuid: string, data: UpdateProductoHomeDto) =>
-    apiClient.put<ProductoHome>(`/api/products/productos-home/${uuid}`, data),
+    apiClient.put<ProductoHome>(
+      `/api/products/productos-home/${uuid}`,
+      data,
+      true
+    ),
 
   delete: (uuid: string) =>
-    apiClient.delete<void>(`/api/products/productos-home/${uuid}`),
+    apiClient.delete<void>(
+      `/api/products/productos-home/${uuid}`,
+      undefined,
+      true
+    ),
 
   reorder: (data: UpdateOrderDto) =>
-    apiClient.put<ProductoHome[]>("/api/products/productos-home/reorder", data),
+    apiClient.put<ProductoHome[]>(
+      "/api/products/productos-home/reorder",
+      data,
+      true
+    ),
 };
 
 // Pages API endpoints
