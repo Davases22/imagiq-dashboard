@@ -15,6 +15,7 @@ import {
   Filter,
   Tag,
   ClipboardList,
+  Star,
 } from "lucide-react"
 
 export default function PaginaWebPage() {
@@ -35,6 +36,14 @@ export default function PaginaWebPage() {
       description: "Configura filtros dinámicos para productos (precio, color, almacenamiento, etc.)",
       icon: Filter,
       path: "/pagina-web/filtros",
+      available: true,
+    },
+    {
+      id: "productos-home",
+      title: "Productos de la Home",
+      description: "Elige qué productos aparecen en cada franja de la página de inicio",
+      icon: Star,
+      path: "/pagina-web/productos-home",
       available: true,
     },
     {
