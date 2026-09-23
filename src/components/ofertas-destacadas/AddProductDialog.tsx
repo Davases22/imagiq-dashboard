@@ -72,6 +72,15 @@ interface AddProductDialogProps {
   description?: string;
   /** codigoMarketBase ya seleccionados: se muestran como agregados */
   excludeIds?: string[];
+  /**
+   * Categoría del catálogo a la que limitar la búsqueda (IM, AV, DA…).
+   *
+   * Sin esto el diálogo pide los primeros productos del catálogo sin filtro, y
+   * ahí arrancan cientos de repuestos ("A/S REPAIR KIT…", categoría NO APLICA)
+   * que el filtro de abajo descarta: la primera página quedaba entera vacía y
+   * se veía "No se encontraron productos" aunque hubiera catálogo de sobra.
+   */
+  categoria?: string;
 }
 
 export function AddProductDialog({
@@ -82,6 +91,7 @@ export function AddProductDialog({
   title = "Agregar Producto a Ofertas",
   description = "Selecciona uno o más productos para agregarlos al dropdown de ofertas destacadas (máximo 12 productos / 3 por categoría)",
   excludeIds = [],
+  categoria,
 }: AddProductDialogProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -107,7 +117,8 @@ export function AddProductDialog({
       setCurrentPage(1);
       setCategoriaSeleccionada("sin-categoria");
     }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, categoria]);
 
   const loadCategorias = async () => {
     setLoadingCategorias(true);
@@ -130,6 +141,10 @@ export function AddProductDialog({
         limit: pageSize,
         page: page,
       };
+
+      if (categoria) {
+        params.categoria = categoria;
+      }
 
       if (query.trim()) {
         params.query = query;
