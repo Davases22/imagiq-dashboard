@@ -2044,6 +2044,65 @@ export const ofertasDestacadasEndpoints = {
     ),
 };
 
+// ---------------------------------------------------------------------------
+// Productos de la Home
+// ---------------------------------------------------------------------------
+
+/** Secciones de producto que pinta la home. Debe coincidir con el CHECK de la
+ *  tabla productos_home y con el DTO del gateway. */
+export const SECCIONES_HOME = ["celulares", "tv", "electro"] as const;
+export type SeccionHome = (typeof SECCIONES_HOME)[number];
+
+export const ETIQUETAS_SECCION_HOME: Record<SeccionHome, string> = {
+  celulares: "Celulares",
+  tv: "TV y Audio",
+  electro: "Electrodomésticos",
+};
+
+export interface ProductoHome {
+  uuid: string;
+  codigo_market: string;
+  seccion: SeccionHome;
+  nombre?: string | null;
+  orden: number;
+  activo: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateProductoHomeDto {
+  codigo_market: string;
+  seccion: SeccionHome;
+  nombre?: string;
+  orden?: number;
+  activo?: boolean;
+}
+
+export type UpdateProductoHomeDto = Partial<CreateProductoHomeDto>;
+
+export const productosHomeEndpoints = {
+  // A diferencia de ofertas destacadas, esto NO viene enriquecido: el backend
+  // solo guarda la curaduría (qué código, qué sección, qué orden).
+  getAll: (seccion?: SeccionHome) =>
+    apiClient.get<ProductoHome[]>(
+      seccion
+        ? `/api/products/productos-home?seccion=${seccion}`
+        : "/api/products/productos-home"
+    ),
+
+  create: (data: CreateProductoHomeDto) =>
+    apiClient.post<ProductoHome>("/api/products/productos-home", data),
+
+  update: (uuid: string, data: UpdateProductoHomeDto) =>
+    apiClient.put<ProductoHome>(`/api/products/productos-home/${uuid}`, data),
+
+  delete: (uuid: string) =>
+    apiClient.delete<void>(`/api/products/productos-home/${uuid}`),
+
+  reorder: (data: UpdateOrderDto) =>
+    apiClient.put<ProductoHome[]>("/api/products/productos-home/reorder", data),
+};
+
 // Pages API endpoints
 export const pageEndpoints = {
   // Listar todas las páginas con paginación
