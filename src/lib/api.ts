@@ -1631,16 +1631,42 @@ export const bannerEndpoints = {
 };
 
 // Product Notifications API endpoints
-export interface ProductNotification {
+/** Una solicitud concreta de aviso, con los datos de quien la dejó. */
+export interface SolicitudAviso {
   id: string;
-  productId: string;
-  productName: string;
-  productImage?: string;
-  stock: number;
-  clientEmail?: string;
-  clientPhone?: string;
-  createdAt: string;
-  notified: boolean;
+  email: string;
+  sku: string;
+  codigoMarket: string;
+  /** Solo cuando la solicitud quedó ligada a una cuenta. */
+  nombre: string | null;
+  esInvitado: boolean;
+  notificado: boolean;
+  notificadoEn: string | null;
+  creadoEn: string;
+
+  // ── Telemetría del envío (la publica AWS SES) ──
+  messageId: string | null;
+  /** Evento Delivery: dato fiable. */
+  entregadoEn: string | null;
+  /**
+   * Evento Open: APROXIMADO. Es un pixel de 1x1 que Gmail cachea en su proxy y
+   * que Apple Mail Privacy Protection dispara solo. Sirve de tendencia.
+   */
+  abiertoEn: string | null;
+  /** Evento Click: dato fiable. */
+  clickEn: string | null;
+  aperturas: number;
+  clics: number;
+  /** Bounce o Complaint: no llegó, o lo marcaron como spam. */
+  rebote: string | null;
+}
+
+export interface ResultadoEnvioAvisos {
+  success: boolean;
+  enviados: number;
+  fallidos: number;
+  prueba: boolean;
+  detalle: Array<{ email: string; ok: boolean; error?: string }>;
 }
 
 export interface NotificationProducto {
@@ -1665,29 +1691,37 @@ export interface GroupedNotificationsResponse {
 }
 
 export const productNotificationEndpoints = {
-  getAll: () =>
-    apiClient.get<ProductNotification[]>("/api/products/notifications"),
+  /**
+   * Resumen por producto. Pasa por AdminJwtGuard: la respuesta trae los correos
+   * de clientes reales, así que exige sesión de administrador.
+   */
   getGrouped: () =>
     apiClient.get<GroupedNotificationsResponse>(
-      "/api/messaging/notifications/grouped"
+      "/api/messaging/notifications/grouped",
+      true
     ),
-  create: (data: {
-    productId: string;
-    clientEmail?: string;
-    clientPhone?: string;
+
+  /** Quién pidió el aviso de un SKU, cuándo, y si ya se le mandó. */
+  getDetail: (sku: string) =>
+    apiClient.get<SolicitudAviso[]>(
+      `/api/messaging/notifications/detail?sku=${encodeURIComponent(sku)}`,
+      true
+    ),
+
+  /**
+   * Manda los avisos. Con `pruebaA` sale un único correo a esa dirección y no
+   * se marca nada: es para revisar antes de soltarlo a los clientes.
+   */
+  send: (payload: {
+    sku: string;
+    ids?: string[];
+    todos?: boolean;
+    pruebaA?: string;
   }) =>
-    apiClient.post<{ success: boolean; message?: string }>(
-      "/api/products/notifications",
-      data
-    ),
-  delete: (id: string) =>
-    apiClient.delete<{ success: boolean; message?: string }>(
-      `/api/products/notifications/${id}`
-    ),
-  markAsNotified: (id: string) =>
-    apiClient.patch<{ success: boolean; message?: string }>(
-      `/api/products/notifications/${id}`,
-      { notified: true }
+    apiClient.post<ResultadoEnvioAvisos>(
+      "/api/messaging/notifications/send",
+      payload,
+      true
     ),
 };
 

@@ -93,6 +93,13 @@ export default function ProductosNotificacionesPage() {
     fetchNotifications()
   }, [])
 
+  // `notificationsData.total` cuenta códigos de market, no productos: pintarlo
+  // como "productos con solicitudes" daba 42 donde hay 49 SKUs. Lo que sí le
+  // sirve a quien mira la pantalla es cuánta gente está esperando.
+  const totalSolicitudes = notificationsData?.notificaciones.reduce((total, group) => {
+    return total + group.productos.reduce((sum, prod) => sum + prod.totalNotificaciones, 0)
+  }, 0) || 0
+
   const totalPendientes = notificationsData?.notificaciones.reduce((total, group) => {
     return total + group.productos.reduce((sum, prod) => sum + prod.notificacionesPendientes, 0)
   }, 0) || 0
@@ -127,7 +134,7 @@ export default function ProductosNotificacionesPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Notificaciones</CardTitle>
+            <CardTitle className="text-sm font-medium">Solicitudes totales</CardTitle>
             <Bell className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -138,9 +145,9 @@ export default function ProductosNotificacionesPage() {
               </>
             ) : (
               <>
-                <div className="text-2xl font-bold">{notificationsData?.total ?? 0}</div>
+                <div className="text-2xl font-bold">{totalSolicitudes}</div>
                 <p className="text-xs text-muted-foreground">
-                  Productos con solicitudes
+                  Clientes esperando aviso
                 </p>
               </>
             )}
@@ -149,7 +156,7 @@ export default function ProductosNotificacionesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Notificaciones Pendientes</CardTitle>
+            <CardTitle className="text-sm font-medium">Por enviar</CardTitle>
             <Mail className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -160,12 +167,9 @@ export default function ProductosNotificacionesPage() {
               </>
             ) : (
               <>
-                <div className="flex items-baseline gap-3">
-                  <div className="text-2xl font-bold text-orange-600">{totalPendientes}</div>
-                  <div className="text-lg font-semibold text-green-600">{totalEnviadas}</div>
-                </div>
+                <div className="text-2xl font-bold text-orange-600">{totalPendientes}</div>
                 <p className="text-xs text-muted-foreground">
-                  Por enviar <span className="text-green-600">• Enviadas</span>
+                  Avisos sin mandar
                 </p>
               </>
             )}
@@ -174,7 +178,7 @@ export default function ProductosNotificacionesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Notificaciones Enviadas</CardTitle>
+            <CardTitle className="text-sm font-medium">Ya avisados</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -187,7 +191,7 @@ export default function ProductosNotificacionesPage() {
               <>
                 <div className="text-2xl font-bold text-green-600">{totalEnviadas}</div>
                 <p className="text-xs text-muted-foreground">
-                  Completadas
+                  Correos enviados
                 </p>
               </>
             )}
