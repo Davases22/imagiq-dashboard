@@ -841,6 +841,8 @@ export interface ProductApiData {
   urlRender3D?: string[];
   precioNormal?: number[];
   precioDescto?: number[];
+  /** Precio que realmente cobra la web; precioNormal es el tachado de al lado. */
+  precioeccommerce?: number[];
   fechaInicioVigencia?: string[];
   fechaFinalVigencia?: string[];
   // ✅ NUEVA ARQUITECTURA SIMPLIFICADA
