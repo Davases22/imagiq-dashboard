@@ -6,16 +6,11 @@ import {
   MoreHorizontal,
   Mail,
   CheckCircle2,
-  Send,
-  Users,
-  Clock,
   Bell,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,14 +30,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { ProductCardProps } from "@/features/products/useProducts";
 import { GroupedNotificationsResponse, NotificationProducto, productEndpoints } from "@/lib/api";
 
@@ -94,6 +81,12 @@ function VisibilitySwitch({
 }
 
 // Componente separado para la celda de acciones que usa useRouter
+/**
+ * Menú de acciones de cada fila.
+ *
+ * En la pantalla de notificaciones la única acción es abrir las solicitudes de
+ * aviso; el resto del menú (editar, órdenes) pertenece al listado general.
+ */
 function ActionsCell({
   product,
   notificationData,
@@ -104,16 +97,13 @@ function ActionsCell({
   notificationsOnly?: boolean;
 }) {
   const router = useRouter();
-  const [showPendingModal, setShowPendingModal] = useState(false);
-  const [showSentModal, setShowSentModal] = useState(false);
-  const [showSendEmailModal, setShowSendEmailModal] = useState(false);
-  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
-  const [sendToAll, setSendToAll] = useState(false);
 
-  // Si estamos en modo solo notificaciones y no hay datos de notificaciones, no mostrar el menú
+  // En modo solo notificaciones, una fila sin solicitudes no tiene menú.
   if (notificationsOnly && !notificationData) {
     return null;
   }
+
+  const skuAvisos = notificationData?.sku ?? product.sku;
 
   return (
     <>
@@ -139,259 +129,28 @@ function ActionsCell({
               >
                 Ver/Editar detalles
               </DropdownMenuItem>
-              <DropdownMenuItem>Ver órdenes</DropdownMenuItem>
-
-              {notificationData && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">
-                    Notificaciones
-                  </DropdownMenuLabel>
-                </>
-              )}
             </>
           )}
 
-          {notificationsOnly && (
-            <DropdownMenuLabel>Notificaciones</DropdownMenuLabel>
-          )}
-
-          {notificationData && (
+          {notificationData && skuAvisos && (
             <>
-              {notificationData.notificacionesPendientes > 0 && (
-                <>
-                  <DropdownMenuItem onClick={() => setShowPendingModal(true)}>
-                    <Mail className="mr-2 h-4 w-4" />
-                    Correos pendientes (
-                    {notificationData.notificacionesPendientes})
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSelectedEmails([]);
-                      setSendToAll(false);
-                      setShowSendEmailModal(true);
-                    }}
-                  >
-                    <Send className="mr-2 h-4 w-4" />
-                    Enviar notificaciones
-                  </DropdownMenuItem>
-                </>
-              )}
-              {notificationData.notificacionesEnviadas > 0 && (
-                <DropdownMenuItem onClick={() => setShowSentModal(true)}>
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Correos enviados ({notificationData.notificacionesEnviadas})
-                </DropdownMenuItem>
-              )}
+              {!notificationsOnly && <DropdownMenuSeparator />}
+              <DropdownMenuLabel>Avisos de disponibilidad</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() =>
+                  router.push(
+                    `/productos/notificaciones/${encodeURIComponent(skuAvisos)}` +
+                      `?nombre=${encodeURIComponent(product.name)}`,
+                  )
+                }
+              >
+                <Mail className="mr-2 h-4 w-4" />
+                Ver más detalle ({notificationData.totalNotificaciones})
+              </DropdownMenuItem>
             </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {/* Modal para correos pendientes */}
-      <Dialog open={showPendingModal} onOpenChange={setShowPendingModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Correos Pendientes</DialogTitle>
-            <DialogDescription>
-              Clientes esperando notificación de disponibilidad para{" "}
-              {product.name}
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Imagen del producto */}
-          <div className="flex justify-center mb-4">
-            <div className="w-32 h-32 relative overflow-hidden rounded-lg border">
-              {product.image ? (
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  fill
-                  className="object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-muted flex items-center justify-center">
-                  <span className="text-xs text-muted-foreground">
-                    Sin imagen
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2 max-h-[400px] overflow-y-auto">
-            {notificationData?.emails.map((email, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 border rounded-lg"
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-sm font-medium">{email}</span>
-                  {notificationData?.fechaActualizacion && (
-                    <div className="flex items-center gap-2 ml-auto mr-4">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">
-                        {format(
-                          new Date(notificationData.fechaActualizacion),
-                          "dd MMM yyyy, HH:mm",
-                          { locale: es },
-                        )}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <Badge variant="secondary" className="flex-shrink-0">
-                  Pendiente
-                </Badge>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between items-center pt-4 border-t">
-            <p className="text-sm text-muted-foreground">
-              Total: {notificationData?.notificacionesPendientes} pendientes
-            </p>
-            <Button onClick={() => setShowPendingModal(false)}>Cerrar</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal para correos enviados */}
-      <Dialog open={showSentModal} onOpenChange={setShowSentModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Correos Enviados</DialogTitle>
-            <DialogDescription>
-              Notificaciones ya enviadas para {product.name}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 max-h-[400px] overflow-y-auto">
-            {notificationData?.emails.map((email, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 border rounded-lg"
-              >
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-medium">{email}</span>
-                </div>
-                <Badge variant="default" className="bg-green-600">
-                  Enviado
-                </Badge>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between items-center pt-4 border-t">
-            <p className="text-sm text-muted-foreground">
-              Total: {notificationData?.notificacionesEnviadas} enviados
-            </p>
-            <Button onClick={() => setShowSentModal(false)}>Cerrar</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal para enviar notificaciones */}
-      <Dialog open={showSendEmailModal} onOpenChange={setShowSendEmailModal}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5" />
-              Enviar Notificaciones
-            </DialogTitle>
-            <DialogDescription>
-              Selecciona los usuarios a los que deseas enviar la notificación de
-              disponibilidad para {product.name}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* Opción para enviar a todos */}
-            <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
-              <div className="flex items-center gap-3">
-                <Users className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-medium">Enviar a todos</p>
-                  <p className="text-sm text-muted-foreground">
-                    Notificar a todos los usuarios en la lista (
-                    {notificationData?.emails.length || 0} usuarios)
-                  </p>
-                </div>
-              </div>
-              <Checkbox
-                checked={sendToAll}
-                onCheckedChange={(checked) => {
-                  setSendToAll(!!checked);
-                  if (checked) {
-                    setSelectedEmails(notificationData?.emails || []);
-                  } else {
-                    setSelectedEmails([]);
-                  }
-                }}
-              />
-            </div>
-
-            {/* Lista de usuarios */}
-            <div className="space-y-2">
-              <p className="text-sm font-medium">
-                Seleccionar usuarios individualmente
-              </p>
-              <div className="max-h-[300px] overflow-y-auto space-y-2 border rounded-lg p-3">
-                {notificationData?.emails.map((email, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{email}</span>
-                    </div>
-                    <Checkbox
-                      checked={selectedEmails.includes(email)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedEmails([...selectedEmails, email]);
-                        } else {
-                          setSelectedEmails(
-                            selectedEmails.filter((e) => e !== email),
-                          );
-                          setSendToAll(false);
-                        }
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="flex items-center justify-between pt-4 border-t">
-            <p className="text-sm text-muted-foreground">
-              {selectedEmails.length} usuario
-              {selectedEmails.length !== 1 ? "s" : ""} seleccionado
-              {selectedEmails.length !== 1 ? "s" : ""}
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowSendEmailModal(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                disabled={selectedEmails.length === 0}
-                onClick={() => {
-                  // TODO: Implementar lógica de envío
-                  console.log("Enviar correos a:", selectedEmails);
-                  setShowSendEmailModal(false);
-                }}
-              >
-                <Send className="mr-2 h-4 w-4" />
-                Enviar Notificaciones
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
