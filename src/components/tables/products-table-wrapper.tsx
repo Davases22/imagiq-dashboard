@@ -13,11 +13,17 @@ const statuses = [
 
 interface ProductsTableWrapperProps {
   filterBySku?: string[];
+  /**
+   * Filtro de existencias para la pantalla de avisos. Se aplica en el servidor
+   * (stockMinimo/stockMaximo), no recortando lo ya traído, para que el conteo
+   * y la paginación sigan siendo ciertos.
+   */
+  filtroStock?: "todos" | "con" | "sin";
   notificationsData?: GroupedNotificationsResponse | null;
   notificationsOnly?: boolean;
 }
 
-export function ProductsTableWrapper({ filterBySku, notificationsData, notificationsOnly = false }: ProductsTableWrapperProps = {}) {
+export function ProductsTableWrapper({ filterBySku, notificationsData, notificationsOnly = false, filtroStock = "todos" }: ProductsTableWrapperProps = {}) {
   const [pageSize, setPageSize] = useState(10);
 
   // Cargar filtros guardados desde localStorage (antes de cualquier petición)
@@ -83,6 +89,8 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
     if (filterBySku && filterBySku.length > 0) {
       filters.sku = filterBySku.join(",");
       filters.limit = 100; // Aumentar límite para mostrar todos los productos con notificaciones
+      if (filtroStock === "con") filters.minStock = 1;
+      if (filtroStock === "sin") filters.maxStock = 0;
       return filters; // Retornar solo con filtro de SKU
     }
 
@@ -115,7 +123,7 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
     }
 
     return filters;
-  }, [filterBySku]);
+  }, [filterBySku, filtroStock]);
 
   const {
     products,
@@ -142,6 +150,8 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       // Siempre mantener el filtro de SKU si existe (para productos con notificaciones)
       if (filterBySku && filterBySku.length > 0) {
         filters.sku = filterBySku.join(",");
+        if (filtroStock === "con") filters.minStock = 1;
+        if (filtroStock === "sin") filters.maxStock = 0;
       }
 
       // Aplicar filtros de menú
@@ -180,7 +190,7 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
 
       filterProducts(filters);
     },
-    [filterProducts, currentFilters, searchQuery, pageSize, filterBySku]
+    [filterProducts, currentFilters, searchQuery, pageSize, filterBySku, filtroStock]
   );
 
   const handlePaginationChange = useCallback(
@@ -196,6 +206,8 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       // Siempre mantener el filtro de SKU si existe (para productos con notificaciones)
       if (filterBySku && filterBySku.length > 0) {
         filters.sku = filterBySku.join(",");
+        if (filtroStock === "con") filters.minStock = 1;
+        if (filtroStock === "sin") filters.maxStock = 0;
       }
 
       // Aplicar filtros de menú (separados por comas)
@@ -240,7 +252,7 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
 
       filterProducts(filters);
     },
-    [filterProducts, currentFilters, searchQuery, sortBy, sortOrder, filterBySku]
+    [filterProducts, currentFilters, searchQuery, sortBy, sortOrder, filterBySku, filtroStock]
   );
 
   const handleSearchChange = useCallback(
@@ -265,6 +277,8 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       // Siempre mantener el filtro de SKU si existe (para productos con notificaciones)
       if (filterBySku && filterBySku.length > 0) {
         filters.sku = filterBySku.join(",");
+        if (filtroStock === "con") filters.minStock = 1;
+        if (filtroStock === "sin") filters.maxStock = 0;
       }
 
       if (currentFilters.menu && currentFilters.menu.length > 0) {
@@ -304,7 +318,7 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
 
       filterProducts(filters);
     },
-    [filterProducts, pageSize, currentFilters, sortBy, sortOrder, filterBySku]
+    [filterProducts, pageSize, currentFilters, sortBy, sortOrder, filterBySku, filtroStock]
   );
 
   const handleFilterChange = useCallback(
@@ -332,6 +346,8 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       // Siempre mantener el filtro de SKU si existe (para productos con notificaciones)
       if (filterBySku && filterBySku.length > 0) {
         filters.sku = filterBySku.join(",");
+        if (filtroStock === "con") filters.minStock = 1;
+        if (filtroStock === "sin") filters.maxStock = 0;
       }
 
       // Manejar filtro de Estado

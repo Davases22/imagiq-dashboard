@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Bell, Package, Mail, CheckCircle2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { 
   productNotificationEndpoints, 
   GroupedNotificationsResponse,
@@ -48,6 +55,10 @@ export default function ProductosNotificacionesPage() {
   const [notificationsData, setNotificationsData] = useState<GroupedNotificationsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [productsWithNotifications, setProductsWithNotifications] = useState<string[]>([])
+  // Quién ya volvió a tener existencias es justo lo que hay que mirar para
+  // decidir a quién avisar: por eso el filtro vive aquí y no escondido en
+  // el panel general de filtros.
+  const [filtroStock, setFiltroStock] = useState<"todos" | "con" | "sin">("todos")
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -223,8 +234,21 @@ export default function ProductosNotificacionesPage() {
 
       {/* Tabla de productos con notificaciones */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>Productos Solicitados</CardTitle>
+          <Select
+            value={filtroStock}
+            onValueChange={(v) => setFiltroStock(v as "todos" | "con" | "sin")}
+          >
+            <SelectTrigger className="w-[190px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="con">Solo con stock</SelectItem>
+              <SelectItem value="sin">Solo agotados</SelectItem>
+            </SelectContent>
+          </Select>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -243,6 +267,7 @@ export default function ProductosNotificacionesPage() {
                 filterBySku={productsWithNotifications}
                 notificationsData={notificationsData}
                 notificationsOnly={true}
+                filtroStock={filtroStock}
               />
             </Suspense>
           )}
