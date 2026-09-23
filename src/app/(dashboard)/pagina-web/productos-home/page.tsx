@@ -77,9 +77,9 @@ export default function ProductosHomePage() {
         <CardHeader>
           <CardTitle>Secciones</CardTitle>
           <CardDescription>
-            Cada franja muestra {CUPOS_POR_SECCION} productos. Si quedan menos
-            con inventario, la web completa el resto automáticamente con los de
-            la categoría, igual que antes.
+            Cada franja muestra {CUPOS_POR_SECCION} productos, agotados
+            incluidos. Si fijas menos, la web completa el resto con los de la
+            categoría, igual que antes.
           </CardDescription>
         </CardHeader>
 
@@ -217,8 +217,9 @@ export default function ProductosHomePage() {
         <CardHeader>
           <CardTitle>Así se verá en la home</CardTitle>
           <CardDescription>
-            Los datos salen del catálogo, igual que en la web: si un producto
-            está agotado o no existe, aquí lo ves antes de publicarlo.
+            Es el render real de la tienda, con la misma tarjeta que ve el
+            comprador. Un producto fijado se muestra aunque esté agotado: la
+            ficha ofrecerá avisar cuando vuelva.
           </CardDescription>
         </CardHeader>
         <CardContent>
