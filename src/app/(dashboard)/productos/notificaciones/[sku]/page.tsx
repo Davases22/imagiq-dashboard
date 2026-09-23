@@ -21,6 +21,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -93,6 +103,12 @@ export default function AvisosDeProductoPage({
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const [resultado, setResultado] = useState<ResultadoEnvioAvisos | null>(null);
 
+  // La prueba no va forzosamente al correo de la sesión: quien revisa el
+  // diseño no siempre es quien tiene la sesión abierta. Se propone el de la
+  // cuenta porque es el caso común, pero se puede cambiar.
+  const [dialogoPrueba, setDialogoPrueba] = useState(false);
+  const [correoPrueba, setCorreoPrueba] = useState("");
+
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
@@ -147,13 +163,24 @@ export default function AvisosDeProductoPage({
         : new Set(resumen.listaPendientes.map((p) => p.id)),
     );
 
+  const abrirPrueba = () => {
+    setCorreoPrueba(user?.email ?? "");
+    setDialogoPrueba(true);
+  };
+
   const enviar = async (prueba: boolean) => {
+    const destinoPrueba = correoPrueba.trim();
+    if (prueba && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinoPrueba)) {
+      toast.error("Escribe un correo válido para la prueba");
+      return;
+    }
+
     setEnviando(true);
     setResultado(null);
     try {
       const res = await productNotificationEndpoints.send(
         prueba
-          ? { sku, pruebaA: user?.email }
+          ? { sku, pruebaA: destinoPrueba }
           : { sku, ids: Array.from(seleccion) },
       );
       if (!res.success || !res.data) {
@@ -164,7 +191,8 @@ export default function AvisosDeProductoPage({
       setResultado(r);
 
       if (prueba) {
-        toast.success(`Prueba enviada a ${user?.email}`);
+        toast.success(`Prueba enviada a ${destinoPrueba}`);
+        setDialogoPrueba(false);
       } else if (r.fallidos === 0) {
         toast.success(
           `${r.enviados} correo${r.enviados === 1 ? "" : "s"} enviado${r.enviados === 1 ? "" : "s"}`,
@@ -266,20 +294,12 @@ export default function AvisosDeProductoPage({
               <Button
                 variant="outline"
                 size="sm"
-                disabled={enviando || solicitudes.length === 0 || !user?.email}
-                onClick={() => void enviar(true)}
-                title={
-                  user?.email
-                    ? `Se enviará solo a ${user.email}`
-                    : "Sin correo en la sesión"
-                }
+                disabled={enviando || solicitudes.length === 0}
+                onClick={abrirPrueba}
+                title="Elige a qué correo mandar la prueba"
               >
-                {enviando ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Mail className="mr-2 h-4 w-4" />
-                )}
-                Enviarme una prueba
+                <Mail className="mr-2 h-4 w-4" />
+                Enviar una prueba
               </Button>
               <Button
                 size="sm"
@@ -438,6 +458,65 @@ export default function AvisosDeProductoPage({
             )}
           </CardContent>
         </Card>
+
+        {/* Prueba: a quien el operador decida, no al dueño de la sesión. */}
+        <Dialog open={dialogoPrueba} onOpenChange={setDialogoPrueba}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Enviar una prueba</DialogTitle>
+              <DialogDescription>
+                Sale un único correo a esta dirección, con el aviso visible de
+                que es una prueba. No se marca ninguna solicitud como enviada y
+                ningún cliente lo recibe.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              <Label htmlFor="correo-prueba">Correo de destino</Label>
+              <Input
+                id="correo-prueba"
+                type="email"
+                value={correoPrueba}
+                onChange={(e) => setCorreoPrueba(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !enviando) void enviar(true);
+                }}
+                placeholder="alguien@imagiq.com"
+                autoFocus
+              />
+              {user?.email && correoPrueba !== user.email && (
+                <button
+                  type="button"
+                  onClick={() => setCorreoPrueba(user.email)}
+                  className="text-xs text-muted-foreground hover:underline"
+                >
+                  Usar el de mi cuenta ({user.email})
+                </button>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="ghost"
+                onClick={() => setDialogoPrueba(false)}
+                disabled={enviando}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => void enviar(true)}
+                disabled={enviando || !correoPrueba.trim()}
+              >
+                {enviando ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                Enviar prueba
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
