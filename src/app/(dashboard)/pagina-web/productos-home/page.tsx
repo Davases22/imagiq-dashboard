@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AddProductDialog } from "@/components/ofertas-destacadas/AddProductDialog";
+import { PreviewFranja } from "@/components/productos-home/PreviewFranja";
 import {
   CUPOS_POR_SECCION,
   useProductosHome,
@@ -32,6 +33,18 @@ import {
   SECCIONES_HOME,
   SeccionHome,
 } from "@/lib/api";
+
+/**
+ * Categoría del catálogo que corresponde a cada franja. Sirve para que el
+ * buscador ofrezca solo productos que tienen sentido ahí — y de paso evita que
+ * la primera página salga vacía: sin filtro, el catálogo arranca con cientos de
+ * repuestos que el diálogo descarta.
+ */
+const CATEGORIA_POR_SECCION: Record<SeccionHome, string> = {
+  celulares: "IM",
+  tv: "AV",
+  electro: "DA",
+};
 
 export default function ProductosHomePage() {
   const {
@@ -200,11 +213,31 @@ export default function ProductosHomePage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Así se verá en la home</CardTitle>
+          <CardDescription>
+            Los datos salen del catálogo, igual que en la web: si un producto
+            está agotado o no existe, aquí lo ves antes de publicarlo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PreviewFranja
+            codigos={lista.filter((p) => p.activo).map((p) => p.codigo_market)}
+            cupos={CUPOS_POR_SECCION}
+          />
+        </CardContent>
+      </Card>
+
       {/* Se reusa el buscador de ofertas destacadas: entrega el
           codigoMarketBase, que es justo lo que guarda productos_home. */}
       <AddProductDialog
         open={dialogoAbierto}
         onClose={() => setDialogoAbierto(false)}
+        title={`Agregar producto a ${ETIQUETAS_SECCION_HOME[seccionActiva]}`}
+        description="Busca el producto que quieres mostrar en esta franja de la home."
+        categoria={CATEGORIA_POR_SECCION[seccionActiva]}
+        excludeIds={lista.map((p) => p.codigo_market)}
         ofertasExistentes={lista.map((p) => ({
           codigo_market: p.codigo_market,
         }))}
