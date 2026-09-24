@@ -89,8 +89,6 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
     if (filterBySku && filterBySku.length > 0) {
       filters.sku = filterBySku.join(",");
       filters.limit = 100; // Aumentar límite para mostrar todos los productos con notificaciones
-      if (filtroStock === "con") filters.minStock = 1;
-      if (filtroStock === "sin") filters.maxStock = 0;
       return filters; // Retornar solo con filtro de SKU
     }
 
@@ -123,10 +121,10 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
     }
 
     return filters;
-  }, [filterBySku, filtroStock]);
+  }, [filterBySku]);
 
   const {
-    products,
+    products: productosCrudos,
     loading,
     error,
     totalItems,
@@ -134,6 +132,25 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
     currentPage,
     filterProducts,
   } = useProducts(initialFilters);
+
+  /**
+   * El filtro de existencias se aplica AQUÍ y no en la petición porque el
+   * backend ya no lo soporta: el gateway acepta `stockMinimo`/`stockMaximo` en
+   * el DTO, pero products-ms los descarta —hay un comentario explícito en
+   * products.service.ts, "no longer supported in DB queries"—, así que mandarlos
+   * no filtraba nada y el selector no hacía nada.
+   *
+   * Recortar en el cliente es correcto en esta pantalla porque la vista de
+   * avisos pide los SKU con solicitudes en una sola página (limit 100): están
+   * todas las filas a la vista, así que el conteo sigue siendo cierto.
+   */
+  const products = useMemo(() => {
+    if (filtroStock === "todos") return productosCrudos;
+    return productosCrudos.filter((p) => {
+      const enStock = (p.stockTotal ?? p.stock ?? 0) > 0;
+      return filtroStock === "con" ? enStock : !enStock;
+    });
+  }, [productosCrudos, filtroStock]);
 
   const handleSortChange = useCallback(
     (field: string, direction:  "desc"| "asc" ) => {
@@ -150,8 +167,6 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       // Siempre mantener el filtro de SKU si existe (para productos con notificaciones)
       if (filterBySku && filterBySku.length > 0) {
         filters.sku = filterBySku.join(",");
-        if (filtroStock === "con") filters.minStock = 1;
-        if (filtroStock === "sin") filters.maxStock = 0;
       }
 
       // Aplicar filtros de menú
@@ -206,8 +221,6 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       // Siempre mantener el filtro de SKU si existe (para productos con notificaciones)
       if (filterBySku && filterBySku.length > 0) {
         filters.sku = filterBySku.join(",");
-        if (filtroStock === "con") filters.minStock = 1;
-        if (filtroStock === "sin") filters.maxStock = 0;
       }
 
       // Aplicar filtros de menú (separados por comas)
@@ -277,8 +290,6 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       // Siempre mantener el filtro de SKU si existe (para productos con notificaciones)
       if (filterBySku && filterBySku.length > 0) {
         filters.sku = filterBySku.join(",");
-        if (filtroStock === "con") filters.minStock = 1;
-        if (filtroStock === "sin") filters.maxStock = 0;
       }
 
       if (currentFilters.menu && currentFilters.menu.length > 0) {
@@ -346,8 +357,6 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       // Siempre mantener el filtro de SKU si existe (para productos con notificaciones)
       if (filterBySku && filterBySku.length > 0) {
         filters.sku = filterBySku.join(",");
-        if (filtroStock === "con") filters.minStock = 1;
-        if (filtroStock === "sin") filters.maxStock = 0;
       }
 
       // Manejar filtro de Estado
@@ -449,7 +458,9 @@ export function ProductsTableWrapper({ filterBySku, notificationsData, notificat
       pageCount={totalPages}
       pageIndex={currentPage - 1}
       pageSize={pageSize}
-      totalItems={totalItems}
+      // Con el filtro de existencias activo, el total del servidor deja de
+      // describir lo que se ve: hay que contar las filas que quedaron.
+      totalItems={filtroStock === "todos" ? totalItems : products.length}
       onPaginationChange={handlePaginationChange}
       onSearchChange={handleSearchChange} // Permitir búsqueda (siempre se mantiene el filtro de SKU)
       onFilterChange={handleFilterChange}
