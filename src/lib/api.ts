@@ -1666,7 +1666,15 @@ export interface ResultadoEnvioAvisos {
   enviados: number;
   fallidos: number;
   prueba: boolean;
-  detalle: Array<{ email: string; ok: boolean; error?: string }>;
+  /** Direcciones saltadas por haber rebotado antes o marcado spam. */
+  omitidos: number;
+  detalle: Array<{
+    email: string;
+    ok: boolean;
+    /** true = no se intentó a propósito; no es un fallo. */
+    omitido?: boolean;
+    error?: string;
+  }>;
 }
 
 export interface NotificationProducto {
