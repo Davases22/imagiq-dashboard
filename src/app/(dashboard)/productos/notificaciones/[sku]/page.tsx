@@ -12,6 +12,7 @@ import {
   Mail,
   MousePointerClick,
   Send,
+  ShieldAlert,
   Truck,
   UserRound,
 } from "lucide-react";
@@ -52,6 +53,18 @@ import {
   ResultadoEnvioAvisos,
   SolicitudAviso,
 } from "@/lib/api";
+
+/**
+ * Un rebote Permanent es una dirección que no existe y a la que no se vuelve a
+ * escribir; un Transient es un buzón lleno que mañana funciona. Mostrarlos
+ * igual haría que nadie entendiera por qué a uno se le reintenta y al otro no.
+ */
+function etiquetaRebote(rebote: string): { texto: string; definitivo: boolean } {
+  if (rebote === "Complaint") return { texto: "Marcó spam", definitivo: true };
+  if (rebote === "Permanent") return { texto: "No existe", definitivo: true };
+  if (rebote === "Transient") return { texto: "Buzón lleno", definitivo: false };
+  return { texto: "Rebotó", definitivo: true };
+}
 
 function fecha(iso: string | null): string {
   if (!iso) return "—";
@@ -377,13 +390,24 @@ export default function AvisosDeProductoPage({
                           <div className="text-xs text-muted-foreground">
                             {s.nombre ?? "Sin cuenta — saludo neutro"}
                           </div>
-                          {s.rebote && (
-                            <Badge variant="destructive" className="mt-1">
-                              {s.rebote === "Complaint"
-                                ? "Marcado como spam"
-                                : "Rebotó"}
-                            </Badge>
-                          )}
+                          {s.rebote &&
+                            (() => {
+                              const r = etiquetaRebote(s.rebote);
+                              return (
+                                <Badge
+                                  variant={r.definitivo ? "destructive" : "outline"}
+                                  className="mt-1"
+                                  title={
+                                    r.definitivo
+                                      ? "No se le volverá a escribir: protege la reputación del dominio"
+                                      : "Fallo temporal; se puede reintentar"
+                                  }
+                                >
+                                  {r.texto}
+                                  {r.definitivo && " · no se reenvía"}
+                                </Badge>
+                              );
+                            })()}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {fecha(s.creadoEn)}
@@ -434,6 +458,22 @@ export default function AvisosDeProductoPage({
               </div>
             )}
 
+            {resultado && resultado.omitidos > 0 && (
+              <div className="mt-4 rounded-md border bg-muted/40 p-3 text-sm">
+                <div className="mb-1 flex items-center gap-2 font-medium">
+                  <ShieldAlert className="h-4 w-4" />
+                  {resultado.omitidos} dirección
+                  {resultado.omitidos === 1 ? "" : "es"} omitida
+                  {resultado.omitidos === 1 ? "" : "s"} a propósito
+                </div>
+                <p className="text-muted-foreground">
+                  Rebotaron antes o marcaron un correo como spam. Insistirles no
+                  le llega a nadie y le cuesta reputación al dominio: AWS
+                  restringe la cuenta por encima del 5 % de rebote.
+                </p>
+              </div>
+            )}
+
             {resultado && resultado.fallidos > 0 && (
               <div className="mt-4 rounded-md border border-amber-500/50 bg-amber-50 p-3 text-sm dark:bg-amber-950/20">
                 <div className="mb-1 flex items-center gap-2 font-medium text-amber-700 dark:text-amber-400">
@@ -442,7 +482,7 @@ export default function AvisosDeProductoPage({
                 </div>
                 <ul className="ml-6 list-disc text-muted-foreground">
                   {resultado.detalle
-                    .filter((d) => !d.ok)
+                    .filter((d) => !d.ok && !d.omitido)
                     .slice(0, 5)
                     .map((d) => (
                       <li key={d.email}>
